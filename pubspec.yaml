@@ -1,0 +1,29 @@
+name: nura_app
+description: Nura — original audio discovery app, Flutter port of the user prototype.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  # Optional — drop your own font files here and the app will pick them up.
+  # fonts:
+  #   - family: InterTight
+  #     fonts:
+  #       - asset: fonts/InterTight-Regular.ttf
+  #       - asset: fonts/InterTight-SemiBold.ttf
+  #         weight: 600
+  #       - asset: fonts/InterTight-Bold.ttf
+  #         weight: 700
+  #   - family: JetBrainsMono
+  #     fonts:
+  #       - asset: fonts/JetBrainsMono-Regular.ttf
