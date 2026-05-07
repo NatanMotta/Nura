@@ -6,29 +6,45 @@ import '../../app/router/route_names.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_theme.dart';
 
+class BottomNavItem {
+  final String value;
+  final String label;
+  final IconData icon;
+
+  const BottomNavItem(this.value, this.label, this.icon);
+}
+
 class BottomNav extends StatelessWidget {
   final String active;
   final ValueChanged<String> onChange;
   final NuraVibe vibe;
   final Color accent;
   final double safeBottom;
-  const BottomNav(
-      {super.key,
-      required this.active,
-      required this.onChange,
-      required this.vibe,
-      required this.accent,
-      required this.safeBottom});
+  final List<BottomNavItem>? items;
+
+  const BottomNav({
+    super.key,
+    required this.active,
+    required this.onChange,
+    required this.vibe,
+    required this.accent,
+    required this.safeBottom,
+    this.items,
+  });
+
   @override
   Widget build(BuildContext context) {
-    const items = [
-      (RouteNames.home, 'Home', Icons.home_outlined),
-      (RouteNames.search, 'Cerca', Icons.search),
-      (RouteNames.profile, 'Profilo', Icons.person_outline),
-    ];
+    final navItems = items ??
+        const [
+          BottomNavItem(RouteNames.home, 'Home', Icons.home_outlined),
+          BottomNavItem(RouteNames.search, 'Cerca', Icons.search),
+          BottomNavItem(RouteNames.profile, 'Profilo', Icons.person_outline),
+        ];
+
     final bg = vibe == NuraVibe.techy
         ? const Color(0xEB005D6D)
         : const Color(0xC7005D6D);
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
@@ -40,37 +56,43 @@ class BottomNav extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: items.map((it) {
-              final isActive = active == it.$1;
+            children: navItems.map((item) {
+              final isActive = active == item.value;
               final color =
                   isActive ? NuraBrand.mint : NuraBrand.mintAlpha(0.55);
+
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => onChange(it.$1),
+                onTap: () => onChange(item.value),
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(it.$3, size: 22, color: color),
-                    const SizedBox(height: 4),
-                    Text(it.$2,
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(item.icon, size: 22, color: color),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
                         style: TextStyle(
                           fontSize: 10,
                           color: color,
                           letterSpacing: 0.4,
                           fontWeight:
                               isActive ? FontWeight.w600 : FontWeight.w400,
-                        )),
-                    const SizedBox(height: 2),
-                    Container(
-                      width: 22,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: isActive ? accent : Colors.transparent,
-                        borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                  ]),
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 22,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: isActive ? accent : Colors.transparent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
@@ -80,7 +102,3 @@ class BottomNav extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. SCREENS — port of app/screens.jsx
-// ─────────────────────────────────────────────────────────────────────────────
