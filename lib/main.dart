@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/nura_app.dart';
 
@@ -11,5 +12,5 @@ void main() {
       statusBarIconBrightness: Brightness.light,
     ),
   );
-  runApp(const NuraApp());
+  runApp(const ProviderScope(child: NuraApp()));
 }

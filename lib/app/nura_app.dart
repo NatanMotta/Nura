@@ -23,7 +23,6 @@ class _NuraAppState extends State<NuraApp> {
       debugShowCheckedModeBanner: false,
       theme: buildNuraTheme(),
       home: RoleGate(
-        role: MockRole.user,
         vibe: NuraVibe.of(vibeId),
         accent: accent,
         waveform: waveform,

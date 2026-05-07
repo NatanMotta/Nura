@@ -9,12 +9,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_riverpod: ^2.5.1
 
 dev_dependencies:
   flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/audio/
+    - assets/images/artists/
+    - assets/images/labels/
+    - assets/images/categories/
   # Optional — drop your own font files here and the app will pick them up.
   # fonts:
   #   - family: InterTight
