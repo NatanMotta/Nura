@@ -30,6 +30,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+ios/build/
 
 # Symbolication related
 app.*.symbols
@@ -41,3 +42,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# iOS / Xcode local artifacts
+*.ipa
+*.xcarchive
+*.xcresult
+DerivedData/
+**/Pods/
+
+# Local CLI/tool caches
+.wrangler/

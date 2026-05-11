@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
+import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/utils/color_utils.dart';
 import '../../../../../core/widgets/glass.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../shared/data/mock_nura_data.dart';
 
-class HomeProfile extends StatelessWidget {
+class HomeProfile extends StatefulWidget {
   final NuraVibe vibe;
   final Color accent;
   final double safeTop, safeBottom;
@@ -17,15 +18,28 @@ class HomeProfile extends StatelessWidget {
       required this.accent,
       required this.safeTop,
       required this.safeBottom});
+
+  @override
+  State<HomeProfile> createState() => _HomeProfileState();
+}
+
+class _HomeProfileState extends State<HomeProfile> {
+  final _audio = AudioPreviewService.instance;
+
   @override
   Widget build(BuildContext context) {
+    final currentUser = kNormalUsers.first;
+    final likedTracks = kTracks
+        .where((track) => currentUser.likedTrackIds.contains(track.id))
+        .toList();
+
     const battles = [
       (true, 'Polara · Soft Machine', 'Mira S. · Velvet Static', '64% · 36%'),
       (false, 'Iva K. · Tempera', 'Theo H. · Iron Lung', '41% · 59%'),
       (true, 'Rōnin · Sub Fathom', 'Nube P. · Madrugada', '58% · 42%'),
     ];
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(0, safeTop, 0, 100 + safeBottom),
+      padding: EdgeInsets.fromLTRB(0, widget.safeTop, 0, 100 + widget.safeBottom),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
@@ -41,11 +55,10 @@ class HomeProfile extends StatelessWidget {
                 size: 20, color: NuraBrand.mintAlpha(0.6)),
           ]),
         ),
-        // Identity card
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: Glass(
-            vibe: vibe,
+            vibe: widget.vibe,
             padding: const EdgeInsets.all(16),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -58,7 +71,7 @@ class HomeProfile extends StatelessWidget {
                       gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [accent, NuraBrand.deep])),
+                          colors: [widget.accent, NuraBrand.deep])),
                   alignment: Alignment.center,
                   child: const Text('EM',
                       style: TextStyle(
@@ -72,13 +85,13 @@ class HomeProfile extends StatelessWidget {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('Elena Marchetti',
-                          style: TextStyle(
+                      Text(currentUser.fullName,
+                          style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                               color: NuraBrand.mint)),
                       const SizedBox(height: 2),
-                      Text('@elenam · iscritta dal 2026',
+                      Text('@${currentUser.username} · iscritta dal 2026',
                           style: TextStyle(
                               fontSize: 12, color: NuraBrand.mintAlpha(0.6))),
                       const SizedBox(height: 8),
@@ -88,9 +101,9 @@ class HomeProfile extends StatelessWidget {
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(999),
                             color: NuraBrand.mintAlpha(0.10),
-                            border: Border.all(color: vibe.cardBorder)),
+                            border: Border.all(color: widget.vibe.cardBorder)),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.bolt, size: 12, color: accent),
+                          Icon(Icons.bolt, size: 12, color: widget.accent),
                           const SizedBox(width: 6),
                           const Mono('SCOUT · LIV. 04',
                               color: NuraBrand.mint, size: 9.5),
@@ -115,12 +128,12 @@ class HomeProfile extends StatelessWidget {
                           child: Container(
                               decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                      colors: [accent, NuraBrand.mint])))))),
+                                      colors: [widget.accent, NuraBrand.mint])))))),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.only(top: 14),
                 decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: vibe.cardBorder))),
+                    border: Border(top: BorderSide(color: widget.vibe.cardBorder))),
                 child: Row(children: [
                   for (final s in const [
                     ('BRANI · LIKE', '128'),
@@ -144,7 +157,6 @@ class HomeProfile extends StatelessWidget {
             ]),
           ),
         ),
-        // Saved tracks
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
           child:
@@ -158,10 +170,10 @@ class HomeProfile extends StatelessWidget {
                       Mono('vedi tutti →', color: NuraBrand.mintAlpha(0.45)),
                     ])),
             Glass(
-              vibe: vibe,
+              vibe: widget.vibe,
               padding: const EdgeInsets.all(4),
               child: Column(children: [
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < likedTracks.length; i++)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 10),
@@ -169,7 +181,7 @@ class HomeProfile extends StatelessWidget {
                         border: Border(
                             top: i == 0
                                 ? BorderSide.none
-                                : BorderSide(color: vibe.cardBorder))),
+                                : BorderSide(color: widget.vibe.cardBorder))),
                     child: Row(children: [
                       Container(
                           width: 36,
@@ -181,7 +193,7 @@ class HomeProfile extends StatelessWidget {
                                 end: Alignment.bottomRight,
                                 colors: [
                                   hueColor(
-                                      0.55, 0.10, kTracks[i].hue.toDouble()),
+                                      0.55, 0.10, likedTracks[i].hue.toDouble()),
                                   hueColor(0.38, 0.07, 195)
                                 ]),
                           )),
@@ -190,26 +202,41 @@ class HomeProfile extends StatelessWidget {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text(kTracks[i].track,
+                            Text(likedTracks[i].track,
                                 style: const TextStyle(
                                     color: NuraBrand.mint,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13)),
-                            Text('${kTracks[i].artist} · ${kTracks[i].genre}',
+                            Text('${likedTracks[i].artist} · ${likedTracks[i].genre}',
                                 style: TextStyle(
                                     color: NuraBrand.mintAlpha(0.55),
                                     fontSize: 11)),
                           ])),
-                      Mono(kTracks[i].dur, color: NuraBrand.mintAlpha(0.45)),
+                      Mono(likedTracks[i].dur, color: NuraBrand.mintAlpha(0.45)),
                       const SizedBox(width: 8),
-                      Icon(Icons.play_arrow, size: 16, color: accent),
+                      ValueListenableBuilder<String?>(
+                        valueListenable: _audio.playingTrackId,
+                        builder: (context, playingId, _) {
+                          final isPlaying = playingId == likedTracks[i].id;
+                          return GestureDetector(
+                            onTap: () => _audio.togglePreview(
+                              trackId: likedTracks[i].id,
+                              assetPath: likedTracks[i].audioAsset,
+                            ),
+                            child: Icon(
+                              isPlaying ? Icons.pause : Icons.play_arrow,
+                              size: 16,
+                              color: widget.accent,
+                            ),
+                          );
+                        },
+                      ),
                     ]),
                   ),
               ]),
             ),
           ]),
         ),
-        // Battle history
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
           child:
@@ -218,7 +245,7 @@ class HomeProfile extends StatelessWidget {
                 padding: EdgeInsets.only(bottom: 10),
                 child: Mono('⚔ storico battle', color: NuraBrand.mint)),
             Glass(
-              vibe: vibe,
+              vibe: widget.vibe,
               padding: const EdgeInsets.all(14),
               child: Column(children: [
                 for (int i = 0; i < battles.length; i++)
@@ -228,7 +255,7 @@ class HomeProfile extends StatelessWidget {
                         border: Border(
                             top: i == 0
                                 ? BorderSide.none
-                                : BorderSide(color: vibe.cardBorder))),
+                                : BorderSide(color: widget.vibe.cardBorder))),
                     child: IntrinsicHeight(
                         child: Row(children: [
                       Container(
@@ -236,7 +263,7 @@ class HomeProfile extends StatelessWidget {
                           decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(3),
                               color: battles[i].$1
-                                  ? accent
+                                  ? widget.accent
                                   : NuraBrand.mintAlpha(0.25))),
                       const SizedBox(width: 10),
                       Expanded(
@@ -262,7 +289,7 @@ class HomeProfile extends StatelessWidget {
                           children: [
                             Mono(battles[i].$1 ? 'VINTA' : 'PERSA',
                                 color: battles[i].$1
-                                    ? accent
+                                    ? widget.accent
                                     : NuraBrand.mintAlpha(0.45),
                                 size: 10),
                             const SizedBox(height: 2),
