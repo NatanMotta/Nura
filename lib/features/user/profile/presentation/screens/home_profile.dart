@@ -7,6 +7,7 @@ import '../../../../../core/utils/color_utils.dart';
 import '../../../../../core/widgets/glass.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../shared/data/mock_nura_data.dart';
+import 'profile_settings_screen.dart';
 
 class HomeProfile extends StatefulWidget {
   final NuraVibe vibe;
@@ -25,6 +26,29 @@ class HomeProfile extends StatefulWidget {
 
 class _HomeProfileState extends State<HomeProfile> {
   final _audio = AudioPreviewService.instance;
+  String? _lastAudioErrorShown;
+
+  @override
+  void initState() {
+    super.initState();
+    _audio.lastError.addListener(_onAudioError);
+  }
+
+  void _onAudioError() {
+    final error = _audio.lastError.value;
+    if (!mounted || error == null || error.isEmpty) return;
+    if (_lastAudioErrorShown == error) return;
+    _lastAudioErrorShown = error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _audio.lastError.removeListener(_onAudioError);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +75,17 @@ class _HomeProfileState extends State<HomeProfile> {
                     fontWeight: FontWeight.w700,
                     color: NuraBrand.mint,
                     letterSpacing: -0.5)),
-            Icon(Icons.settings_outlined,
-                size: 20, color: NuraBrand.mintAlpha(0.6)),
+            IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ProfileSettingsScreen(),
+                  ),
+                );
+              },
+              icon: Icon(Icons.settings_outlined,
+                  size: 20, color: NuraBrand.mintAlpha(0.6)),
+            ),
           ]),
         ),
         Padding(

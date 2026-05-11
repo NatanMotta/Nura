@@ -10,39 +10,65 @@ class Waveform extends StatefulWidget {
   final double height;
   final int count;
   final int seed;
+  final bool animate;
   const Waveform(
       {super.key,
       this.style = 'bars',
       this.color = NuraBrand.mint,
       this.height = 28,
       this.count = 32,
-      this.seed = 0});
+      this.seed = 0,
+      this.animate = true});
   @override
   State<Waveform> createState() => _WaveformState();
 }
 
 class _WaveformState extends State<Waveform>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
+    with TickerProviderStateMixin {
+  AnimationController? _c;
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 60))
-      ..repeat();
+    if (widget.animate) {
+      _c = AnimationController(vsync: this, duration: const Duration(seconds: 60))
+        ..repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant Waveform oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animate == widget.animate) return;
+    if (widget.animate) {
+      _c ??= AnimationController(vsync: this, duration: const Duration(seconds: 60))
+        ..repeat();
+    } else {
+      _c?.dispose();
+      _c = null;
+    }
   }
 
   @override
   void dispose() {
-    _c.dispose();
+    _c?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.animate) {
+      return CustomPaint(
+        size: Size.fromHeight(widget.height),
+        painter: _WavePainter(
+            widget.style, widget.color, widget.count, widget.seed, 0),
+        child: SizedBox(height: widget.height, width: double.infinity),
+      );
+    }
+
     return AnimatedBuilder(
-      animation: _c,
+      animation: _c!,
       builder: (_, __) {
-        final t = _c.lastElapsedDuration?.inMilliseconds ?? 0;
+        final t = _c!.lastElapsedDuration?.inMilliseconds ?? 0;
         final time = t / 1000.0;
         return CustomPaint(
           size: Size.fromHeight(widget.height),
@@ -118,5 +144,10 @@ class _WavePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_WavePainter o) => true;
+  bool shouldRepaint(_WavePainter o) =>
+      o.style != style ||
+      o.color != color ||
+      o.count != count ||
+      o.seed != seed ||
+      (t - o.t).abs() > 0.016;
 }

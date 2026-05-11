@@ -41,11 +41,11 @@ Legenda:
 - 🟡 Task 3.6 Collegamento app ai dati reali (swipe su tracks reali + fallback mock; playback cloud da completare)
 
 ### EPIC 4 — Login Mock
-- 🔴 Task 3.1 Schermata scelta ruolo + redirect shell
+- ✅ Task 4.1 Schermata scelta ruolo + redirect shell
 
 ### EPIC 5 — Audio Engine
 - 🟡 Task 4.1 Setup libreria audio (just_audio integrata)
-- 🟡 Task 4.2 Audio service globale (base preview pronta, da estendere per lifecycle/background)
+- 🟡 Task 4.2 Audio service globale (lifecycle background/foreground implementato; restano hardening errori e preload)
 
 ### EPIC 6 — Home Swipe Discovery
 - 🟡 Task 5.1 UI card base presente, feedback swipe da rifinire
@@ -343,6 +343,61 @@ Legenda:
 - Risolto warning App Store "Launch image is set to the default placeholder icon".
 - Sostituiti i file placeholder `LaunchImage` (1x/2x/3x) in `ios/Runner/Assets.xcassets/LaunchImage.imageset/` con il logo reale.
 - Le immagini launch erano 1x1 px placeholder; ora sono reali (200/400/600 px).
+- Verifica statica: `flutter analyze` senza errori.
+
+(appendere qui le sessioni successive)
+
+### Sessione 2026-05-11 (N)
+- Implementato EPIC 4 Login Mock con schermata dedicata:
+  - nuovo file `lib/features/shared/presentation/screens/mock_role_login_screen.dart`
+  - 3 ingressi rapidi: Artista / Utente / Etichetta.
+- Aggiornato provider ruolo mock:
+  - `userRoleProvider` ora nullable (`UserRole?`) con stato iniziale `null`
+  - aggiunto metodo `clear()`.
+- Aggiornato `RoleGate`:
+  - priorità ruolo: `authUser.role` (reale) -> `mockRole` (mock)
+  - se nessun ruolo disponibile mostra `Login Mock`.
+- In `Login Mock`, se Supabase è pronto, aggiunto accesso al login reale email/password.
+- Verifica statica: `flutter analyze` senza errori.
+
+(appendere qui le sessioni successive)
+
+### Sessione 2026-05-11 (O)
+- Ottimizzazione swipe performance su device reale (riduzione jank durante drag/avvio).
+- Aggiornato `home_feed.dart`:
+  - rimosso `BackdropFilter` dai bottoni azione circolari (`_RoundBtn`)
+  - rimosso blur dal pannello info in basso della card swipe
+  - ridotto costo `Waveform` (`count` da 36 a 24)
+  - waveform animata solo quando la top card è ferma (`drag == Offset.zero`) e non in exit animation
+  - aggiunto throttle su `onPanUpdate` (~60fps) per ridurre `setState` eccessivi durante swipe
+  - cover image con `filterQuality: FilterQuality.low`.
+- Risultato atteso: meno lag percepito, swipe più fluido e meno “scatti” su hardware reale.
+- Verifica statica: `flutter analyze` senza errori.
+
+(appendere qui le sessioni successive)
+
+### Sessione 2026-05-11 (P)
+- EPIC 4 aggiornato a completato (Login Mock).
+- Stabilizzazione lifecycle audio implementata in `AudioPreviewService`:
+  - aggiunto `WidgetsBindingObserver` globale sul service singleton
+  - in `inactive/hidden/paused`: pausa automatica se il player era in play
+  - in `resumed`: resume automatico solo se prima del background era in play
+  - mantenuto stato `_wasPlayingBeforeBackground` per evitare resume indesiderati.
+- Verifica statica: `flutter analyze` senza errori.
+
+(appendere qui le sessioni successive)
+
+### Sessione 2026-05-11 (Q)
+- EPIC 5 hardening errori audio completato (timeout + fallback UI).
+- `AudioPreviewService` aggiornato con:
+  - `lastError` (`ValueNotifier<String?>`) per error reporting centralizzato
+  - timeout operazioni audio (`setAsset/play/pause/seek/stop`) con soglia 4s
+  - wrapper `_runGuarded` con catch uniforme (`MissingPluginException`, `TimeoutException`, errori runtime)
+  - messaggi fallback utente quando preview/player non disponibili.
+- Fallback UI aggiunto (SnackBar errori audio) in:
+  - `home_feed.dart`
+  - `artist_public_profile_screen.dart`
+  - `home_profile.dart`
 - Verifica statica: `flutter analyze` senza errori.
 
 (appendere qui le sessioni successive)

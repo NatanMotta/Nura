@@ -1,14 +1,13 @@
+import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/models/track.dart';
 import '../../../../../core/services/audio_preview_service.dart';
-import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/nura_mark.dart';
 import '../../../../../core/widgets/striped_panel.dart';
@@ -35,34 +34,64 @@ class HomeFeed extends StatefulWidget {
 
 class _HomeFeedState extends State<HomeFeed> {
   late List<Track> deck;
+  late List<Track> _sourceDeck;
   final _audio = AudioPreviewService.instance;
   final _remoteTracks = const RemoteTracksService();
   String? impulse;
   int likes = 12, skips = 38;
+  bool _deckReady = false;
+  String? _lastAudioErrorShown;
 
   @override
   void initState() {
     super.initState();
-    deck = List.of(kTracks);
+    _audio.lastError.addListener(_onAudioError);
+    _sourceDeck = List.of(kTracks);
+    deck = const [];
     _loadDeckFromCloud();
+  }
+
+  void _onAudioError() {
+    final error = _audio.lastError.value;
+    if (!mounted || error == null || error.isEmpty) return;
+    if (_lastAudioErrorShown == error) return;
+    _lastAudioErrorShown = error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
+  }
+
+  Future<void> _loadDeckFromCloud() async {
+    List<Track> selected = List.of(kTracks);
+    try {
+      final remote = await _remoteTracks.fetchTracks();
+      if (remote.isNotEmpty) {
+        selected = List.of(remote);
+      }
+    } catch (_) {
+      // keep selected = mock deck
+    }
+
+    if (!mounted) return;
+
+    // Warm-up first covers to avoid first-frame visual jump on real devices.
+    for (final t in selected.take(3)) {
+      final cover = t.coverAsset;
+      if (cover != null && cover.startsWith('assets/')) {
+        unawaited(precacheImage(AssetImage(cover), context));
+      }
+    }
+
+    setState(() {
+      _sourceDeck = selected;
+      deck = List.of(selected);
+      _deckReady = true;
+    });
+
+    // Start audio only after deck is mounted.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playTopTrackPreview();
     });
-  }
-
-
-
-  Future<void> _loadDeckFromCloud() async {
-    try {
-      final remote = await _remoteTracks.fetchTracks();
-      if (!mounted || remote.isEmpty) return;
-      setState(() {
-        deck = List.of(remote);
-      });
-      await _playTopTrackPreview();
-    } catch (_) {
-      // fallback mock deck stays active
-    }
   }
 
   void _decide(String action) {
@@ -73,26 +102,14 @@ class _HomeFeedState extends State<HomeFeed> {
         skips++;
       }
       deck.removeAt(0);
-      if (deck.isEmpty) deck = List.of(kTracks);
+      if (deck.isEmpty) deck = List.of(_sourceDeck);
       impulse = null;
     });
     _playTopTrackPreview();
   }
 
   Future<void> _openArtistProfile(Track track) async {
-    var artistId = track.artistId;
-
-    if ((artistId == null || artistId.isEmpty) && SupabaseBootstrap.isInitialized) {
-      try {
-        final row = await Supabase.instance.client
-            .from('profiles')
-            .select('id')
-            .eq('display_name', track.artist)
-            .eq('role', 'artist')
-            .maybeSingle();
-        artistId = row?['id'] as String?;
-      } catch (_) {}
-    }
+    final artistId = track.artistId;
 
     if (!mounted) return;
     if (artistId == null || artistId.isEmpty) {
@@ -105,7 +122,7 @@ class _HomeFeedState extends State<HomeFeed> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ArtistPublicProfileScreen(
-          artistId: artistId!,
+          artistId: artistId,
           artistName: track.artist,
         ),
       ),
@@ -130,6 +147,7 @@ class _HomeFeedState extends State<HomeFeed> {
 
   @override
   void dispose() {
+    _audio.lastError.removeListener(_onAudioError);
     _audio.stop();
     super.dispose();
   }
@@ -137,12 +155,10 @@ class _HomeFeedState extends State<HomeFeed> {
   @override
   Widget build(BuildContext context) {
     final nav = 86 + widget.safeBottom; // bottom nav height incl. safe area
-    return AnimatedBuilder(
-      animation: Listenable.merge(
-          [_audio.playingTrackId, _audio.position, _audio.duration]),
-      builder: (context, _) {
-        final playingId = _audio.playingTrackId.value;
-        return Stack(children: [
+    if (!_deckReady || deck.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Stack(children: [
         // Header
         Padding(
           padding: EdgeInsets.fromLTRB(18, widget.safeTop, 18, 8),
@@ -177,10 +193,11 @@ class _HomeFeedState extends State<HomeFeed> {
                 waveStyle: widget.waveform,
                 depth: i,
                 isTop: i == 0,
-                isPlaying: i == 0 && playingId == deck[i].id,
-                timeLabel: i == 0 && playingId == deck[i].id
-                    ? '${_formatMmSs(_audio.position.value)} / ${_formatMmSs(_audio.duration.value ?? Duration.zero)}'
-                    : deck[i].dur,
+                timeLabel: deck[i].dur,
+                playingTrackId: _audio.playingTrackId,
+                position: _audio.position,
+                duration: _audio.duration,
+                formatMmSs: _formatMmSs,
                 onTogglePreview: i == 0
                     ? () => _audio.togglePreview(
                         trackId: deck[i].id,
@@ -236,8 +253,6 @@ class _HomeFeedState extends State<HomeFeed> {
           ]),
         ),
       ]);
-      },
-    );
   }
 }
 
@@ -254,20 +269,17 @@ class _RoundBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: ClipOval(
-            child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            width: size,
-            height: size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: NuraBrand.deepMidAlpha(0.7),
-                border: Border.all(color: border)),
-            child: child,
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: NuraBrand.deepMidAlpha(0.7),
+            border: Border.all(color: border),
           ),
-        )),
+          child: child,
+        ),
       );
 }
 
@@ -278,8 +290,11 @@ class SwipeCard extends StatefulWidget {
   final String waveStyle;
   final int depth;
   final bool isTop;
-  final bool isPlaying;
   final String timeLabel;
+  final ValueListenable<String?> playingTrackId;
+  final ValueListenable<Duration> position;
+  final ValueListenable<Duration?> duration;
+  final String Function(Duration) formatMmSs;
   final VoidCallback? onTogglePreview;
   final VoidCallback? onOpenArtist;
   final String? manualImpulse;
@@ -292,8 +307,11 @@ class SwipeCard extends StatefulWidget {
       required this.waveStyle,
       required this.depth,
       required this.isTop,
-      required this.isPlaying,
       required this.timeLabel,
+      required this.playingTrackId,
+      required this.position,
+      required this.duration,
+      required this.formatMmSs,
       required this.onTogglePreview,
       required this.onOpenArtist,
       required this.manualImpulse,
@@ -306,6 +324,7 @@ class _SwipeCardState extends State<SwipeCard>
     with SingleTickerProviderStateMixin {
   Offset drag = Offset.zero;
   String? exit;
+  int _lastPanTickUs = 0;
 
   @override
   void didUpdateWidget(SwipeCard oldWidget) {
@@ -320,6 +339,9 @@ class _SwipeCardState extends State<SwipeCard>
 
   void _onPanUpdate(DragUpdateDetails d) {
     if (!widget.isTop || exit != null) return;
+    final nowUs = DateTime.now().microsecondsSinceEpoch;
+    if (nowUs - _lastPanTickUs < 16000) return;
+    _lastPanTickUs = nowUs;
     setState(() => drag += d.delta);
   }
 
@@ -381,7 +403,12 @@ class _SwipeCardState extends State<SwipeCard>
                       ? Stack(
                           fit: StackFit.expand,
                           children: [
-                            Image.asset(widget.track.coverAsset!, fit: BoxFit.cover),
+                            // Lower filter quality keeps swipe smooth on real devices.
+                            Image.asset(
+                              widget.track.coverAsset!,
+                              fit: BoxFit.cover,
+                              filterQuality: FilterQuality.low,
+                            ),
                             Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
@@ -438,17 +465,15 @@ class _SwipeCardState extends State<SwipeCard>
                   right: 12,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(widget.vibe.radius - 4),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: NuraBrand.deepMidAlpha(0.55),
-                          border: Border.all(color: widget.vibe.cardBorder),
-                          borderRadius:
-                              BorderRadius.circular(widget.vibe.radius - 4),
-                        ),
-                        child: Column(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: NuraBrand.deepMidAlpha(0.62),
+                        border: Border.all(color: widget.vibe.cardBorder),
+                        borderRadius:
+                            BorderRadius.circular(widget.vibe.radius - 4),
+                      ),
+                      child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -481,38 +506,66 @@ class _SwipeCardState extends State<SwipeCard>
                                     ])),
                                 GestureDetector(
                                   onTap: widget.onTogglePreview,
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: NuraBrand.mint,
-                                    ),
-                                    child: Icon(
-                                      widget.isPlaying
-                                          ? Icons.pause
-                                          : Icons.play_arrow,
-                                      color: NuraBrand.deep,
-                                      size: 18,
-                                    ),
+                                  child: ValueListenableBuilder<String?>(
+                                    valueListenable: widget.playingTrackId,
+                                    builder: (context, playingId, _) {
+                                      final isPlaying = widget.isTop && playingId == widget.track.id;
+                                      return Container(
+                                        width: 38,
+                                        height: 38,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: NuraBrand.mint,
+                                        ),
+                                        child: Icon(
+                                          isPlaying ? Icons.pause : Icons.play_arrow,
+                                          color: NuraBrand.deep,
+                                          size: 18,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ]),
                               const SizedBox(height: 8),
                               Row(children: [
                                 Expanded(
-                                    child: Waveform(
+                                    child: RepaintBoundary(
+                                      child: Waveform(
                                         style: widget.waveStyle,
                                         color: NuraBrand.mint,
                                         height: 22,
-                                        count: 36,
-                                        seed: widget.track.id.codeUnitAt(1))),
+                                        count: 24,
+                                        seed: widget.track.id.codeUnitAt(1),
+                                        animate:
+                                            widget.isTop && drag == Offset.zero && exit == null,
+                                      ),
+                                    )),
                                 const SizedBox(width: 10),
-                                Mono(widget.timeLabel,
-                                    color: NuraBrand.mintAlpha(0.55)),
+                                if (!widget.isTop)
+                                  Mono(widget.timeLabel,
+                                      color: NuraBrand.mintAlpha(0.55))
+                                else
+                                  AnimatedBuilder(
+                                    animation: Listenable.merge([
+                                      widget.playingTrackId,
+                                      widget.position,
+                                      widget.duration,
+                                    ]),
+                                    builder: (context, _) {
+                                      final playingId = widget.playingTrackId.value;
+                                      if (playingId != widget.track.id) {
+                                        return Mono(widget.timeLabel,
+                                            color: NuraBrand.mintAlpha(0.55));
+                                      }
+                                      return Mono(
+                                        '${widget.formatMmSs(widget.position.value)} / ${widget.formatMmSs(widget.duration.value ?? Duration.zero)}',
+                                        color: NuraBrand.mintAlpha(0.55),
+                                      );
+                                    },
+                                  ),
                               ]),
                             ]),
-                      ),
                     ),
                   ),
                 ),

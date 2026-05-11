@@ -24,6 +24,7 @@ class ArtistPublicProfileScreen extends StatefulWidget {
 
 class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
   final _audio = AudioPreviewService.instance;
+  String? _lastAudioErrorShown;
 
   bool _loading = true;
   bool _following = false;
@@ -38,7 +39,24 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _audio.lastError.addListener(_onAudioError);
     _load();
+  }
+
+  void _onAudioError() {
+    final error = _audio.lastError.value;
+    if (!mounted || error == null || error.isEmpty) return;
+    if (_lastAudioErrorShown == error) return;
+    _lastAudioErrorShown = error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _audio.lastError.removeListener(_onAudioError);
+    super.dispose();
   }
 
   Future<void> _load() async {
