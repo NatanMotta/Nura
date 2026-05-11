@@ -86,3 +86,48 @@ Dopo ogni spostamento di file, aggiorna tutti gli import necessari.
 ## Regola finale
 
 Se non sei sicuro se una modifica sia sicura, fermati e segnala il dubbio invece di procedere.
+
+## Regole log e roadmap (obbligatorie)
+
+Documenti ufficiali:
+
+- `ROADMAP.md` = stato operativo e task.
+- `SESSION_LOG.md` = diario cronologico completo.
+
+Regole:
+
+1. A fine sessione, aggiornare sempre `SESSION_LOG.md`.
+2. Ogni entry deve avere il nome autore prima del timestamp.
+3. Formato titolo entry:
+
+`### <Nome> — Sessione YYYY-MM-DD (<LetteraProgressiva>)`
+
+Esempio:
+
+`### Natan — Sessione 2026-05-11 (S)`
+
+4. Dentro ogni entry inserire solo:
+- modifiche fatte
+- file toccati (se rilevante)
+- stato verifiche (`flutter analyze`, build, test)
+- eventuali blocchi o TODO.
+5. Non usare `SESSION_RECAP.md` (deprecato/rimosso).
+6. Se viene aggiornata la pianificazione, aggiornare `ROADMAP.md` nella stessa sessione.
+
+Template da copiare:
+
+```md
+### <Nome> — Sessione YYYY-MM-DD (<LetteraProgressiva>)
+- Obiettivo sessione: ...
+- Modifiche principali:
+  - ...
+  - ...
+- File coinvolti:
+  - `path/file_1`
+  - `path/file_2`
+- Verifiche:
+  - `flutter analyze`: OK/KO
+  - build/test: ...
+- Note/TODO:
+  - ...
+```
