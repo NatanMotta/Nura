@@ -1,345 +1,308 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
-import '../../../../../core/services/audio_preview_service.dart';
-import '../../../../../core/utils/color_utils.dart';
+import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/glass.dart';
 import '../../../../../core/widgets/mono.dart';
-import '../../../../shared/data/mock_nura_data.dart';
+import '../../../../auth/domain/auth_user.dart';
+import '../../../../auth/presentation/auth_providers.dart';
+import '../../../../shared/domain/user_role.dart';
 import 'profile_settings_screen.dart';
 
-class HomeProfile extends StatefulWidget {
+class HomeProfile extends ConsumerStatefulWidget {
   final NuraVibe vibe;
   final Color accent;
   final double safeTop, safeBottom;
-  const HomeProfile(
-      {super.key,
-      required this.vibe,
-      required this.accent,
-      required this.safeTop,
-      required this.safeBottom});
+
+  const HomeProfile({
+    super.key,
+    required this.vibe,
+    required this.accent,
+    required this.safeTop,
+    required this.safeBottom,
+  });
 
   @override
-  State<HomeProfile> createState() => _HomeProfileState();
+  ConsumerState<HomeProfile> createState() => _HomeProfileState();
 }
 
-class _HomeProfileState extends State<HomeProfile> {
-  final _audio = AudioPreviewService.instance;
-  String? _lastAudioErrorShown;
+class _HomeProfileState extends ConsumerState<HomeProfile> {
+  bool _loading = true;
+  AppAuthUser? _authUser;
+  String? _displayName;
+  String? _username;
 
   @override
   void initState() {
     super.initState();
-    _audio.lastError.addListener(_onAudioError);
+    _loadProfile();
   }
 
-  void _onAudioError() {
-    final error = _audio.lastError.value;
-    if (!mounted || error == null || error.isEmpty) return;
-    if (_lastAudioErrorShown == error) return;
-    _lastAudioErrorShown = error;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error)),
-    );
+  Future<void> _loadProfile() async {
+    try {
+      final authUser = await ref.read(authRepositoryProvider).getCurrentUser();
+      String? displayName;
+      String? username;
+
+      if (authUser != null && SupabaseBootstrap.isInitialized) {
+        final row = await Supabase.instance.client
+            .from('profiles')
+            .select('display_name,username')
+            .eq('id', authUser.id)
+            .maybeSingle();
+        displayName = row?['display_name'] as String?;
+        username = row?['username'] as String?;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _authUser = authUser;
+        _displayName = displayName;
+        _username = username;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
   }
 
-  @override
-  void dispose() {
-    _audio.lastError.removeListener(_onAudioError);
-    super.dispose();
+  String _roleLabel(UserRole? role) {
+    return switch (role) {
+      UserRole.artist => 'Artist',
+      UserRole.label => 'Label',
+      UserRole.user => 'User',
+      null => 'Guest',
+    };
+  }
+
+  String get _name {
+    if (_displayName != null && _displayName!.trim().isNotEmpty) {
+      return _displayName!.trim();
+    }
+    final email = _authUser?.email;
+    if (email != null && email.contains('@')) {
+      return email.split('@').first;
+    }
+    return 'Utente';
+  }
+
+  String get _handle {
+    if (_username != null && _username!.trim().isNotEmpty) {
+      return '@${_username!.trim()}';
+    }
+    final email = _authUser?.email;
+    if (email != null && email.contains('@')) {
+      return '@${email.split('@').first}';
+    }
+    return '@guest';
+  }
+
+  String get _initials {
+    final source = _name.trim();
+    if (source.isEmpty) return 'U';
+    final parts = source.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = kNormalUsers.first;
-    final likedTracks = kTracks
-        .where((track) => currentUser.likedTrackIds.contains(track.id))
-        .toList();
-
-    const battles = [
-      (true, 'Polara · Soft Machine', 'Mira S. · Velvet Static', '64% · 36%'),
-      (false, 'Iva K. · Tempera', 'Theo H. · Iron Lung', '41% · 59%'),
-      (true, 'Rōnin · Sub Fathom', 'Nube P. · Madrugada', '58% · 42%'),
-    ];
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(0, widget.safeTop, 0, 100 + widget.safeBottom),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-          child:
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Profilo',
+      padding: EdgeInsets.fromLTRB(16, widget.safeTop, 16, 100 + widget.safeBottom),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Profilo',
                 style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: NuraBrand.mint,
-                    letterSpacing: -0.5)),
-            IconButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const ProfileSettingsScreen(),
-                  ),
-                );
-              },
-              icon: Icon(Icons.settings_outlined,
-                  size: 20, color: NuraBrand.mintAlpha(0.6)),
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-          child: Glass(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: NuraBrand.mint,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileSettingsScreen(),
+                    ),
+                  );
+                },
+                icon: Icon(
+                  Icons.settings_outlined,
+                  size: 20,
+                  color: NuraBrand.mintAlpha(0.6),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Glass(
             vibe: widget.vibe,
             padding: const EdgeInsets.all(16),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [widget.accent, NuraBrand.deep])),
-                  alignment: Alignment.center,
-                  child: const Text('EM',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(currentUser.fullName,
-                          style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: NuraBrand.mint)),
-                      const SizedBox(height: 2),
-                      Text('@${currentUser.username} · iscritta dal 2026',
-                          style: TextStyle(
-                              fontSize: 12, color: NuraBrand.mintAlpha(0.6))),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            color: NuraBrand.mintAlpha(0.10),
-                            border: Border.all(color: widget.vibe.cardBorder)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.bolt, size: 12, color: widget.accent),
-                          const SizedBox(width: 6),
-                          const Mono('SCOUT · LIV. 04',
-                              color: NuraBrand.mint, size: 9.5),
-                        ]),
-                      ),
-                    ])),
-              ]),
-              const SizedBox(height: 14),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Mono('xp verso liv. 05', color: NuraBrand.mintAlpha(0.55)),
-                const Mono('740 / 1000', color: NuraBrand.mint),
-              ]),
-              const SizedBox(height: 6),
-              ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: Container(
-                      height: 6,
-                      color: NuraBrand.mintAlpha(0.12),
-                      child: FractionallySizedBox(
-                          widthFactor: 0.74,
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                              decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                      colors: [widget.accent, NuraBrand.mint])))))),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.only(top: 14),
-                decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: widget.vibe.cardBorder))),
-                child: Row(children: [
-                  for (final s in const [
-                    ('BRANI · LIKE', '128'),
-                    ('BATTLE', '37'),
-                    ('SCOUTING', '12')
-                  ])
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text(s.$2,
-                              style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: NuraBrand.mint,
-                                  letterSpacing: -0.5)),
-                          Mono(s.$1, color: NuraBrand.mintAlpha(0.5)),
-                        ])),
-                ]),
-              ),
-            ]),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: _loading
+                ? const SizedBox(
+                    height: 120,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Mono('♥ brani salvati', color: NuraBrand.mint),
-                      Mono('vedi tutti →', color: NuraBrand.mintAlpha(0.45)),
-                    ])),
-            Glass(
-              vibe: widget.vibe,
-              padding: const EdgeInsets.all(4),
-              child: Column(children: [
-                for (int i = 0; i < likedTracks.length; i++)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                        border: Border(
-                            top: i == 0
-                                ? BorderSide.none
-                                : BorderSide(color: widget.vibe.cardBorder))),
-                    child: Row(children: [
-                      Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            gradient: LinearGradient(
+                      Row(
+                        children: [
+                          Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [
-                                  hueColor(
-                                      0.55, 0.10, likedTracks[i].hue.toDouble()),
-                                  hueColor(0.38, 0.07, 195)
-                                ]),
-                          )),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: Column(
+                                colors: [widget.accent, NuraBrand.deep],
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text(likedTracks[i].track,
-                                style: const TextStyle(
-                                    color: NuraBrand.mint,
+                                Text(
+                                  _name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
-                            Text('${likedTracks[i].artist} · ${likedTracks[i].genre}',
-                                style: TextStyle(
-                                    color: NuraBrand.mintAlpha(0.55),
-                                    fontSize: 11)),
-                          ])),
-                      Mono(likedTracks[i].dur, color: NuraBrand.mintAlpha(0.45)),
-                      const SizedBox(width: 8),
-                      ValueListenableBuilder<String?>(
-                        valueListenable: _audio.playingTrackId,
-                        builder: (context, playingId, _) {
-                          final isPlaying = playingId == likedTracks[i].id;
-                          return GestureDetector(
-                            onTap: () => _audio.togglePreview(
-                              trackId: likedTracks[i].id,
-                              assetPath: likedTracks[i].audioAsset,
-                            ),
-                            child: Icon(
-                              isPlaying ? Icons.pause : Icons.play_arrow,
-                              size: 16,
-                              color: widget.accent,
-                            ),
-                          );
-                        },
-                      ),
-                    ]),
-                  ),
-              ]),
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: Mono('⚔ storico battle', color: NuraBrand.mint)),
-            Glass(
-              vibe: widget.vibe,
-              padding: const EdgeInsets.all(14),
-              child: Column(children: [
-                for (int i = 0; i < battles.length; i++)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                        border: Border(
-                            top: i == 0
-                                ? BorderSide.none
-                                : BorderSide(color: widget.vibe.cardBorder))),
-                    child: IntrinsicHeight(
-                        child: Row(children: [
-                      Container(
-                          width: 6,
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(3),
-                              color: battles[i].$1
-                                  ? widget.accent
-                                  : NuraBrand.mintAlpha(0.25))),
-                      const SizedBox(width: 10),
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(battles[i].$2,
-                                style: const TextStyle(
-                                    fontSize: 12,
                                     color: NuraBrand.mint,
-                                    fontWeight: FontWeight.w500)),
-                            Text('vs',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: NuraBrand.mintAlpha(0.5))),
-                            Text(battles[i].$3,
-                                style: TextStyle(
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _handle,
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: NuraBrand.mintAlpha(0.7))),
-                          ])),
-                      Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Mono(battles[i].$1 ? 'VINTA' : 'PERSA',
-                                color: battles[i].$1
-                                    ? widget.accent
-                                    : NuraBrand.mintAlpha(0.45),
-                                size: 10),
-                            const SizedBox(height: 2),
-                            Text(battles[i].$4,
-                                style: TextStyle(
-                                    fontFamily: 'JetBrainsMono',
-                                    fontFamilyFallback: const ['monospace'],
-                                    fontSize: 11,
-                                    color: NuraBrand.mintAlpha(0.6))),
-                          ]),
-                    ])),
+                                    color: NuraBrand.mintAlpha(0.6),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(999),
+                                    color: NuraBrand.mintAlpha(0.10),
+                                    border: Border.all(color: widget.vibe.cardBorder),
+                                  ),
+                                  child: Mono(
+                                    _roleLabel(_authUser?.role),
+                                    color: NuraBrand.mint,
+                                    size: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        _authUser?.email ?? 'Nessun account collegato',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: NuraBrand.mintAlpha(0.65),
+                        ),
+                      ),
+                    ],
                   ),
-              ]),
+          ),
+          const SizedBox(height: 12),
+          Glass(
+            vibe: widget.vibe,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              children: [
+                _ProfileTile(
+                  icon: Icons.person_outline,
+                  title: 'Dettagli account',
+                  subtitle: 'Nome, username e ruolo',
+                  onTap: () {},
+                ),
+                Divider(height: 1, color: widget.vibe.cardBorder),
+                _ProfileTile(
+                  icon: Icons.notifications_none,
+                  title: 'Notifiche',
+                  subtitle: 'Preferenze e avvisi',
+                  onTap: () {},
+                ),
+                Divider(height: 1, color: widget.vibe.cardBorder),
+                _ProfileTile(
+                  icon: Icons.settings_outlined,
+                  title: 'Impostazioni',
+                  subtitle: 'Apri impostazioni profilo',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ProfileSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ProfileTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: NuraBrand.mintAlpha(0.9), size: 20),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: NuraBrand.mint,
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
         ),
-      ]),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: NuraBrand.mintAlpha(0.55), fontSize: 12),
+      ),
+      trailing: Icon(Icons.chevron_right, color: NuraBrand.mintAlpha(0.4)),
+      onTap: onTap,
+      dense: true,
     );
   }
 }
