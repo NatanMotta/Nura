@@ -302,3 +302,54 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - spiegati flussi merge/fork/branch
   - generato albero git aggiornato per stato repository.
 
+
+(appendere qui le sessioni successive)
+
+### Natan — Sessione 2026-05-12 (A)
+- Merge completato del ramo `codex/ottimizzazione-next` in `main` dopo test utente positivi.
+- Setup pipeline ASC CLI (`asc`) per upload TestFlight:
+  - raccolte credenziali API key (`Key ID`, `Issuer ID`, file `.p8`)
+  - fix permessi file private key (`chmod 600`)
+  - login riuscito con profilo keychain `Nura` (`asc auth status --validate` OK)
+  - identificata app target `Nura App` con App ID `6768263432`.
+- Automazione terminale upload:
+  - creato script `scripts/nura-upload-asc.sh`
+  - aggiornato alias `nura-upload` per usare ASC upload (con `ASC_WAIT=1` opzionale)
+  - mantenuto flusso operativo semplice: `nura-ipa-auto` -> `nura-upload`.
+- Profilo utente (tab destra footer) rifatto in versione minimal:
+  - semplificata `home_profile.dart`
+  - card profilo essenziale con nome/handle/email/ruolo reali da auth+`profiles` (fallback puliti)
+  - lista azioni minima (`Dettagli account`, `Notifiche`, `Impostazioni`).
+- Branch dedicato per la nuova fase profilo:
+  - creato `codex/implementazione-profilo-utente`
+  - commit effettuato: `f2ddea8` (`feat(profile): implementa sezione profilo utente minimal nel tab footer`).
+- Nota performance upload:
+  - IPA attuale ~83 MB; evidenziati asset immagini come principale fattore di lentezza upload/processing.
+- Aggiornamento sessione (A) — audit live Supabase via CLI completato:
+  - verificato progetto linkato `vsfaemlbnufprlcxmzwi`
+  - stato pre-migrazione confermato: presenti solo `profiles`, `tracks`, `labels`, `pitch_requests`.
+- Implementazione immediata backend social MVP su remoto:
+  - creata migrazione `supabase/migrations/20260512184500_social_engagement_mvp.sql`
+  - eseguito `supabase db push` con successo.
+- Oggetti DB attivi in produzione Supabase:
+  - tabelle: `track_likes`, `track_saves`, `track_comments`
+  - view: `track_engagement_stats`, `community_artist_ranking`
+  - RLS/policy: select public + insert/delete owner (like/save), select/insert/update/delete owner (commenti).
+- Allineata roadmap:
+  - `ROADMAP.md` aggiornato con fase Social Foundation marcata parzialmente completata lato backend.
+  - prossimo focus: integrazione CRUD app -> Supabase + binding ranking reale in profilo.
+- Aggiornamento sessione (A) — integrazione app con backend social MVP completata:
+  - creato `lib/features/social/data/social_engagement_service.dart` (Supabase):
+    - fetch metriche engagement per track
+    - fetch like/save utente
+    - toggle like/save
+    - fetch/create commenti.
+  - `home_feed.dart` aggiornato:
+    - like swipe persistente su `track_likes` quando l'utente è autenticato
+    - bookmark salvati persistenti su `track_saves`
+    - contatori live per brano top (`like/saves/commenti`) da `track_engagement_stats`
+    - bottom sheet commenti con lettura/scrittura su `track_comments`.
+  - `home_profile.dart` aggiornato:
+    - metriche canzoni proprie alimentate da DB (`track_engagement_stats`) con fallback visivo solo se dati mancanti.
+- Verifica statica post-integrazione:
+  - `flutter analyze` su file modificati: nessun errore.
