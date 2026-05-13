@@ -353,3 +353,38 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
     - metriche canzoni proprie alimentate da DB (`track_engagement_stats`) con fallback visivo solo se dati mancanti.
 - Verifica statica post-integrazione:
   - `flutter analyze` su file modificati: nessun errore.
+- Aggiornamento sessione (A) — refactor profilo richiesto (meno gamer, più social/editoriale):
+  - `home_profile.dart` riscritto con layout sobrio (header account + metriche compatte + lista tracce).
+  - sezione `Le tue canzoni` ora alimentata da dati reali DB (`tracks` con `storage_path` R2), priorità a tracce dell'utente artista; fallback a ultime tracce reali caricate.
+  - tracce cliccabili: tap sulla riga avvia play/pause preview (mapping `storage_path` -> asset locale preview attuale).
+  - metriche per traccia (`likes/saves/comments`) lette da `track_engagement_stats` (niente conteggi mock).
+  - azioni social per ogni traccia (like/save/comment) mantenute reali su Supabase.
+- Verifica statica: `flutter analyze` su `home_profile.dart` senza errori.
+- Aggiornamento sessione (A) — audit live utenti/tracce Supabase per test end-to-end:
+  - confermato account utente reale `asd@gmail.com` presente su `auth.users` e `profiles`.
+  - confermati utenti fake (`user*.nura.test`, `artist*.nura.test`, `label*.nura.test`).
+  - confermate tracce reali con path `storage_path` `previews/...` (31 tracce).
+- Seed dati test social su tracce reali:
+  - distribuiti like/save/commenti su un set di 16 tracce recenti.
+  - coinvolti utenti fake + account `asd@gmail.com`.
+  - commenti seed marcati con prefisso `[seed]` per tracciabilità.
+- Fix critico metriche engagement:
+  - corretta view `track_engagement_stats` (prima sovracontava per join multiplicative).
+  - nuova migrazione: `20260513201500_fix_engagement_views_counts.sql` applicata su remoto.
+- Stato dati dopo seed/fix:
+  - `track_likes`: 139
+  - `track_saves`: 52
+  - `track_comments` attivi: 41
+  - `asd@gmail.com` incluso nel seed commenti/like.
+- Aggiornamento sessione (A) — fix profilo `asd@gmail.com` senza tracce:
+  - root cause 1: profilo `asd@gmail.com` era `role=user`, quindi nessuna traccia propria collegata.
+  - root cause 2: `home_profile.dart` interrogava `profiles.username` (colonna non presente), causando errore in load profilo.
+- Correzioni applicate:
+  - aggiornato `profiles.role` di `asd@gmail.com` a `artist`.
+  - assegnate 6 tracce reali (`storage_path` `previews/...`) a `asd@gmail.com` come owner artist.
+  - redistribuite le altre tracce reali sui fake artist per mantenere copertura test multi-profilo.
+  - patch codice `home_profile.dart` per leggere solo `display_name` da `profiles` e derivare handle da email (niente dipendenza da `username`).
+- Verifica post-fix:
+  - `asd@gmail.com` risulta `artist` su `profiles`.
+  - tracce collegate a `asd@gmail.com`: 6.
+  - metriche reali disponibili su quelle tracce (like/save/commenti) via `track_engagement_stats`.

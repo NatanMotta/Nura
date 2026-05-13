@@ -370,11 +370,25 @@ class _HomeFeedState extends State<HomeFeed> {
           bottom: nav + 86,
           child: IgnorePointer(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Mono('♥ ${topStats.likes}', color: NuraBrand.mintAlpha(0.8)),
-                Mono('⬚ ${topStats.saves}', color: NuraBrand.mintAlpha(0.75)),
-                Mono('💬 ${topStats.comments}', color: NuraBrand.mintAlpha(0.7)),
+                _SocialStatChip(
+                  icon: Icons.favorite,
+                  value: topStats.likes,
+                  color: NuraBrand.mintAlpha(0.9),
+                ),
+                const SizedBox(width: 10),
+                _SocialStatChip(
+                  icon: Icons.chat_bubble_outline,
+                  value: topStats.comments,
+                  color: NuraBrand.mintAlpha(0.85),
+                ),
+                const SizedBox(width: 10),
+                _SocialStatChip(
+                  icon: Icons.bookmark_outline,
+                  value: topStats.saves,
+                  color: NuraBrand.mintAlpha(0.85),
+                ),
               ],
             ),
           ),
@@ -554,6 +568,47 @@ class _RoundBtn extends StatelessWidget {
           child: child,
         ),
       );
+}
+
+class _SocialStatChip extends StatelessWidget {
+  final IconData icon;
+  final int value;
+  final Color color;
+
+  const _SocialStatChip({
+    required this.icon,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: NuraBrand.deepMidAlpha(0.55),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NuraBrand.mintAlpha(0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            '$value',
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class SwipeCard extends StatefulWidget {
