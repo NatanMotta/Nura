@@ -302,3 +302,19 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - spiegati flussi merge/fork/branch
   - generato albero git aggiornato per stato repository.
 
+(appendere qui le sessioni successive)
+
+### Francesco — Sessione 2026-05-13 (A)
+- Obiettivo sessione: Risoluzione errori di compilazione Android (AGP e Kotlin) per compatibilità con Flutter 3.24+.
+- Modifiche principali:
+  - Aggiornato Android Gradle Plugin (AGP) da 7.3.0 a 8.9.1 per supportare moduli AndroidX.
+  - Aggiornato Gradle alla versione 8.11.1.
+  - Aggiornato Kotlin alla versione 2.1.0 e aggiunto plugin `org.jetbrains.kotlin.android` in settings.gradle.
+  - Eseguito `flutter pub upgrade` per rimozione v1 embedding legacy.
+- File coinvolti:
+  - `android/settings.gradle`
+  - `android/gradle/wrapper/gradle-wrapper.properties`
+  - `android/build.gradle`
+- Verifiche:
+  - `flutter analyze`: non verificato per questa sessione
+  - build/test: `flutter build apk --debug` e `assembleDebug` completati con successo senza errori.
