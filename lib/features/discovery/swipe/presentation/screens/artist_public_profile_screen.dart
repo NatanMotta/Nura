@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
@@ -6,8 +8,11 @@ import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/mono.dart';
+import '../../../../auth/presentation/auth_providers.dart';
+import '../../../../shared/domain/user_role.dart';
+import '../../../../shared/presentation/providers/user_role_provider.dart';
 
-class ArtistPublicProfileScreen extends StatefulWidget {
+class ArtistPublicProfileScreen extends ConsumerStatefulWidget {
   final String artistId;
   final String artistName;
 
@@ -18,22 +23,22 @@ class ArtistPublicProfileScreen extends StatefulWidget {
   });
 
   @override
-  State<ArtistPublicProfileScreen> createState() =>
+  ConsumerState<ArtistPublicProfileScreen> createState() =>
       _ArtistPublicProfileScreenState();
 }
 
-class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
+class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileScreen> {
   final _audio = AudioPreviewService.instance;
   String? _lastAudioErrorShown;
 
   bool _loading = true;
   bool _following = false;
-  bool _playerExpanded = false;
   bool _showMiniPlayer = false;
   int? _currentTrackIndex;
   String? _displayName;
   String? _imageAsset;
   String? _bio;
+  bool _showAllTracks = false;
   List<Map<String, dynamic>> _tracks = const [];
 
   @override
@@ -56,6 +61,7 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
   @override
   void dispose() {
     _audio.lastError.removeListener(_onAudioError);
+    _audio.stop(); // Stop audio when leaving the screen
     super.dispose();
   }
 
@@ -96,10 +102,10 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
   }
 
   String _durationLabel(int? seconds) {
-    final s = seconds ?? 0;
-    final m = (s ~/ 60).toString().padLeft(2, '0');
-    final sec = (s % 60).toString().padLeft(2, '0');
-    return '$m:$sec';
+    if (seconds == null) return '--:--';
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   String? _assetFromStoragePath(String? storagePath) {
@@ -114,6 +120,10 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
     const vibe = NuraVibe.premium;
     final artistName = _displayName ?? widget.artistName;
 
+    final authState = ref.watch(authStateProvider);
+    final mockRole = ref.watch(userRoleProvider);
+    final role = authState.valueOrNull?.role ?? mockRole;
+
     return Scaffold(
       backgroundColor: NuraBrand.deep,
       bottomNavigationBar: _miniPlayer(vibe),
@@ -122,6 +132,14 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
           : CustomScrollView(
               slivers: [
                 SliverAppBar(
+                  automaticallyImplyLeading: false,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: NuraBrand.mint, size: 22),
+                    onPressed: () async {
+                      await _audio.stop();
+                      if (mounted) Navigator.of(context).pop();
+                    },
+                  ),
                   backgroundColor: NuraBrand.deep,
                   foregroundColor: NuraBrand.mint,
                   pinned: true,
@@ -188,18 +206,21 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
                                 label: Text(_following ? 'Seguito' : 'Segui'),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: NuraBrand.mint,
-                                  foregroundColor: NuraBrand.deep,
+                            if (role == UserRole.artist) ...[
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {},
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: NuraBrand.pink,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                  ),
+                                  icon: const Icon(Icons.flash_on, size: 16),
+                                  label: const Text('Invita Battle'),
                                 ),
-                                icon: const Icon(Icons.flash_on, size: 16),
-                                label: const Text('Invita Battle'),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -230,10 +251,21 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   sliver: SliverList.separated(
-                    itemBuilder: (context, index) =>
-                        _trackCard(_tracks[index], vibe.cardBorder),
+                    itemBuilder: (context, index) {
+                      final displayTracks = _showAllTracks ? _tracks : _tracks.take(5).toList();
+                      if (index == displayTracks.length && !_showAllTracks && _tracks.length > 5) {
+                        return Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAllTracks = true),
+                            style: TextButton.styleFrom(foregroundColor: NuraBrand.mintAlpha(0.8)),
+                            child: const Text('Mostra tutti i brani', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        );
+                      }
+                      return _trackCard(displayTracks[index], vibe.cardBorder);
+                    },
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemCount: _tracks.length,
+                    itemCount: _showAllTracks ? _tracks.length : (_tracks.length > 5 ? 6 : _tracks.length),
                   ),
                 ),
               ],
@@ -293,68 +325,70 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
     final genre = row['genre'] as String? ?? 'demo';
     final duration = row['duration_seconds'] as int?;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: NuraBrand.deepMidAlpha(0.55),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: LinearGradient(
-                colors: [NuraBrand.mintAlpha(0.35), NuraBrand.deep],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    return AnimatedBuilder(
+      animation: Listenable.merge([_audio.playingTrackId, _audio.isPlaying]),
+      builder: (context, _) {
+        final isCurrentTrack = _audio.playingTrackId.value == id;
+        final showPause = isCurrentTrack && _audio.isPlaying.value;
+        final borderColor = isCurrentTrack ? NuraBrand.pink : border;
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: NuraBrand.deepMidAlpha(0.55),
+            border: Border.all(color: borderColor, width: isCurrentTrack ? 0.8 : 0.5),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [NuraBrand.mintAlpha(0.35), NuraBrand.deep],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Icon(Icons.graphic_eq, color: NuraBrand.mint),
               ),
-            ),
-            child: const Icon(Icons.graphic_eq, color: NuraBrand.mint),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: NuraBrand.mint,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: NuraBrand.mint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$genre · ${_durationLabel(duration)}',
+                      style: TextStyle(
+                        color: NuraBrand.mintAlpha(0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$genre · ${_durationLabel(duration)}',
-                  style: TextStyle(
-                    color: NuraBrand.mintAlpha(0.6),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AnimatedBuilder(
-            animation: Listenable.merge([_audio.playingTrackId, _audio.isPlaying]),
-            builder: (context, _) {
-              final isCurrentTrack = _audio.playingTrackId.value == id;
-              final showPause = isCurrentTrack && _audio.isPlaying.value;
-              return IconButton(
+              ),
+              IconButton(
                 onPressed: () => _playTrackById(id),
                 icon: Icon(
                   showPause ? Icons.pause_circle : Icons.play_circle,
                   color: NuraBrand.mint,
                   size: 30,
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -380,21 +414,6 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
     }
   }
 
-  Future<void> _playAtIndex(int index) async {
-    if (index < 0 || index >= _tracks.length) return;
-    final row = _tracks[index];
-    final id = row['id'] as String? ?? '';
-    if (id.isEmpty) return;
-    final localAsset = _assetFromStoragePath(row['storage_path'] as String?);
-    if (localAsset == null) return;
-    await _audio.playTrack(trackId: id, assetPath: localAsset);
-    if (!mounted) return;
-    setState(() {
-      _showMiniPlayer = true;
-      _currentTrackIndex = index;
-    });
-  }
-
   Widget _miniPlayer(NuraVibe vibe) {
     return AnimatedBuilder(
       animation: Listenable.merge(
@@ -408,207 +427,131 @@ class _ArtistPublicProfileScreenState extends State<ArtistPublicProfileScreen> {
 
         final shouldShow = _showMiniPlayer || playingIndex >= 0;
         final hidden = !shouldShow || _tracks.isEmpty || index < 0 || index >= _tracks.length;
-        if (hidden) {
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            transitionBuilder: (child, animation) => SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-              child: child,
-            ),
-            child: const SizedBox.shrink(key: ValueKey('mini-hidden')),
-          );
-        }
+        
+        if (hidden) return const SizedBox.shrink();
 
         final row = _tracks[index];
         final title = row['title'] as String? ?? 'Untitled';
-        final genre = row['genre'] as String? ?? 'demo';
         final durationSec = row['duration_seconds'] as int? ?? 15;
         final duration = _audio.duration.value ?? Duration(seconds: durationSec);
         final currentPosition = _audio.position.value > duration ? duration : _audio.position.value;
-        final canPrev = index > 0;
-        final canNext = index < _tracks.length - 1;
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 260),
-          transitionBuilder: (child, animation) => SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
+        return Container(
+          height: 72,
+          decoration: BoxDecoration(
+            color: NuraBrand.deepMid,
+            border: Border(top: BorderSide(color: vibe.cardBorder.withOpacity(0.2))),
           ),
-          child: SafeArea(
-            key: const ValueKey('mini-visible'),
-            top: false,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              decoration: BoxDecoration(
-                color: NuraBrand.deepMidAlpha(0.96),
-                border: Border(top: BorderSide(color: vibe.cardBorder)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_playerExpanded)
-                    GestureDetector(
-                      onTap: () => setState(() => _playerExpanded = false),
-                      child: Container(
-                        width: 38,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 6),
-                        decoration: BoxDecoration(
-                          color: NuraBrand.mintAlpha(0.45),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final progress = duration.inMilliseconds > 0 
+                  ? currentPosition.inMilliseconds / duration.inMilliseconds 
+                  : 0.0;
+              
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: (details) {
+                  final pct = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
+                  _audio.seek(Duration(milliseconds: (pct * duration.inMilliseconds).floor()));
+                },
+                onTapDown: (details) {
+                  final pct = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
+                  _audio.seek(Duration(milliseconds: (pct * duration.inMilliseconds).floor()));
+                },
+                child: Stack(
+                  children: [
+                    // Background Progress Fill
+                    Container(
+                      width: constraints.maxWidth * progress,
+                      height: double.infinity,
+                      color: NuraBrand.pink.withOpacity(0.08),
                     ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: LinearGradient(
-                            colors: [NuraBrand.mintAlpha(0.35), NuraBrand.deep],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: const Icon(Icons.album, color: NuraBrand.mint),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: NuraBrand.mint,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              genre,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: NuraBrand.mintAlpha(0.62),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!_playerExpanded)
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _audio.isPlaying,
-                          builder: (context, isPlaying, __) => IconButton(
-                            onPressed: () {
-                              if (isPlaying) {
-                                _audio.pause();
-                              } else {
-                                _audio.resume();
-                              }
-                            },
-                            icon: Icon(
-                              isPlaying
-                                  ? Icons.pause_circle_filled
-                                  : Icons.play_circle_fill,
-                              color: NuraBrand.mint,
-                              size: 34,
-                            ),
-                          ),
-                        )
-                      else
-                        const SizedBox(width: 48),
-                      IconButton(
-                        onPressed: () => setState(() => _playerExpanded = !_playerExpanded),
-                        icon: Icon(
-                          _playerExpanded ? Icons.expand_more : Icons.expand_less,
-                          color: NuraBrand.mintAlpha(0.75),
-                          size: 22,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_playerExpanded) ...[
-                    const SizedBox(height: 4),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                        trackHeight: 3,
-                      ),
-                      child: Slider(
-                        value: currentPosition.inMilliseconds.toDouble(),
-                        max: duration.inMilliseconds <= 0 ? 1 : duration.inMilliseconds.toDouble(),
-                        min: 0,
-                        activeColor: NuraBrand.mint,
-                        inactiveColor: NuraBrand.mintAlpha(0.22),
-                        onChanged: (v) => _audio.seek(Duration(milliseconds: v.floor())),
-                      ),
-                    ),
+                    // Player Content
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Mono(_durationLabel(currentPosition.inSeconds),
-                              color: NuraBrand.mintAlpha(0.65)),
-                          Mono(_durationLabel(duration.inSeconds),
-                              color: NuraBrand.mintAlpha(0.65)),
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              gradient: LinearGradient(
+                                colors: [NuraBrand.mintAlpha(0.2), NuraBrand.deep],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Icon(Icons.music_note, color: NuraBrand.mint, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: NuraBrand.mint,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${_durationLabel(currentPosition.inSeconds)} / ${_durationLabel(duration.inSeconds)}',
+                                  style: TextStyle(
+                                    color: NuraBrand.mintAlpha(0.5),
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ValueListenableBuilder<bool>(
+                            valueListenable: _audio.isPlaying,
+                            builder: (context, isPlaying, __) => IconButton(
+                              onPressed: () {
+                                if (isPlaying) {
+                                  _audio.pause();
+                                } else {
+                                  _audio.resume();
+                                }
+                              },
+                              icon: Icon(
+                                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                color: NuraBrand.mint,
+                                size: 32,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          onPressed: canPrev ? () => _playAtIndex(index - 1) : null,
-                          icon: const Icon(Icons.skip_previous_rounded, size: 34),
-                          color: NuraBrand.mint,
-                          disabledColor: NuraBrand.mintAlpha(0.25),
+                    // Top progress line
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 2,
+                        width: double.infinity,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          height: 2,
+                          width: constraints.maxWidth * progress,
+                          color: NuraBrand.pink,
                         ),
-                        const SizedBox(width: 8),
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _audio.isPlaying,
-                          builder: (context, isPlaying, __) => IconButton(
-                            onPressed: () {
-                              if (isPlaying) {
-                                _audio.pause();
-                              } else {
-                                _audio.resume();
-                              }
-                            },
-                            icon: Icon(
-                              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                              size: 46,
-                            ),
-                            color: NuraBrand.mint,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: canNext ? () => _playAtIndex(index + 1) : null,
-                          icon: const Icon(Icons.skip_next_rounded, size: 34),
-                          color: NuraBrand.mint,
-                          disabledColor: NuraBrand.mintAlpha(0.25),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         );
       },

@@ -305,16 +305,18 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
 (appendere qui le sessioni successive)
 
 ### Francesco — Sessione 2026-05-13 (A)
-- Obiettivo sessione: Risoluzione errori di compilazione Android (AGP e Kotlin) per compatibilità con Flutter 3.24+.
-- Modifiche principali:
-  - Aggiornato Android Gradle Plugin (AGP) da 7.3.0 a 8.9.1 per supportare moduli AndroidX.
-  - Aggiornato Gradle alla versione 8.11.1.
-  - Aggiornato Kotlin alla versione 2.1.0 e aggiunto plugin `org.jetbrains.kotlin.android` in settings.gradle.
-  - Eseguito `flutter pub upgrade` per rimozione v1 embedding legacy.
-- File coinvolti:
-  - `android/settings.gradle`
-  - `android/gradle/wrapper/gradle-wrapper.properties`
-  - `android/build.gradle`
+- Obiettivo sessione: Risoluzione errori di compilazione Android (AGP e Kotlin) e rifinitura Artist Profile UI.
+- Modifiche Build Android:
+  - Allineato il progetto alle versioni moderne richieste dalle dipendenze: Gradle 8.11.1, AGP 8.9.1, Kotlin 2.1.0.
+  - Risolto conflitto Java "major version 65" (Java 21) allineando la compatibilità target/source a Java 17 in `app/build.gradle`.
+  - Configurato VS Code (`settings.json`) per ignorare i falsi positivi dell'analizzatore Java sulla cartella `.gradle`.
+- Refactoring Artist Profile (`artist_public_profile_screen.dart`):
+  - Rimosso blocco massivo di codice duplicato e riparata la sintassi (parentesi mal chiuse e parametri mancanti).
+  - Implementato player minimalista (Full-width bar) "incollato" al fondo dello schermo.
+  - Aggiunta logica di stop audio automatico alla pressione del tasto "Back" o chiusura della pagina.
+  - Design player: progresso rosa (`NuraBrand.pink`) integrato nello sfondo della barra, gestione drag/seek interattiva.
+  - Bordo card canzone in play usando rigorosamente il colore della palette (`NuraBrand.pink`).
 - Verifiche:
-  - `flutter analyze`: non verificato per questa sessione
-  - build/test: `flutter build apk --debug` e `assembleDebug` completati con successo senza errori.
+  - `flutter pub get` completato con successo.
+  - Build Android APK completata e app lanciata correttamente su emulatore.
+  - Audio lifecycle testato: stop immediato alla navigazione fuori dal profilo.
