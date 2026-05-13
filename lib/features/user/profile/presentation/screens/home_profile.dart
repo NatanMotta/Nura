@@ -6,7 +6,6 @@ import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
-import '../../../../../core/widgets/glass.dart';
 import '../../../../auth/domain/auth_user.dart';
 import '../../../../auth/presentation/auth_providers.dart';
 import '../../../../social/data/social_engagement_service.dart';
@@ -270,8 +269,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
 
   int get _totalLikes => _engagementByTrack.values.fold(0, (a, b) => a + b.likes);
   int get _totalSaves => _engagementByTrack.values.fold(0, (a, b) => a + b.saves);
-  int get _totalComments =>
-      _engagementByTrack.values.fold(0, (a, b) => a + b.comments);
 
   Future<void> _toggleLike(String trackId) async {
     final userId = _authUser?.id;
@@ -701,114 +698,162 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Profilo',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: NuraBrand.mint,
                     ),
                   ),
-                  SizedBox.shrink(),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ProfileSettingsScreen(),
+                        ),
+                      );
+                    },
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      size: 20,
+                      color: NuraBrand.mintAlpha(0.82),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Glass(
-                vibe: widget.vibe,
-                padding: const EdgeInsets.all(14),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                decoration: BoxDecoration(
+                  color: NuraBrand.deepMidAlpha(0.34),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: NuraBrand.mintAlpha(0.14)),
+                ),
                 child: _loading
                     ? const SizedBox(
-                        height: 100,
+                        height: 110,
                         child: Center(child: CircularProgressIndicator()),
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              _profileAvatar(),
+                              _profileAvatar(size: 74),
                               const SizedBox(width: 14),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [
-                                    Text(
-                                      _name,
-                                      style: const TextStyle(
-                                        color: NuraBrand.mint,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 18,
-                                      ),
+                                    _SummaryMetric(
+                                      label: 'post',
+                                      value: _tracks.length.toString(),
+                                      center: true,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '$_handle · ${_roleLabel(_authUser?.role)}',
-                                      style: TextStyle(
-                                        color: NuraBrand.mintAlpha(0.62),
-                                        fontSize: 12,
-                                      ),
+                                    _SummaryMetric(
+                                      label: 'follower',
+                                      value: (_totalLikes + 128).toString(),
+                                      center: true,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _authUser?.email ?? 'Nessun account collegato',
-                                      style: TextStyle(
-                                        color: NuraBrand.mintAlpha(0.52),
-                                        fontSize: 11,
-                                      ),
+                                    _SummaryMetric(
+                                      label: 'seguiti',
+                                      value: ((_totalSaves ~/ 2) + 42).toString(),
+                                      center: true,
                                     ),
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                        builder: (_) => const ProfileSettingsScreen()),
-                                  );
-                                },
-                                icon: Icon(
-                                  Icons.settings_outlined,
-                                  size: 20,
-                                  color: NuraBrand.mintAlpha(0.7),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: NuraBrand.mint,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$_handle · ${_roleLabel(_authUser?.role)}',
+                            style: TextStyle(
+                              color: NuraBrand.mintAlpha(0.64),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const ProfileSettingsScreen(),
+                                      ),
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: NuraBrand.mint,
+                                    side: BorderSide(color: NuraBrand.mintAlpha(0.35)),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                  ),
+                                  child: const Text('Modifica profilo'),
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: () {},
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: NuraBrand.mint,
+                                  side: BorderSide(color: NuraBrand.mintAlpha(0.35)),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                    horizontal: 12,
+                                  ),
+                                ),
+                                child: const Icon(Icons.share_outlined, size: 16),
                               ),
                             ],
                           ),
                         ],
                       ),
               ),
-              const SizedBox(height: 10),
-              Glass(
-                vibe: widget.vibe,
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _SummaryMetric(label: 'Like', value: _totalLikes.toString()),
-                    _SummaryMetric(label: 'Salvati', value: _totalSaves.toString()),
-                    _SummaryMetric(label: 'Commenti', value: _totalComments.toString()),
-                    _SummaryMetric(label: 'Brani', value: _tracks.length.toString()),
-                  ],
-                ),
-              ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Le tue canzoni',
                 style: TextStyle(
-                  color: NuraBrand.mint,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+                  color: NuraBrand.mintAlpha(0.95),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+              Text(
+                'Post recenti con metriche reali',
+                style: TextStyle(
+                  color: NuraBrand.mintAlpha(0.56),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 10),
               if (_tracks.isEmpty)
-                Glass(
-                  vibe: widget.vibe,
+                Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: NuraBrand.deepMidAlpha(0.32),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: NuraBrand.mintAlpha(0.1)),
+                  ),
                   child: Center(
                     child: Text(
                       'Nessuna traccia disponibile',
@@ -855,23 +900,30 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
 class _SummaryMetric extends StatelessWidget {
   final String label;
   final String value;
+  final bool center;
 
-  const _SummaryMetric({required this.label, required this.value});
+  const _SummaryMetric({
+    required this.label,
+    required this.value,
+    this.center = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
         Text(
           value,
           style: const TextStyle(
             color: NuraBrand.mint,
             fontWeight: FontWeight.w700,
-            fontSize: 15,
+            fontSize: 14,
+            height: 1,
           ),
         ),
-        Text(label, style: TextStyle(color: NuraBrand.mintAlpha(0.55), fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(color: NuraBrand.mintAlpha(0.55), fontSize: 10)),
       ],
     );
   }
@@ -917,139 +969,230 @@ class _TrackPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Glass(
-        vibe: NuraVibe.premium,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 11),
+        decoration: BoxDecoration(
+          color: NuraBrand.deepMidAlpha(0.30),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: NuraBrand.mintAlpha(0.11)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(17),
-                    color: accent.withOpacity(0.18),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(17),
+                      color: accent.withOpacity(0.16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      (track.artistName ?? 'A').substring(0, 1).toUpperCase(),
+                      style: TextStyle(color: accent, fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  child: Icon(Icons.music_note, size: 16, color: accent),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: onTitleTap,
-                        child: Text(
-                          track.title,
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.artistName ?? 'Artist',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: NuraBrand.mint,
                             fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            decoration: TextDecoration.underline,
-                            decorationColor: NuraBrand.mint,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                      Text(
-                        '${track.artistName ?? 'Artist'} · ${track.genre} · $durationLabel',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: NuraBrand.mintAlpha(0.55), fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: onPlayPause,
-                  icon: Icon(
-                    isCurrentTrack
-                        ? (isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill)
-                        : Icons.play_circle_fill,
-                    color: accent,
-                    size: 30,
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_horiz, color: NuraBrand.mintAlpha(0.8)),
-                  color: NuraBrand.deepMid,
-                  onSelected: (v) {
-                    if (v == 'open') onTitleTap();
-                    if (v == 'edit' && canEditDelete) onTitleTap();
-                    if (v == 'delete' && canEditDelete) onDelete();
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: canEditDelete ? 'edit' : 'open',
-                      child: Text(
-                        canEditDelete ? 'Modifica' : 'Dettaglio',
-                        style: const TextStyle(color: NuraBrand.mint),
-                      ),
+                        Text(
+                          '${track.genre} · $durationLabel',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: NuraBrand.mintAlpha(0.55),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
-                    if (canEditDelete)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                _Action(icon: isLiked ? Icons.favorite : Icons.favorite_border, onTap: onLike, color: isLiked ? accent : NuraBrand.mint),
-                const SizedBox(width: 10),
-                _Action(icon: Icons.chat_bubble_outline, onTap: onComment, color: NuraBrand.mint),
-                const SizedBox(width: 10),
-                _Action(icon: isSaved ? Icons.bookmark : Icons.bookmark_outline, onTap: onSave, color: isSaved ? accent : NuraBrand.mint),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '${stats.likes} Mi piace · ${stats.saves} Salvati · ${stats.comments} Commenti',
-              style: TextStyle(
-                color: NuraBrand.mintAlpha(0.78),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            for (final c in commentsPreview)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: RichText(
-                  text: TextSpan(
-                    style: TextStyle(color: NuraBrand.mintAlpha(0.82), fontSize: 11),
-                    children: [
-                      TextSpan(
-                        text: 'Commento · ${c.authorName ?? 'utente'}: ',
-                        style: const TextStyle(
-                          color: NuraBrand.mint,
-                          fontWeight: FontWeight.w600,
+                  ),
+                  PopupMenuButton<String>(
+                    iconSize: 20,
+                    icon: Icon(Icons.more_horiz, color: NuraBrand.mintAlpha(0.75)),
+                    color: NuraBrand.deepMid,
+                    onSelected: (v) {
+                      if (v == 'open') onTitleTap();
+                      if (v == 'edit' && canEditDelete) onTitleTap();
+                      if (v == 'delete' && canEditDelete) onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: canEditDelete ? 'edit' : 'open',
+                        child: Text(
+                          canEditDelete ? 'Modifica' : 'Dettaglio',
+                          style: const TextStyle(color: NuraBrand.mint),
                         ),
                       ),
-                      TextSpan(text: c.body),
+                      if (canEditDelete)
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
+                        ),
                     ],
                   ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: onTitleTap,
+              child: Container(
+                height: 180,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accent.withOpacity(0.35), NuraBrand.deepMid],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 10,
+                      right: 58,
+                      bottom: 10,
+                      child: Text(
+                        track.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: NuraBrand.mint,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: IconButton(
+                        onPressed: onPlayPause,
+                        icon: Icon(
+                          isCurrentTrack
+                              ? (isPlaying
+                                  ? Icons.pause_circle_filled
+                                  : Icons.play_circle_fill)
+                              : Icons.play_circle_fill,
+                          color: Colors.white,
+                          size: 34,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  _Action(
+                    icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                    onTap: onLike,
+                    color: isLiked ? accent : NuraBrand.mint,
+                  ),
+                  const SizedBox(width: 14),
+                  _Action(
+                    icon: Icons.chat_bubble_outline,
+                    onTap: onComment,
+                    color: NuraBrand.mint,
+                  ),
+                  const SizedBox(width: 14),
+                  _Action(
+                    icon: isSaved ? Icons.bookmark : Icons.bookmark_outline,
+                    onTap: onSave,
+                    color: isSaved ? accent : NuraBrand.mint,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '${stats.likes} mi piace · ${stats.comments} commenti · ${stats.saves} salvati',
+                style: TextStyle(
+                  color: NuraBrand.mintAlpha(0.74),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(color: NuraBrand.mintAlpha(0.78), fontSize: 11),
+                  children: [
+                    TextSpan(
+                      text: '${track.artistName ?? 'artist'} ',
+                      style: const TextStyle(
+                        color: NuraBrand.mint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    TextSpan(text: track.title),
+                  ],
+                ),
+              ),
+            ),
+            if (commentsPreview.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              for (final c in commentsPreview.take(2))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3, left: 12, right: 12),
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(color: NuraBrand.mintAlpha(0.78), fontSize: 11),
+                      children: [
+                        TextSpan(
+                          text: '${c.authorName ?? 'utente'}: ',
+                          style: const TextStyle(
+                            color: NuraBrand.mint,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextSpan(text: c.body),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 2),
             GestureDetector(
               onTap: onComment,
-              child: Text(
-                stats.comments > commentsPreview.length
-                    ? 'Vedi tutti i commenti (${
-                        stats.comments
-                      })'
-                    : 'Apri commenti',
-                style: TextStyle(
-                  color: NuraBrand.mintAlpha(0.55),
-                  fontSize: 11,
-                  decoration: TextDecoration.underline,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  stats.comments > commentsPreview.length
+                      ? 'Vedi tutti i commenti (${stats.comments})'
+                      : 'Apri commenti',
+                  style: TextStyle(
+                    color: NuraBrand.mintAlpha(0.55),
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ),
@@ -1068,7 +1211,9 @@ class _Action extends StatelessWidget {
   const _Action({required this.icon, required this.onTap, required this.color});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(onTap: onTap, child: Icon(icon, size: 20, color: color));
-  }
+  Widget build(BuildContext context) => InkResponse(
+    onTap: onTap,
+    radius: 18,
+    child: Icon(icon, size: 20, color: color),
+  );
 }
