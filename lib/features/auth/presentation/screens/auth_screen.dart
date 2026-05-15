@@ -53,6 +53,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           password: _password.text,
         );
       }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } catch (e) {
       setState(() {
         final raw = e.toString();

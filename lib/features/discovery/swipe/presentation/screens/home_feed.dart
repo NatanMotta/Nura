@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
@@ -12,6 +13,7 @@ import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/nura_mark.dart';
 import '../../../../../core/widgets/striped_panel.dart';
 import '../../../../../core/widgets/waveform.dart';
+import '../../../../social/data/social_engagement_service.dart';
 import '../../../../shared/data/mock_nura_data.dart';
 import '../../data/remote_tracks_service.dart';
 import 'artist_public_profile_screen.dart';
@@ -39,10 +41,15 @@ class _HomeFeedState extends State<HomeFeed> {
   late List<Track> _sourceDeck;
   final _audio = AudioPreviewService.instance;
   final _remoteTracks = const RemoteTracksService();
+  final _social = const SocialEngagementService();
   String? impulse;
   int likes = 12, skips = 38;
   bool _deckReady = false;
   String? _lastAudioErrorShown;
+  Map<String, EngagementCounts> _engagementByTrack = const {};
+  Set<String> _likedTrackIds = <String>{};
+  Set<String> _savedTrackIds = <String>{};
+  String? _authUserId;
 
   @override
   void initState() {
@@ -90,16 +97,100 @@ class _HomeFeedState extends State<HomeFeed> {
       _deckReady = true;
     });
 
+    unawaited(_loadEngagement(selected));
+
     // Start audio only after deck is mounted.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playTopTrackPreview();
     });
   }
 
+  Future<void> _loadEngagement(List<Track> tracks) async {
+    try {
+      final trackIds = tracks.map((t) => t.id).toList(growable: false);
+      final counts = await _social.fetchCountsForTrackIds(trackIds);
+
+      final user = Supabase.instance.client.auth.currentUser;
+      final userId = user?.id;
+      Set<String> liked = <String>{};
+      Set<String> saved = <String>{};
+      if (userId != null) {
+        liked = await _social.fetchUserLikedTrackIds(userId, trackIds);
+        saved = await _social.fetchUserSavedTrackIds(userId, trackIds);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _engagementByTrack = counts;
+        _likedTrackIds = liked;
+        _savedTrackIds = saved;
+        _authUserId = userId;
+      });
+    } catch (_) {
+      // fallback: keep local counters
+    }
+  }
+
+  Future<void> _toggleSaveTopTrack() async {
+    if (deck.isEmpty) return;
+    final userId = _authUserId;
+    if (userId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login richiesto per salvare brani')),
+      );
+      return;
+    }
+
+    final trackId = deck.first.id;
+    final wasSaved = _savedTrackIds.contains(trackId);
+    final nextSaved = !wasSaved;
+
+    setState(() {
+      if (nextSaved) {
+        _savedTrackIds.add(trackId);
+      } else {
+        _savedTrackIds.remove(trackId);
+      }
+    });
+
+    try {
+      await _social.setSave(
+        trackId: trackId,
+        userId: userId,
+        shouldSave: nextSaved,
+      );
+      await _refreshTrackEngagement(trackId);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (wasSaved) {
+          _savedTrackIds.add(trackId);
+        } else {
+          _savedTrackIds.remove(trackId);
+        }
+      });
+    }
+  }
+
+  Future<void> _refreshTrackEngagement(String trackId) async {
+    final rows = await _social.fetchCountsForTrackIds([trackId]);
+    if (!mounted) return;
+    setState(() {
+      _engagementByTrack = {
+        ..._engagementByTrack,
+        ...rows,
+      };
+    });
+  }
+
   void _decide(String action) {
+    final decidedTrack = deck.first;
+    final userId = _authUserId;
     setState(() {
       if (action == 'like') {
         likes++;
+        _likedTrackIds.add(decidedTrack.id);
       } else {
         skips++;
       }
@@ -107,6 +198,15 @@ class _HomeFeedState extends State<HomeFeed> {
       if (deck.isEmpty) deck = List.of(_sourceDeck);
       impulse = null;
     });
+
+    if (action == 'like' && userId != null) {
+      unawaited(_social.setLike(
+        trackId: decidedTrack.id,
+        userId: userId,
+        shouldLike: true,
+      ));
+      unawaited(_refreshTrackEngagement(decidedTrack.id));
+    }
     _playTopTrackPreview();
   }
 
@@ -164,6 +264,9 @@ class _HomeFeedState extends State<HomeFeed> {
     if (!_deckReady || deck.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
+    final topTrack = deck.first;
+    final topStats = _engagementByTrack[topTrack.id] ?? const EngagementCounts();
+    final isSavedTop = _savedTrackIds.contains(topTrack.id);
     return Stack(children: [
         // Header
         Padding(
@@ -253,12 +356,196 @@ class _HomeFeedState extends State<HomeFeed> {
             _RoundBtn(
                 size: 54,
                 border: widget.vibe.cardBorder,
-                onTap: () {},
-                child: const Icon(Icons.bookmark_outline,
-                    size: 20, color: NuraBrand.mint)),
+                onTap: () => _openCommentsSheet(topTrack),
+                child: const Icon(Icons.chat_bubble_outline,
+                    size: 19, color: NuraBrand.mint)),
+            const SizedBox(width: 12),
+            _RoundBtn(
+                size: 54,
+                border: widget.vibe.cardBorder,
+                onTap: _toggleSaveTopTrack,
+                child: Icon(
+                    isSavedTop ? Icons.bookmark : Icons.bookmark_outline,
+                    size: 20,
+                    color: isSavedTop ? widget.accent : NuraBrand.mint)),
           ]),
         ),
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: nav + 86,
+          child: IgnorePointer(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _SocialStatChip(
+                  icon: Icons.favorite,
+                  value: topStats.likes,
+                  color: NuraBrand.mintAlpha(0.9),
+                ),
+                const SizedBox(width: 10),
+                _SocialStatChip(
+                  icon: Icons.chat_bubble_outline,
+                  value: topStats.comments,
+                  color: NuraBrand.mintAlpha(0.85),
+                ),
+                const SizedBox(width: 10),
+                _SocialStatChip(
+                  icon: Icons.bookmark_outline,
+                  value: topStats.saves,
+                  color: NuraBrand.mintAlpha(0.85),
+                ),
+              ],
+            ),
+          ),
+        ),
       ]);
+  }
+
+  Future<void> _openCommentsSheet(Track track) async {
+    final userId = _authUserId;
+    final controller = TextEditingController();
+    List<TrackComment> comments = const [];
+    bool loading = true;
+    bool posting = false;
+    bool requested = false;
+
+    if (mounted) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: NuraBrand.deepest,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              Future<void> load() async {
+                final fetched = await _social.fetchComments(track.id);
+                setModalState(() {
+                  comments = fetched;
+                  loading = false;
+                });
+              }
+
+              if (loading && !requested) {
+                requested = true;
+                unawaited(load());
+              }
+
+              Future<void> post() async {
+                final text = controller.text.trim();
+                if (text.isEmpty || userId == null || posting) return;
+                setModalState(() => posting = true);
+                try {
+                  await _social.addComment(
+                    trackId: track.id,
+                    userId: userId,
+                    body: text,
+                  );
+                  controller.clear();
+                  final fetched = await _social.fetchComments(track.id);
+                  setModalState(() => comments = fetched);
+                  await _refreshTrackEngagement(track.id);
+                } finally {
+                  setModalState(() => posting = false);
+                }
+              }
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+                  left: 16,
+                  right: 16,
+                  top: 14,
+                ),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.64,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Commenti · ${track.track}',
+                        style: const TextStyle(
+                          color: NuraBrand.mint,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: loading
+                            ? const Center(child: CircularProgressIndicator())
+                            : comments.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'Nessun commento',
+                                      style: TextStyle(
+                                          color: NuraBrand.mintAlpha(0.55)),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    itemCount: comments.length,
+                                    separatorBuilder: (_, __) => Divider(
+                                      height: 1,
+                                      color: NuraBrand.mintAlpha(0.10),
+                                    ),
+                                    itemBuilder: (_, i) {
+                                      final c = comments[i];
+                                      return ListTile(
+                                        dense: true,
+                                        title: Text(
+                                          c.authorName ?? 'Utente',
+                                          style: const TextStyle(
+                                            color: NuraBrand.mint,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          c.body,
+                                          style: TextStyle(
+                                            color: NuraBrand.mintAlpha(0.8),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: controller,
+                        style: const TextStyle(color: NuraBrand.mint),
+                        enabled: userId != null && !posting,
+                        decoration: InputDecoration(
+                          hintText: userId == null
+                              ? 'Fai login per commentare'
+                              : 'Scrivi un commento...',
+                          hintStyle: TextStyle(color: NuraBrand.mintAlpha(0.45)),
+                          filled: true,
+                          fillColor: NuraBrand.deepMidAlpha(0.6),
+                          suffixIcon: IconButton(
+                            onPressed: (userId == null || posting) ? null : post,
+                            icon: Icon(Icons.send, color: widget.accent),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
   }
 }
 
@@ -287,6 +574,47 @@ class _RoundBtn extends StatelessWidget {
           child: child,
         ),
       );
+}
+
+class _SocialStatChip extends StatelessWidget {
+  final IconData icon;
+  final int value;
+  final Color color;
+
+  const _SocialStatChip({
+    required this.icon,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: NuraBrand.deepMidAlpha(0.55),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NuraBrand.mintAlpha(0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            '$value',
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class SwipeCard extends StatefulWidget {
