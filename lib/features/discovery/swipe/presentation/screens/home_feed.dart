@@ -21,13 +21,15 @@ class HomeFeed extends StatefulWidget {
   final Color accent;
   final String waveform;
   final double safeTop, safeBottom;
+  final void Function(String artistId, String artistName)? onArtistTap;
   const HomeFeed(
       {super.key,
       required this.vibe,
       required this.accent,
       required this.waveform,
       required this.safeTop,
-      required this.safeBottom});
+      required this.safeBottom,
+      this.onArtistTap});
   @override
   State<HomeFeed> createState() => _HomeFeedState();
 }
@@ -119,14 +121,18 @@ class _HomeFeedState extends State<HomeFeed> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ArtistPublicProfileScreen(
-          artistId: artistId,
-          artistName: track.artist,
+    if (widget.onArtistTap != null) {
+      widget.onArtistTap!(artistId, track.artist);
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ArtistPublicProfileScreen(
+            artistId: artistId,
+            artistName: track.artist,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _playTopTrackPreview() async {

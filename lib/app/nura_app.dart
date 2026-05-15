@@ -22,11 +22,23 @@ class _NuraAppState extends State<NuraApp> {
       title: 'Nura',
       debugShowCheckedModeBanner: false,
       theme: buildNuraTheme(),
+      scrollBehavior: const _NuraScrollBehavior(),
       home: RoleGate(
         vibe: NuraVibe.of(vibeId),
         accent: accent,
         waveform: waveform,
       ),
     );
+  }
+}
+
+/// Disabilita l'effetto stretch/glow dell'overscroll su Android.
+class _NuraScrollBehavior extends ScrollBehavior {
+  const _NuraScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child; // nessun effetto visivo di overscroll
   }
 }

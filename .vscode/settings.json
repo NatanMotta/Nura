@@ -3,6 +3,7 @@
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.import.gradle.enabled": true,
     "java.project.importHint": false,
+    "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
     "files.exclude": {
         "**/.gradle": true
     }
