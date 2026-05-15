@@ -80,6 +80,30 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 style: TextStyle(color: NuraBrand.mintAlpha(0.65)),
               ),
               onTap: _loading ? null : _exitMockRole,
+              ),
+            const SizedBox(height: 12),
+            _mockSettingTile(
+              icon: Icons.badge_outlined,
+              title: 'Nome profilo',
+              subtitle: 'Modifica display name (mock UI)',
+            ),
+            const SizedBox(height: 10),
+            _mockSettingTile(
+              icon: Icons.short_text_rounded,
+              title: 'Bio',
+              subtitle: 'Aggiungi o aggiorna bio profilo (mock UI)',
+            ),
+            const SizedBox(height: 10),
+            _mockSettingTile(
+              icon: Icons.image_outlined,
+              title: 'Immagine profilo',
+              subtitle: 'Carica/ritaglia avatar (mock UI)',
+            ),
+            const SizedBox(height: 10),
+            _mockSettingTile(
+              icon: Icons.alternate_email_rounded,
+              title: 'Username',
+              subtitle: 'Aggiorna handle @utente (mock UI)',
             ),
             const SizedBox(height: 12),
             ListTile(
@@ -104,6 +128,33 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _mockSettingTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return ListTile(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      tileColor: NuraBrand.deepMidAlpha(0.45),
+      leading: Icon(icon, color: NuraBrand.mint),
+      title: Text(title, style: const TextStyle(color: NuraBrand.mint)),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: NuraBrand.mintAlpha(0.65)),
+      ),
+      trailing: Icon(Icons.chevron_right, color: NuraBrand.mintAlpha(0.7)),
+      onTap: _loading
+          ? null
+          : () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Funzione in mock, non ancora attiva')),
+              );
+            },
     );
   }
 }

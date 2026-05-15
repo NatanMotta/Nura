@@ -388,3 +388,44 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - `asd@gmail.com` risulta `artist` su `profiles`.
   - tracce collegate a `asd@gmail.com`: 6.
   - metriche reali disponibili su quelle tracce (like/save/commenti) via `track_engagement_stats`.
+
+### Natan — Sessione 2026-05-15 (A)
+- Refactor profilo utente in stile SoundCloud minimale:
+  - `home_profile.dart` alleggerito con layout piu pulito e orientato a lista tracce.
+  - mantenuta UX player (play/pause per traccia + mini-player dockato sopra bottom nav).
+  - migliorata espansione mini-player: ora toggle anche con tap sull'intera barra, non solo freccia.
+  - eliminata ridondanza controlli in stato espanso (niente doppio play visivo nel contesto profilo utente).
+- Social nel profilo utente temporaneamente in mock:
+  - disattivate chiamate reali like/commenti dal profilo utente.
+  - contatori mock per test UI e snackbar informativa `coming soon`.
+- Alias terminale release sistemati:
+  - fix `~/.zshrc` per `nura-release` e `nura-release-auto` con `SUPABASE_URL` + `SUPABASE_ANON_KEY` inline.
+  - risolto problema di quoting alias corrotto e verificata corretta espansione.
+- Miglioramento identita mock in app (cross-feature shared):
+  - introdotta identita mock (`displayName`, `username`) in `user_role_provider`.
+  - `mock_role_login_screen` aggiornato con profili test realistici per ruolo:
+    - Artista: `Luca Neon` (`@luca.neon`)
+    - Utente: `Giulia Wave` (`@giulia.wave`)
+    - Etichetta: `Marta A&R` (`@marta.label`)
+  - `home_profile.dart` usa identita mock quando non c'e auth reale (no piu `Utente/@guest`).
+  - `profile_settings_screen.dart` aggiornata per pulire anche identita mock su `Esci dal ruolo mock` e logout.
+- Aggiornamento dati mock su Supabase:
+  - migrazione applicata `20260515101500_refresh_mock_profiles_display_names.sql`
+  - aggiornata anagrafica profili test (`display_name` + `bio`) inclusa `asd@gmail.com` (`Natan Test`).
+  - fix migrazione: rimosso campo `updated_at` non presente in `profiles`.
+- Sezione swipe aggiornata per profili reali Supabase (cross-feature discovery):
+  - `remote_tracks_service.dart`: filtro tracce remote per includere solo artisti reali validi (`artist_id`/`display_name` non nulli, no `Unknown Artist`).
+  - `home_feed.dart`: snackbar esplicita se non vengono trovate tracce remote valide.
+  - nuova migrazione applicata `20260515123000_redistribute_preview_tracks_real_profiles.sql`:
+    - ridistribuite tracce demo `preview_audio_1..11.mp3` su profili reali Supabase (incluso mock privato e altri profili test).
+- Ribilanciamento ulteriore richiesto per evitare concentrazione su pochi profili:
+  - query remota verificata: distribuzione iniziale sbilanciata su `Natan Test` e `Gianni Giove`.
+  - applicata nuova migrazione `20260515134500_rebalance_preview_tracks_across_artist_testers.sql`.
+  - risultato verificato con query `supabase db query --linked`:
+    - tracce preview distribuite su `Artist 01..10` + `Gianni Giove` + `Natan Test` (2-3 tracce ciascuno).
+- Fix falsi positivi timeout audio (cross-feature core):
+  - file modificato `lib/core/services/audio_preview_service.dart`.
+  - comportamento aggiornato:
+    - se scatta timeout ma il player risulta comunque operativo (`playing` o `ProcessingState.ready/buffering`), errore utente soppresso.
+    - mantenuto log tecnico con `debugPrint`.
+  - obiettivo: evitare snackbar `Operazione audio in timeout` quando l'audio funziona regolarmente.

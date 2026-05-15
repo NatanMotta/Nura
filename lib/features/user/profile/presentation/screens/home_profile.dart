@@ -58,6 +58,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   AppAuthUser? _authUser;
   String? _displayName;
   String? _username;
+  String? _bio;
   String? _profileImageAsset;
 
   List<_ProfileTrack> _tracks = const [];
@@ -80,11 +81,12 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       if (authUser != null && SupabaseBootstrap.isInitialized) {
         final row = await Supabase.instance.client
             .from('profiles')
-            .select('display_name,image_asset')
+            .select('display_name,image_asset,bio')
             .eq('id', authUser.id)
             .maybeSingle();
         displayName = row?['display_name'] as String?;
         _profileImageAsset = row?['image_asset'] as String?;
+        _bio = row?['bio'] as String?;
         final email = authUser.email;
         if (email != null && email.contains('@')) {
           username = email.split('@').first;
@@ -186,6 +188,17 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       return '@${email.split('@').first}';
     }
     return '@guest';
+  }
+
+  String get _profileBio {
+    if (_bio != null && _bio!.trim().isNotEmpty) return _bio!.trim();
+    final role = _authUser?.role ?? ref.read(userRoleProvider);
+    return switch (role) {
+      UserRole.artist => 'Artista emergente su Nura.',
+      UserRole.label => 'Label indipendente in scouting attivo.',
+      UserRole.user => 'Ascolto, salvo, supporto talenti.',
+      null => 'Profilo demo in ambiente di test.',
+    };
   }
 
   String get _initials {
@@ -522,53 +535,62 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     return Stack(
       children: [
         SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, widget.safeTop, 16, 170 + widget.safeBottom),
+          padding: EdgeInsets.fromLTRB(0, 0, 0, 170 + widget.safeBottom),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Profilo',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: NuraBrand.mint,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ProfileSettingsScreen(),
-                        ),
-                      );
-                    },
-                    icon: Icon(
-                      Icons.tune_rounded,
-                      size: 20,
-                      color: NuraBrand.mintAlpha(0.82),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(16, widget.safeTop + 10, 16, 22),
                 decoration: BoxDecoration(
-                  color: NuraBrand.deepMidAlpha(0.34),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: NuraBrand.mintAlpha(0.14)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.34, 0.72, 1.0],
+                    colors: [
+                      const Color(0xFF46D4F1),
+                      const Color(0xFF1A9DB7),
+                      const Color(0xFF005D6D),
+                      NuraBrand.deep,
+                    ],
+                  ),
                 ),
                 child: _loading
                     ? const SizedBox(
-                        height: 110,
+                        height: 180,
                         child: Center(child: CircularProgressIndicator()),
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Profilo',
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFEFFFFF),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => const ProfileSettingsScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: Icon(
+                                  Icons.tune_rounded,
+                                  size: 22,
+                                  color: const Color(0xFFD7F9FF).withOpacity(0.96),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -604,17 +626,28 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: NuraBrand.mint,
+                              color: Color(0xFFEFFFFF),
                               fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                              fontSize: 17,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '$_handle · ${_roleLabel(_authUser?.role)}',
                             style: TextStyle(
-                              color: NuraBrand.mintAlpha(0.64),
-                              fontSize: 12,
+                              color: const Color(0xFFD7F9FF).withOpacity(0.95),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _profileBio,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0xFFCFF7FF).withOpacity(0.94),
+                              fontSize: 13,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -655,65 +688,105 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                         ],
                       ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Le tue canzoni',
-                style: TextStyle(
-                  color: NuraBrand.mintAlpha(0.95),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Tracce recenti in stile stream',
-                style: TextStyle(
-                  color: NuraBrand.mintAlpha(0.56),
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 10),
-              if (_tracks.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  decoration: BoxDecoration(
-                    color: NuraBrand.deepMidAlpha(0.32),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: NuraBrand.mintAlpha(0.1)),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Nessuna traccia disponibile',
-                      style: TextStyle(color: NuraBrand.mintAlpha(0.6), fontSize: 12),
-                    ),
-                  ),
-                )
-              else
-                AnimatedBuilder(
-                  animation: Listenable.merge([_audio.playingTrackId, _audio.isPlaying]),
-                  builder: (context, _) => Column(
-                    children: [
-                      for (final t in _tracks)
-                        _TrackPostCard(
-                          track: t,
-                          mockLikes: 20 + (t.id.hashCode.abs() % 240),
-                          mockComments: 3 + (t.id.hashCode.abs() % 48),
-                          hideInlinePlay: _playerExpanded && _audio.playingTrackId.value == t.id,
-                          isCurrentTrack: _audio.playingTrackId.value == t.id,
-                          isPlaying: _audio.isPlaying.value && _audio.playingTrackId.value == t.id,
-                          durationLabel: _durationLabel(t.durationSeconds),
-                          canEditDelete: _authUser?.id != null && _authUser!.id == t.artistId,
-                          onPlayPause: () => _onTapTrack(t),
-                          onTitleTap: () => _openTrackDetail(t),
-                          onLike: _showSocialMockInfo,
-                          onComment: _showSocialMockInfo,
-                          onDelete: () => _deleteTrack(t.id),
-                          accent: widget.accent,
-                        ),
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF005D6D),
+                      Color(0xFF005563),
                     ],
                   ),
                 ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Le tue canzoni',
+                            style: TextStyle(
+                              color: NuraBrand.mintAlpha(0.95),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const _UploadTrackMockScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.add_circle_outline, color: NuraBrand.mint),
+                          tooltip: 'Carica brano (mock)',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tracce recenti in stile stream',
+                      style: TextStyle(
+                        color: NuraBrand.mintAlpha(0.56),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_tracks.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        decoration: BoxDecoration(
+                          color: NuraBrand.deepMidAlpha(0.32),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: NuraBrand.mintAlpha(0.1)),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Nessuna traccia disponibile',
+                            style: TextStyle(color: NuraBrand.mintAlpha(0.6), fontSize: 12),
+                          ),
+                        ),
+                      )
+                    else
+                      AnimatedBuilder(
+                        animation: Listenable.merge([_audio.playingTrackId, _audio.isPlaying]),
+                        builder: (context, _) => Column(
+                          children: [
+                            for (final t in _tracks)
+                              _TrackPostCard(
+                                track: t,
+                                mockLikes: 20 + (t.id.hashCode.abs() % 240),
+                                mockComments: 3 + (t.id.hashCode.abs() % 48),
+                                hideInlinePlay:
+                                    _playerExpanded && _audio.playingTrackId.value == t.id,
+                                isCurrentTrack: _audio.playingTrackId.value == t.id,
+                                isPlaying: _audio.isPlaying.value &&
+                                    _audio.playingTrackId.value == t.id,
+                                durationLabel: _durationLabel(t.durationSeconds),
+                                canEditDelete:
+                                    _authUser?.id != null && _authUser!.id == t.artistId,
+                                onPlayPause: () => _onTapTrack(t),
+                                onTitleTap: () => _openTrackDetail(t),
+                                onLike: _showSocialMockInfo,
+                                onComment: _showSocialMockInfo,
+                                onDelete: () => _deleteTrack(t.id),
+                                accent: widget.accent,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -747,14 +820,21 @@ class _SummaryMetric extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            color: NuraBrand.mint,
+            color: Color(0xFFF2FFFF),
             fontWeight: FontWeight.w700,
-            fontSize: 14,
+            fontSize: 18,
             height: 1,
           ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: NuraBrand.mintAlpha(0.55), fontSize: 10)),
+        Text(
+          label,
+          style: TextStyle(
+            color: const Color(0xFFD2F7FF).withOpacity(0.95),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
@@ -925,4 +1005,194 @@ class _Action extends StatelessWidget {
     radius: 18,
     child: Icon(icon, size: 20, color: color),
   );
+}
+
+class _UploadTrackMockScreen extends StatelessWidget {
+  const _UploadTrackMockScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: NuraBrand.deepest,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: NuraBrand.mint,
+        title: const Text('Upload Traccia'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: NuraBrand.deepMidAlpha(0.42),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: NuraBrand.mintAlpha(0.15)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Upload mock',
+                      style: TextStyle(
+                        color: NuraBrand.mint,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Questa schermata e solo UI mock. Caricamento reale in arrivo.',
+                      style: TextStyle(
+                        color: NuraBrand.mintAlpha(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _mockField('Titolo brano'),
+              const SizedBox(height: 10),
+              _mockField('Genere'),
+              const SizedBox(height: 10),
+              _mockField('Mood / Tag principali'),
+              const SizedBox(height: 10),
+              _mockField('BPM'),
+              const SizedBox(height: 10),
+              _mockField('Tonalita (es. C#m)'),
+              const SizedBox(height: 10),
+              _mockField('ISRC (opzionale)'),
+              const SizedBox(height: 10),
+              _mockField('Descrizione breve'),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Mock: selezione file non ancora attiva')),
+                  );
+                },
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Seleziona file audio'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Mock: upload artwork non ancora attivo')),
+                  );
+                },
+                icon: const Icon(Icons.image_outlined),
+                label: const Text('Carica artwork / copertina'),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: NuraBrand.deepMidAlpha(0.38),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: NuraBrand.mintAlpha(0.12)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Preview swipe (15s)',
+                      style: TextStyle(
+                        color: NuraBrand.mint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Punto di start preview: 00:30 (mock)',
+                      style: TextStyle(color: NuraBrand.mintAlpha(0.72), fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Slider(
+                      value: 30,
+                      min: 0,
+                      max: 120,
+                      onChanged: (_) {},
+                      activeColor: NuraBrand.mint,
+                      inactiveColor: NuraBrand.mintAlpha(0.25),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: NuraBrand.deepMidAlpha(0.38),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: NuraBrand.mintAlpha(0.12)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Visibilita',
+                      style: TextStyle(
+                        color: NuraBrand.mint,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.public, size: 16),
+                            label: const Text('Pubblica'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.lock_outline, size: 16),
+                            label: const Text('Privato'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Mock: upload non ancora attivo')),
+                  );
+                },
+                icon: const Icon(Icons.cloud_upload_outlined),
+                label: const Text('Pubblica traccia'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mockField(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: NuraBrand.deepMidAlpha(0.38),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: NuraBrand.mintAlpha(0.12)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: NuraBrand.mintAlpha(0.7), fontSize: 12),
+      ),
+    );
+  }
 }
