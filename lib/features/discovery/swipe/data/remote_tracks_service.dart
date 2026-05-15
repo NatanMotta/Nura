@@ -21,6 +21,11 @@ class RemoteTracksService {
     return rows
         .whereType<Map<String, dynamic>>()
         .map(_toTrack)
+        .where((track) =>
+            track.artistId != null &&
+            track.artistId!.isNotEmpty &&
+            track.artist.trim().isNotEmpty &&
+            track.artist != 'Unknown Artist')
         .toList(growable: false);
   }
 

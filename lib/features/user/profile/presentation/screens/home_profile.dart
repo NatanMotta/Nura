@@ -9,6 +9,7 @@ import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../auth/domain/auth_user.dart';
 import '../../../../auth/presentation/auth_providers.dart';
 import '../../../../shared/domain/user_role.dart';
+import '../../../../shared/presentation/providers/user_role_provider.dart';
 import 'profile_settings_screen.dart';
 import 'track_detail_screen.dart';
 
@@ -161,6 +162,10 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     if (_displayName != null && _displayName!.trim().isNotEmpty) {
       return _displayName!.trim();
     }
+    final mockIdentity = ref.read(mockProfileIdentityProvider);
+    if (mockIdentity != null && mockIdentity.displayName.trim().isNotEmpty) {
+      return mockIdentity.displayName.trim();
+    }
     final email = _authUser?.email;
     if (email != null && email.contains('@')) {
       return email.split('@').first;
@@ -171,6 +176,10 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   String get _handle {
     if (_username != null && _username!.trim().isNotEmpty) {
       return '@${_username!.trim()}';
+    }
+    final mockIdentity = ref.read(mockProfileIdentityProvider);
+    if (mockIdentity != null && mockIdentity.username.trim().isNotEmpty) {
+      return '@${mockIdentity.username.trim()}';
     }
     final email = _authUser?.email;
     if (email != null && email.contains('@')) {

@@ -26,6 +26,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     try {
       await ref.read(authRepositoryProvider).signOut();
       ref.read(userRoleProvider.notifier).clear();
+      ref.read(mockProfileIdentityProvider.notifier).clear();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       setState(() {
@@ -40,6 +41,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
   void _exitMockRole() {
     ref.read(userRoleProvider.notifier).clear();
+    ref.read(mockProfileIdentityProvider.notifier).clear();
     Navigator.of(context).pop();
   }
 

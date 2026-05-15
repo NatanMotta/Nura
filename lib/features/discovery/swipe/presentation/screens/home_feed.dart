@@ -74,6 +74,16 @@ class _HomeFeedState extends State<HomeFeed> {
       final remote = await _remoteTracks.fetchTracks();
       if (remote.isNotEmpty) {
         selected = List.of(remote);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Nessuna traccia remota valida con artista reale trovata.',
+              ),
+            ),
+          );
+        }
       }
     } catch (_) {
       // keep selected = mock deck
