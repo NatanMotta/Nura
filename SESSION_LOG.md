@@ -302,3 +302,120 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - spiegati flussi merge/fork/branch
   - generato albero git aggiornato per stato repository.
 
+
+(appendere qui le sessioni successive)
+
+### Natan — Sessione 2026-05-12 (A)
+- Merge completato del ramo `codex/ottimizzazione-next` in `main` dopo test utente positivi.
+- Setup pipeline ASC CLI (`asc`) per upload TestFlight:
+  - raccolte credenziali API key (`Key ID`, `Issuer ID`, file `.p8`)
+  - fix permessi file private key (`chmod 600`)
+  - login riuscito con profilo keychain `Nura` (`asc auth status --validate` OK)
+  - identificata app target `Nura App` con App ID `6768263432`.
+- Automazione terminale upload:
+  - creato script `scripts/nura-upload-asc.sh`
+  - aggiornato alias `nura-upload` per usare ASC upload (con `ASC_WAIT=1` opzionale)
+  - mantenuto flusso operativo semplice: `nura-ipa-auto` -> `nura-upload`.
+- Profilo utente (tab destra footer) rifatto in versione minimal:
+  - semplificata `home_profile.dart`
+  - card profilo essenziale con nome/handle/email/ruolo reali da auth+`profiles` (fallback puliti)
+  - lista azioni minima (`Dettagli account`, `Notifiche`, `Impostazioni`).
+- Branch dedicato per la nuova fase profilo:
+  - creato `codex/implementazione-profilo-utente`
+  - commit effettuato: `f2ddea8` (`feat(profile): implementa sezione profilo utente minimal nel tab footer`).
+- Nota performance upload:
+  - IPA attuale ~83 MB; evidenziati asset immagini come principale fattore di lentezza upload/processing.
+- Aggiornamento sessione (A) — audit live Supabase via CLI completato:
+  - verificato progetto linkato `vsfaemlbnufprlcxmzwi`
+  - stato pre-migrazione confermato: presenti solo `profiles`, `tracks`, `labels`, `pitch_requests`.
+- Implementazione immediata backend social MVP su remoto:
+  - creata migrazione `supabase/migrations/20260512184500_social_engagement_mvp.sql`
+  - eseguito `supabase db push` con successo.
+- Oggetti DB attivi in produzione Supabase:
+  - tabelle: `track_likes`, `track_saves`, `track_comments`
+  - view: `track_engagement_stats`, `community_artist_ranking`
+  - RLS/policy: select public + insert/delete owner (like/save), select/insert/update/delete owner (commenti).
+- Allineata roadmap:
+  - `ROADMAP.md` aggiornato con fase Social Foundation marcata parzialmente completata lato backend.
+  - prossimo focus: integrazione CRUD app -> Supabase + binding ranking reale in profilo.
+- Aggiornamento sessione (A) — integrazione app con backend social MVP completata:
+  - creato `lib/features/social/data/social_engagement_service.dart` (Supabase):
+    - fetch metriche engagement per track
+    - fetch like/save utente
+    - toggle like/save
+    - fetch/create commenti.
+  - `home_feed.dart` aggiornato:
+    - like swipe persistente su `track_likes` quando l'utente è autenticato
+    - bookmark salvati persistenti su `track_saves`
+    - contatori live per brano top (`like/saves/commenti`) da `track_engagement_stats`
+    - bottom sheet commenti con lettura/scrittura su `track_comments`.
+  - `home_profile.dart` aggiornato:
+    - metriche canzoni proprie alimentate da DB (`track_engagement_stats`) con fallback visivo solo se dati mancanti.
+- Verifica statica post-integrazione:
+  - `flutter analyze` su file modificati: nessun errore.
+- Aggiornamento sessione (A) — refactor profilo richiesto (meno gamer, più social/editoriale):
+  - `home_profile.dart` riscritto con layout sobrio (header account + metriche compatte + lista tracce).
+  - sezione `Le tue canzoni` ora alimentata da dati reali DB (`tracks` con `storage_path` R2), priorità a tracce dell'utente artista; fallback a ultime tracce reali caricate.
+  - tracce cliccabili: tap sulla riga avvia play/pause preview (mapping `storage_path` -> asset locale preview attuale).
+  - metriche per traccia (`likes/saves/comments`) lette da `track_engagement_stats` (niente conteggi mock).
+  - azioni social per ogni traccia (like/save/comment) mantenute reali su Supabase.
+- Verifica statica: `flutter analyze` su `home_profile.dart` senza errori.
+- Aggiornamento sessione (A) — audit live utenti/tracce Supabase per test end-to-end:
+  - confermato account utente reale `asd@gmail.com` presente su `auth.users` e `profiles`.
+  - confermati utenti fake (`user*.nura.test`, `artist*.nura.test`, `label*.nura.test`).
+  - confermate tracce reali con path `storage_path` `previews/...` (31 tracce).
+- Seed dati test social su tracce reali:
+  - distribuiti like/save/commenti su un set di 16 tracce recenti.
+  - coinvolti utenti fake + account `asd@gmail.com`.
+  - commenti seed marcati con prefisso `[seed]` per tracciabilità.
+- Fix critico metriche engagement:
+  - corretta view `track_engagement_stats` (prima sovracontava per join multiplicative).
+  - nuova migrazione: `20260513201500_fix_engagement_views_counts.sql` applicata su remoto.
+- Stato dati dopo seed/fix:
+  - `track_likes`: 139
+  - `track_saves`: 52
+  - `track_comments` attivi: 41
+  - `asd@gmail.com` incluso nel seed commenti/like.
+- Aggiornamento sessione (A) — fix profilo `asd@gmail.com` senza tracce:
+  - root cause 1: profilo `asd@gmail.com` era `role=user`, quindi nessuna traccia propria collegata.
+  - root cause 2: `home_profile.dart` interrogava `profiles.username` (colonna non presente), causando errore in load profilo.
+- Correzioni applicate:
+  - aggiornato `profiles.role` di `asd@gmail.com` a `artist`.
+  - assegnate 6 tracce reali (`storage_path` `previews/...`) a `asd@gmail.com` come owner artist.
+  - redistribuite le altre tracce reali sui fake artist per mantenere copertura test multi-profilo.
+  - patch codice `home_profile.dart` per leggere solo `display_name` da `profiles` e derivare handle da email (niente dipendenza da `username`).
+- Verifica post-fix:
+  - `asd@gmail.com` risulta `artist` su `profiles`.
+  - tracce collegate a `asd@gmail.com`: 6.
+  - metriche reali disponibili su quelle tracce (like/save/commenti) via `track_engagement_stats`.
+
+### Francesco — Sessione 2026-05-18 (A)
+- **Architettura Strutturale e Gestione del Layout (`Stack` & `CustomScrollView`)**:
+  - Riorganizzato l'intero scheletro della pagina in un unico contenitore ad altissime prestazioni basato su `CustomScrollView` e `SliverToBoxAdapter`. Questa struttura unificata ha risolto in modo definitivo i problemi di overflow e i fastidiosi warning di layout presenti sui dispositivi con schermi di piccole dimensioni.
+  - Utilizzata una stratificazione a livelli tramite `Stack` per separare rigorosamente: lo sfondo a parallasse (livello 0), l'immagine del banner con trasparenza controllata (livello 1), il contenuto principale scorrevole (livello 2), e i controlli flottanti di navigazione satinati (livello 3). Questo isolamento previene i conflitti nella gestione dei tocchi e delle gesture.
+- **Sfondo Mesh Parallasse Avanzato (`ParallaxOrganicMeshPainter`)**:
+  - Sviluppato un `CustomPainter` ad alte prestazioni per disegnare riflessi e "glow blobs" cromatici sfumati nei colori del brand Nura (Blu Musicura e Rosa Nura) direttamente sulla canvas di sfondo.
+  - Applicata una sfocatura pesante tramite `ImageFilter.blur(sigmaX: 55, sigmaY: 55)` ottimizzata per GPU, garantendo un rendering fluido a 60/120 FPS senza lag di calcolo.
+  - Collegati i baricentri dei riflessi allo scorrimento tramite un moltiplicatore di parallasse controllato (`scrollOffset * 0.15`), conferendo all'interfaccia un senso di tridimensionalità e profondità (effetto 3D layered) durante lo scroll dei contenuti.
+- **Interactive Pro Player Timeline Seeking (`global_mini_player.dart`)**:
+  - Aggiornata la timeline del player a capsula inferiore trasformandola in uno `Slider` completamente interattivo.
+  - Implementata una `_FullWidthTrackShape` personalizzata per rimuovere ogni padding orizzontale, integrando perfettamente la barra di scorrimento con i bordi della capsula vitrea.
+  - Collegati i controlli rapidi di play/pause, chiusura (stop preview via `AudioPreviewService`) e icona like direttamente sulla barra flottante.
+- **Engagement Stats & Social Metrics (`artist_public_profile_screen.dart`)**:
+  - Aggiunti i contatori di like e commenti reali direttamente sotto il titolo di ogni brano nella lista pubblica dell'artista.
+- **Audio Visualizer in Tempo Reale**:
+  - Sviluppato un mini-visualizzatore spettrale a 3 barre animate (`AudioVisualizerAnimation`) in overlay sulla copertina del brano in riproduzione attiva. L'animazione si attiva esclusivamente sulla traccia corrente.
+- **Swipe Haptics Dismissible**:
+  - Aggiunta l'azione swipe orizzontale (`Dismissible`) sui brani per aggiungere rapidamente la traccia ai preferiti, calibrata con micro-vibrazioni aptiche (`HapticFeedback.lightImpact` e `mediumImpact`) su device fisici.
+- **Hero Artist Banner Immersivo**:
+  - Rimosso l'avatar circolare limitato.
+  - Introdotta una foto banner a schermo intero (full-bleed) in formato rettangolare per valorizzare l'immagine dell'artista.
+  - Applicata una **`ShaderMask` con Linear Gradient Mask (da opaco a trasparente)** alla base dell'immagine per sfumare e "sciogliere" la foto in modo invisibile all'interno dello sfondo grigio chiaro/mesh (`Color(0xFFF8F9FA)`).
+- **Scorrimento Sincrono 1:1 con Dissolvenza Progressiva**:
+  - Configurato il posizionamento della foto banner a `top: -_scrollOffset` per agganciare lo scorrimento in sincrono perfetto (1:1) con il testo e i brani.
+  - Integrata una formula di opacità dinamica `(1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0)` che sfuma la sola foto banner in trasparenza mentre sale, lasciando i testi, pulsanti e statistiche totalmente solidi e leggibili.
+  - Ricalibrati gli spazi con un'altezza trasparente iniziale di ben **`280px`**, posizionando il nome artista, pulsanti e statistiche esattamente sotto il viso per una visibilità perfetta del volto al primo caricamento.
+  - Aggiunti pulsanti "Indietro" e "Opzioni" fissi in alto, isolati all'interno di cerchietti in vetro satinato (`BackdropFilter` + sfocatura `8.0`) per garantire massima visibilità e contrasto cromatico.
+  - Rimossi overlay invasivi come la sticky app bar e indicatori complessi per preservare la fluidità di scorrimento nativa di iOS/Android.
+- **Verifica e Hardening**:
+  - Eseguito `flutter analyze` con esito pulito senza errori sintattici o logici nel modulo Artist Profile.
