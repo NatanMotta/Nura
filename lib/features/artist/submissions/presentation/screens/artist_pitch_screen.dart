@@ -1252,18 +1252,6 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                     ),
                   ),
                 ),
-                // Off-center indicator dot to show spin clearly
-                Align(
-                  alignment: const Alignment(0.0, -0.55),
-                  child: Container(
-                    width: 3.5,
-                    height: 3.5,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
                 // Center hole
                 Center(
                   child: Container(
