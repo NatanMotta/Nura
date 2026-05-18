@@ -419,3 +419,24 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Rimossi overlay invasivi come la sticky app bar e indicatori complessi per preservare la fluidità di scorrimento nativa di iOS/Android.
 - **Verifica e Hardening**:
   - Eseguito `flutter analyze` con esito pulito senza errori sintattici o logici nel modulo Artist Profile.
+
+### Francesco — Sessione 2026-05-18 (B)
+- **Creazione Branch e Setup Modulo Dati (`invio-pitch-artista`)**:
+  - Creato e attivato il nuovo branch dedicato `invio-pitch-artista` per isolare lo sviluppo.
+  - Sviluppato `artist_pitch_service.dart` in `submissions/data/` che implementa le query per caricare le tracce demo dell'artista, recuperare le etichette con loghi integrati tramite join relazionali su Supabase, inviare i pitch (`sendPitch`) e storicizzare le candidature.
+  - Creato `pitch_providers.dart` in `submissions/presentation/providers/` per esporre i dati in cache reattiva Riverpod, abilitando l'invalidazione immediata dello stato a ogni nuovo invio.
+- **Interfaccia Utente e Parallasse Mesh (`ArtistPitchScreen`)**:
+  - Implementata la schermata principale unificata `ArtistPitchScreen` reattiva e performante.
+  - Integrato lo sfondo premium a parallasse `ParallaxOrganicMeshPainter` (blu e rosa) reattivo allo scorrimento verticale, ereditando l'identità cromatico-mesh fluida del profilo artista.
+  - Sviluppato un Segmented Tab Control personalizzato ("Nuovo Pitch" / "I Miei Pitch") con micro-vibrazioni aptiche integrate.
+- **Flusso "Nuovo Pitch" & Feedback Sensoriale**:
+  - Creato il Selettore Traccia orizzontale con card illuminate da bordi neon rosa glow, spunta visiva all'attivazione e allineamento automatico dei campi del modello core `Track` (`swatch` per colore, `track` per titolo).
+  - Sviluppato il Selettore Label verticale a card frosted glass con risoluzione dinamica delle icone brandizzate da Supabase, biografie degli A&R e città di provenienza.
+  - Implementato un bottone CTA premium con gradiente rosa Nura e un overlay dialog immersivo a comparsa con spunta animata, descrizione di successo e feedback aptico vibrante `HapticFeedback.mediumImpact()`.
+- **Storico e Badge di Stato Colorati**:
+  - Creato il feed cronologico dei pitch inviati nella seconda scheda.
+  - Sviluppati i badge di stato satinati e colorati per tenere traccia delle letture (`sent` = Grigio/INVIATO, `viewed` = Viola/LETTO, `shortlisted` = Verde/SELEZIONATO, `rejected` = Rosso/NON SEL.).
+- **Integrazione e Hardening**:
+  - Sostituito il placeholder temporaneo all'interno di `artist_shell.dart` e rimosso il widget orfano `_PlaceholderScreen`.
+  - Risolti i warning di import e pulizia sintattica, confermando una compilazione totalmente pulita con `flutter analyze`.
+
