@@ -1,12 +1,10 @@
 PODS:
-  - app_links (0.0.1):
+  - app_links (7.0.0):
     - Flutter
   - audio_session (0.0.1):
     - Flutter
   - Flutter (1.0.0)
   - just_audio (0.0.1):
-    - Flutter
-  - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - shared_preferences_foundation (0.0.1):
@@ -19,8 +17,7 @@ DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
   - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - Flutter (from `Flutter`)
-  - just_audio (from `.symlinks/plugins/just_audio/ios`)
-  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
@@ -32,23 +29,20 @@ EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
   just_audio:
-    :path: ".symlinks/plugins/just_audio/ios"
-  path_provider_foundation:
-    :path: ".symlinks/plugins/path_provider_foundation/darwin"
+    :path: ".symlinks/plugins/just_audio/darwin"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  app_links: c5161ac5ab5383ad046884568b4b91cb52df5d91
-  audio_session: f08db0697111ac84ba46191b55488c0563bb29c6
+  app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
+  audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  just_audio: 6c031bb61297cf218b4462be616638e81c058e97
-  path_provider_foundation: 608fcb11be570ce83519b076ab6a1fffe2474f05
-  shared_preferences_foundation: 0b09b969fb36da5551c0bc4a2dbd9d0ff9387478
-  url_launcher_ios: a1c1f2bf89969cb13cce46d0333c7257d346e169
+  just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
+  shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
-PODFILE CHECKSUM: 681bf989b1752c26661df140f63f5aad6922ddbb
+PODFILE CHECKSUM: 0a7d5b7d0e53420cb0284f7b2f171f93843b94d2
 
 COCOAPODS: 1.16.2
