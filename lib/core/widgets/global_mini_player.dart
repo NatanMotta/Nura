@@ -1,143 +1,115 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-
+import '../services/audio_preview_service.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_theme.dart';
-import '../services/audio_preview_service.dart';
 
-/// Mini player globale che appare sopra la nav bar in tutto lo shell.
-/// Si mostra automaticamente quando c'è un brano in riproduzione.
 class GlobalMiniPlayer extends StatelessWidget {
   final NuraVibe vibe;
   const GlobalMiniPlayer({super.key, required this.vibe});
-
-  String _durationLabel(int? seconds) {
-    if (seconds == null) return '--:--';
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
-  }
 
   @override
   Widget build(BuildContext context) {
     final audio = AudioPreviewService.instance;
 
-    return AnimatedBuilder(
-      animation: Listenable.merge(
-        [audio.playingTrackId, audio.isPlaying, audio.position, audio.duration],
-      ),
-      builder: (context, _) {
-        final activeTrackId = audio.playingTrackId.value;
-        if (activeTrackId == null || activeTrackId.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        final duration = audio.duration.value ?? const Duration(seconds: 15);
-        final position = audio.position.value;
-        final currentPosition = position > duration ? duration : position;
-
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final progress = duration.inMilliseconds > 0
-                ? currentPosition.inMilliseconds / duration.inMilliseconds
-                : 0.0;
-
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onHorizontalDragUpdate: (details) {
-                final pct = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
-                audio.seek(Duration(milliseconds: (pct * duration.inMilliseconds).floor()));
-              },
-              onTapDown: (details) {
-                final pct = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
-                audio.seek(Duration(milliseconds: (pct * duration.inMilliseconds).floor()));
-              },
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ValueListenableBuilder<String?>(
+        valueListenable: audio.playingTrackId,
+        builder: (context, trackId, _) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
               child: Container(
-                height: 64,
+                height: 76,
                 decoration: BoxDecoration(
-                  color: NuraBrand.deepMid,
-                  border: Border(
-                    top: BorderSide(color: NuraBrand.mintAlpha(0.12)),
-                  ),
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
                 child: Stack(
                   children: [
-                    // Background progress fill
-                    Container(
-                      width: constraints.maxWidth * progress,
-                      height: double.infinity,
-                      color: NuraBrand.pink.withValues(alpha: 0.08),
+                    // 1. INTERACTIVE PROGRESS BAR (TOP)
+                    const Positioned(
+                      top: 0, left: 0, right: 0,
+                      child: _InteractiveProgressBar(),
                     ),
-                    // Top progress line
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      child: Container(
-                        height: 2,
-                        width: constraints.maxWidth * progress,
-                        color: NuraBrand.pink,
-                      ),
-                    ),
-                    // Content row
+
+                    // 2. PLAYER CONTENT
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
                       child: Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              gradient: LinearGradient(
-                                colors: [NuraBrand.mintAlpha(0.2), NuraBrand.deep],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                          // Artwork
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              width: 46,
+                              height: 46,
+                              color: Colors.black12,
+                              child: const Icon(Icons.music_note, color: Colors.white, size: 20),
                             ),
-                            child: const Icon(Icons.music_note, color: NuraBrand.mint, size: 18),
                           ),
                           const SizedBox(width: 10),
+                          // Info
                           Expanded(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'In riproduzione',
+                                  'Sunset Drive',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: NuraBrand.mint,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
+                                  style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.w800),
                                 ),
                                 Text(
-                                  '${_durationLabel(currentPosition.inSeconds)} / ${_durationLabel(duration.inSeconds)}',
-                                  style: TextStyle(
-                                    color: NuraBrand.mintAlpha(0.5),
-                                    fontSize: 10,
-                                    fontFamily: 'monospace',
-                                  ),
+                                  'Aria Nova',
+                                  style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 11, fontWeight: FontWeight.w500),
                                 ),
                               ],
                             ),
                           ),
+                          // Heart / Like
+                          IconButton(
+                            icon: const Icon(Icons.favorite_border, color: Colors.black45, size: 22),
+                            onPressed: () {},
+                          ),
+                          // Play/Pause Circle
                           ValueListenableBuilder<bool>(
                             valueListenable: audio.isPlaying,
-                            builder: (_, isPlaying, __) => IconButton(
-                              onPressed: () {
-                                if (isPlaying) {
-                                  audio.pause();
-                                } else {
-                                  audio.resume();
-                                }
-                              },
-                              icon: Icon(
-                                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                color: NuraBrand.mint,
-                                size: 28,
-                              ),
-                            ),
+                            builder: (context, isPlaying, _) {
+                              return GestureDetector(
+                                onTap: () => isPlaying ? audio.pause() : audio.resume(),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF1A1A1A),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          // CLOSE BUTTON (X)
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.black26, size: 18),
+                            onPressed: () => audio.stop(),
                           ),
                         ],
                       ),
@@ -145,10 +117,69 @@ class GlobalMiniPlayer extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _InteractiveProgressBar extends StatelessWidget {
+  const _InteractiveProgressBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final audio = AudioPreviewService.instance;
+
+    return ValueListenableBuilder<Duration?>(
+      valueListenable: audio.duration,
+      builder: (context, totalDuration, _) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: audio.position,
+          builder: (context, pos, _) {
+            final totalMs = totalDuration?.inMilliseconds.toDouble() ?? 0.0;
+            final posMs = pos.inMilliseconds.toDouble().clamp(0.0, totalMs > 0 ? totalMs : 0.0);
+
+            return SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 0), // Hidden until active? Or keep very small
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                activeTrackColor: NuraBrand.pink,
+                inactiveTrackColor: Colors.black.withValues(alpha: 0.05),
+                trackShape: const _FullWidthTrackShape(),
+              ),
+              child: Slider(
+                value: posMs,
+                max: totalMs > 0 ? totalMs : 1.0,
+                onChanged: (value) {
+                  audio.seek(Duration(milliseconds: value.toInt()));
+                },
+              ),
             );
           },
         );
       },
     );
+  }
+}
+
+// Custom track shape to remove side padding from the slider
+class _FullWidthTrackShape extends RoundedRectSliderTrackShape {
+  const _FullWidthTrackShape();
+  @override
+  Rect getPreferredRect({
+    required RenderBox parentBox,
+    Offset offset = Offset.zero,
+    required SliderThemeData sliderTheme,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+  }) {
+    final double trackHeight = sliderTheme.trackHeight ?? 3.0;
+    final double trackLeft = offset.dx;
+    final double trackTop = offset.dy;
+    final double trackWidth = parentBox.size.width;
+    return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }
 }

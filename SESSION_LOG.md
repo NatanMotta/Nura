@@ -388,3 +388,27 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - `asd@gmail.com` risulta `artist` su `profiles`.
   - tracce collegate a `asd@gmail.com`: 6.
   - metriche reali disponibili su quelle tracce (like/save/commenti) via `track_engagement_stats`.
+
+### Codex — Sessione 2026-05-18 (A)
+- **Interactive Pro Player Timeline Seeking (`global_mini_player.dart`)**:
+  - Aggiornata la timeline del player a capsula inferiore trasformandola in uno `Slider` completamente interattivo.
+  - Implementata una `_FullWidthTrackShape` personalizzata per rimuovere ogni padding orizzontale, integrando perfettamente la barra di scorrimento con i bordi della capsula vitrea.
+  - Collegati i controlli rapidi di play/pause, chiusura (stop preview via `AudioPreviewService`) e icona like direttamente sulla barra flottante.
+- **Engagement Stats & Social Metrics (`artist_public_profile_screen.dart`)**:
+  - Aggiunti i contatori di like e commenti reali direttamente sotto il titolo di ogni brano nella lista pubblica dell'artista.
+- **Audio Visualizer in Tempo Reale**:
+  - Sviluppato un mini-visualizzatore spettrale a 3 barre animate (`AudioVisualizerAnimation`) in overlay sulla copertina del brano in riproduzione attiva. L'animazione si attiva esclusivamente sulla traccia corrente.
+- **Swipe Haptics Dismissible**:
+  - Aggiunta l'azione swipe orizzontale (`Dismissible`) sui brani per aggiungere rapidamente la traccia ai preferiti, calibrata con micro-vibrazioni aptiche (`HapticFeedback.lightImpact` e `mediumImpact`) su device fisici.
+- **Hero Artist Banner Immersivo**:
+  - Rimosso l'avatar circolare limitato.
+  - Introdotta una foto banner a schermo intero (full-bleed) in formato rettangolare per valorizzare l'immagine dell'artista.
+  - Applicata una **`ShaderMask` con Linear Gradient Mask (da opaco a trasparente)** alla base dell'immagine per sfumare e "sciogliere" la foto in modo invisibile all'interno dello sfondo grigio chiaro/mesh (`Color(0xFFF8F9FA)`).
+- **Scorrimento Sincrono 1:1 con Dissolvenza Progressiva**:
+  - Configurato il posizionamento della foto banner a `top: -_scrollOffset` per agganciare lo scorrimento in sincrono perfetto (1:1) con il testo e i brani.
+  - Integrata una formula di opacità dinamica `(1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0)` che sfuma la sola foto banner in trasparenza mentre sale, lasciando i testi, pulsanti e statistiche totalmente solidi e leggibili.
+  - Ricalibrati gli spazi con un'altezza trasparente iniziale di ben **`280px`**, posizionando il nome artista, pulsanti e statistiche esattamente sotto il viso per una visibilità perfetta del volto al primo caricamento.
+  - Aggiunti pulsanti "Indietro" e "Opzioni" fissi in alto, isolati all'interno di cerchietti in vetro satinato (`BackdropFilter` + sfocatura `8.0`) per garantire massima visibilità e contrasto cromatico.
+  - Rimossi overlay invasivi come la sticky app bar e indicatori complessi per preservare la fluidità di scorrimento nativa di iOS/Android.
+- **Verifica e Hardening**:
+  - Eseguito `flutter analyze` con esito pulito senza errori sintattici o logici nel modulo Artist Profile.
