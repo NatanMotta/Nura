@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
-import '../../../../auth/presentation/auth_providers.dart';
+import '../../../../../core/models/track.dart';
 import '../providers/pitch_providers.dart';
 
 class ArtistPitchScreen extends ConsumerStatefulWidget {
@@ -206,23 +206,43 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
-    final user = authState.value;
+    final artistIdAsync = ref.watch(resolvedArtistIdProvider);
 
-    if (user == null) {
-      return const Scaffold(
+    return artistIdAsync.when(
+      data: (artistId) {
+        if (artistId == null) {
+          return const Scaffold(
+            backgroundColor: Color(0xFFF8F9FA),
+            body: Center(
+              child: Text(
+                'Utente non connesso.',
+                style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold),
+              ),
+            ),
+          );
+        }
+
+        return _buildMainContent(context, artistId);
+      },
+      loading: () => const Scaffold(
+        backgroundColor: Color(0xFFF8F9FA),
+        body: Center(
+          child: CircularProgressIndicator(color: NuraBrand.pink),
+        ),
+      ),
+      error: (err, _) => const Scaffold(
         backgroundColor: Color(0xFFF8F9FA),
         body: Center(
           child: Text(
-            'Utente non connesso.',
-            style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold),
+            'Errore nel caricamento dell\'utente.',
+            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    final artistId = user.id;
-
+  Widget _buildMainContent(BuildContext context, String artistId) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
@@ -275,7 +295,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
@@ -433,106 +453,32 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
             }
 
             return SizedBox(
-              height: 120,
+              height: 205,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 physics: const BouncingScrollPhysics(),
                 itemCount: tracks.length,
                 itemBuilder: (context, index) {
                   final track = tracks[index];
                   final isSelected = _selectedTrackId == track.id;
 
-                  return GestureDetector(
+                  return VinylTrackCard(
+                    track: track,
+                    isSelected: isSelected,
                     onTap: () {
                       HapticFeedback.lightImpact();
                       setState(() {
                         _selectedTrackId = isSelected ? null : track.id;
                       });
                     },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      width: 140,
-                      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(isSelected ? 0.95 : 0.65),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? NuraBrand.pink : Colors.black.withOpacity(0.05),
-                          width: isSelected ? 2.5 : 1.0,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: NuraBrand.pink.withOpacity(0.15),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Stack(
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Artwork Mini or Disc Icon
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: track.swatch,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(Icons.album_outlined, color: Colors.white, size: 18),
-                              ),
-                              
-                              // Track Info
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    track.track,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFF1A1A1A),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    track.genre.toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.black38,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (isSelected)
-                            const Positioned(
-                              top: 0,
-                              right: 0,
-                              child: Icon(Icons.check_circle, color: NuraBrand.pink, size: 20),
-                            ),
-                        ],
-                      ),
-                    ),
                   );
                 },
               ),
             );
           },
           loading: () => const SizedBox(
-            height: 120,
+            height: 205,
             child: Center(child: CircularProgressIndicator(color: NuraBrand.pink)),
           ),
           error: (err, _) => Padding(
@@ -986,4 +932,301 @@ class ParallaxOrganicMeshPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) => oldDelegate.scrollOffset != scrollOffset;
+}
+
+// ============================================================================
+// INTERACTIVE VINYL DECK SELECTOR CARD (OPZIONE B)
+// ============================================================================
+class VinylTrackCard extends StatefulWidget {
+  final Track track;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const VinylTrackCard({
+    super.key,
+    required this.track,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  State<VinylTrackCard> createState() => _VinylTrackCardState();
+}
+
+class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProviderStateMixin {
+  late AnimationController _spinController;
+
+  @override
+  void initState() {
+    super.initState();
+    _spinController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    );
+    if (widget.isSelected) {
+      _spinController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(VinylTrackCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected != oldWidget.isSelected) {
+      if (widget.isSelected) {
+        _spinController.repeat();
+      } else {
+        _spinController.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final track = widget.track;
+    final isSelected = widget.isSelected;
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        width: 175,
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Vinyl and Sleeve Stack
+            SizedBox(
+              height: 130,
+              width: 175,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // 1. Vinyl Record (Slides out from behind cover)
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 550),
+                    curve: Curves.easeOutBack,
+                    left: isSelected ? 48 : 6,
+                    top: 10,
+                    child: AnimatedBuilder(
+                      animation: _spinController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: isSelected 
+                              ? _spinController.value * 2 * 3.1415926535 
+                              : 0.0,
+                          child: child,
+                        );
+                      },
+                      child: _buildVinylRecord(track),
+                    ),
+                  ),
+
+                  // 2. Sleeve Cover
+                  Positioned(
+                    left: 6,
+                    top: 5,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isSelected 
+                                ? NuraBrand.pink.withValues(alpha: 0.25) 
+                                : Colors.black.withValues(alpha: 0.12),
+                            blurRadius: isSelected ? 16 : 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            // Album cover or gradient
+                            track.coverAsset != null
+                                ? Image.asset(
+                                    track.coverAsset!,
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _buildPlaceholderCover(track),
+                                  )
+                                : _buildPlaceholderCover(track),
+                            
+                            // Glassmorphic overlay border
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected 
+                                      ? NuraBrand.pink.withValues(alpha: 0.45) 
+                                      : Colors.white.withValues(alpha: 0.15),
+                                  width: isSelected ? 2.5 : 1.5,
+                                ),
+                              ),
+                            ),
+
+                            // Selected Check Icon Overlay
+                            if (isSelected)
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: NuraBrand.pink,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Track Info
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.track,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: const Color(0xFF1A1A1A),
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                      shadows: isSelected ? [
+                        Shadow(
+                          color: NuraBrand.pink.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        )
+                      ] : null,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    track.genre.toUpperCase(),
+                    style: TextStyle(
+                      color: isSelected ? NuraBrand.pink : Colors.black38,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVinylRecord(Track track) {
+    return Container(
+      width: 110,
+      height: 110,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            Color(0xFF2C2C2C),
+            Color(0xFF151515),
+            Color(0xFF0F0F0F),
+          ],
+          stops: [0.0, 0.7, 1.0],
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Groove concentric lines (simulate physical vinyl)
+          _buildVinylGroove(size: 94),
+          _buildVinylGroove(size: 78),
+          _buildVinylGroove(size: 62),
+
+          // Center Sticker
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: track.swatch,
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Center(
+              // Center hole
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVinylGroove({required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.07),
+          width: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderCover(Track track) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [track.swatch, track.swatch.withValues(alpha: 0.5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.music_note_outlined,
+          color: Colors.white38,
+          size: 32,
+        ),
+      ),
+    );
+  }
 }

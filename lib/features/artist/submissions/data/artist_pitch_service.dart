@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/models/track.dart';
 import '../../../../core/services/supabase_bootstrap.dart';
 import '../../../shared/domain/label.dart';
+import '../../../shared/data/mock_nura_data.dart';
+import '../../../shared/domain/pitch_request.dart';
 
 class ArtistPitchService {
   const ArtistPitchService();
@@ -14,49 +16,72 @@ class ArtistPitchService {
   // 1. Fetch tracks owned by this artist
   Future<List<Track>> fetchArtistTracks(String artistId) async {
     final client = _client;
-    if (client == null) return const [];
+    if (client == null) {
+      // Offline fallback: return all mock tracks
+      return kTracks;
+    }
 
-    final rows = await client
-        .from('tracks')
-        .select('id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
-        .eq('artist_id', artistId)
-        .order('created_at', ascending: false);
+    try {
+      final rows = await client
+          .from('tracks')
+          .select('id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+          .eq('artist_id', artistId)
+          .order('created_at', ascending: false);
 
-    return rows
-        .whereType<Map<String, dynamic>>()
-        .map(_toTrack)
-        .toList(growable: false);
+      final tracks = rows
+          .whereType<Map<String, dynamic>>()
+          .map(_toTrack)
+          .toList(growable: false);
+
+      if (tracks.isEmpty) {
+        return kTracks;
+      }
+      return tracks;
+    } catch (_) {
+      return kTracks;
+    }
   }
 
   // 2. Fetch all labels to pitch to
   Future<List<Label>> fetchLabels() async {
     final client = _client;
-    if (client == null) return const [];
+    if (client == null) {
+      return kLabels;
+    }
 
-    // Query labels joining the owner's profiles.image_asset (logo path)
-    final rows = await client
-        .from('labels')
-        .select('id,name,city,bio,profiles!labels_owner_id_fkey(image_asset)');
+    try {
+      // Query labels joining the owner's profiles.image_asset (logo path)
+      final rows = await client
+          .from('labels')
+          .select('id,name,city,bio,profiles!labels_owner_id_fkey(image_asset)');
 
-    return rows.whereType<Map<String, dynamic>>().map((row) {
-      final id = row['id'] as String? ?? '';
-      final name = row['name'] as String? ?? '';
-      final city = row['city'] as String? ?? '';
-      final bio = row['bio'] as String? ?? '';
-      
-      final profile = row['profiles'];
-      final logoAsset = profile is Map<String, dynamic>
-          ? profile['image_asset'] as String?
-          : null;
+      final labels = rows.whereType<Map<String, dynamic>>().map((row) {
+        final id = row['id'] as String? ?? '';
+        final name = row['name'] as String? ?? '';
+        final city = row['city'] as String? ?? '';
+        final bio = row['bio'] as String? ?? '';
+        
+        final profile = row['profiles'];
+        final logoAsset = profile is Map<String, dynamic>
+            ? profile['image_asset'] as String?
+            : null;
 
-      return Label(
-        id: id,
-        name: name,
-        city: city,
-        bio: bio,
-        logoAsset: logoAsset ?? 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
-      );
-    }).toList(growable: false);
+        return Label(
+          id: id,
+          name: name,
+          city: city,
+          bio: bio,
+          logoAsset: logoAsset ?? 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
+        );
+      }).toList(growable: false);
+
+      if (labels.isEmpty) {
+        return kLabels;
+      }
+      return labels;
+    } catch (_) {
+      return kLabels;
+    }
   }
 
   // 3. Send a new pitch request
@@ -66,7 +91,10 @@ class ArtistPitchService {
     required String trackId,
   }) async {
     final client = _client;
-    if (client == null) return;
+    if (client == null) {
+      debugPrint('Offline mock pitch sent: artist:$artistId, label:$labelId, track:$trackId');
+      return;
+    }
 
     await client.from('pitch_requests').insert({
       'artist_id': artistId,
@@ -79,15 +107,53 @@ class ArtistPitchService {
   // 4. Fetch already sent pitches for this artist with nested joined details
   Future<List<Map<String, dynamic>>> fetchArtistPitches(String artistId) async {
     final client = _client;
-    if (client == null) return const [];
+    if (client == null) {
+      return _getMockPitchesJson();
+    }
 
-    final rows = await client
-        .from('pitch_requests')
-        .select('id,status,created_at,track:tracks(title,genre),label:labels(name,city,profiles!labels_owner_id_fkey(image_asset))')
-        .eq('artist_id', artistId)
-        .order('created_at', ascending: false);
+    try {
+      final rows = await client
+          .from('pitch_requests')
+          .select('id,status,created_at,track:tracks(title,genre),label:labels(name,city,profiles!labels_owner_id_fkey(image_asset))')
+          .eq('artist_id', artistId)
+          .order('created_at', ascending: false);
 
-    return rows.whereType<Map<String, dynamic>>().toList();
+      final pitches = rows.whereType<Map<String, dynamic>>().toList();
+      if (pitches.isEmpty) {
+        return _getMockPitchesJson();
+      }
+      return pitches;
+    } catch (_) {
+      return _getMockPitchesJson();
+    }
+  }
+
+  List<Map<String, dynamic>> _getMockPitchesJson() {
+    return kPitchRequests.map((p) {
+      final track = getTrackById(p.trackId);
+      final label = getLabelById(p.labelId);
+      return {
+        'id': p.id,
+        'status': switch (p.visualStatus) {
+          PitchVisualStatus.sent => 'sent',
+          PitchVisualStatus.viewed => 'viewed',
+          PitchVisualStatus.shortlisted => 'shortlisted',
+          PitchVisualStatus.rejected => 'rejected',
+        },
+        'created_at': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+        'track': {
+          'title': track?.track ?? 'Untitled',
+          'genre': track?.genre ?? 'demo',
+        },
+        'label': {
+          'name': label?.name ?? 'Aurora Records',
+          'city': label?.city ?? 'Milano, IT',
+          'profiles': {
+            'image_asset': label?.logoAsset,
+          }
+        }
+      };
+    }).toList();
   }
 
   // Mapper derived from RemoteTracksService

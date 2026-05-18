@@ -7,8 +7,8 @@ class NuraBrand {
   static const Color deepest = Color(0xFF00343C);
   static const Color deepMid = Color(0xFF004956);
 
-  static Color mintAlpha(double a) => mint.withOpacity(a);
-  static Color pinkAlpha(double a) => pink.withOpacity(a);
-  static Color tealAlpha(double a) => deep.withOpacity(a);
-  static Color deepMidAlpha(double a) => deepMid.withOpacity(a);
+  static Color mintAlpha(double a) => mint.withValues(alpha: a);
+  static Color pinkAlpha(double a) => pink.withValues(alpha: a);
+  static Color tealAlpha(double a) => deep.withValues(alpha: a);
+  static Color deepMidAlpha(double a) => deepMid.withValues(alpha: a);
 }

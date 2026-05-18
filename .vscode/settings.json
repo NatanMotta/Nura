@@ -2,8 +2,11 @@
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.import.gradle.enabled": true,
+    "java.import.gradle.wrapper.enabled": true,
     "java.project.importHint": false,
     "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+    "gradle.useGradleWrapperForRun": true,
+    "gradle.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
     "files.exclude": {
         "**/.gradle": true
     }
