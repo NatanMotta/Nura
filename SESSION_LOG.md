@@ -447,3 +447,19 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Risolti ed eliminati tutti i warning e gli errori sintattici: compilazione superata con successo con **0 ERRORI e 0 AVVISI** rilevati da `flutter analyze`.
   - Committato e inviato in push l'intero aggiornamento sul repository GitHub sul branch remoto `invio-pitch-artista`.
 
+### Francesco — Sessione 2026-05-18 (C)
+- **Risoluzione "Scroll Brutto" e allineamento cache**:
+  - Identificata e spiegata la causa dell'header bianco fisso e bloccato ("Artist 01"), dovuto alla persistenza della vecchia `SliverAppBar` nella cache dell'emulatore. Spiegata la necessità di effettuare un semplice **Hot Restart** per caricare la versione parallasse con pulsanti satinati.
+- **Controllo di Ruolo e Rimozione Pulsante "Battle"**:
+  - Integrato il tracciamento reattivo del ruolo dell'utente (`UserRole`) in `ArtistPublicProfileScreen` tramite i provider di Riverpod (`userRoleProvider` e `authStateProvider`).
+  - Nascosto condizionalmente il pulsante **Battle** per Utenti ed Etichette, rendendolo esclusivo per la visualizzazione da parte di altri Artisti.
+- **Allineamento e Navigazione In-Line Shell Etichetta (`LabelShell`)**:
+  - Unificata la navigazione di `LabelShell` sullo stesso modello in-line e fluido di `UserShell`, mantenendo la barra di navigazione inferiore sempre persistente ed evitando il push nativo a tutto schermo.
+  - Integrata la capsula del `GlobalMiniPlayer` reattivo sopra la barra di navigazione a 4 elementi (`bottom: 84 + safeBottom`).
+- **Hardening Mini Player Shell Utente (`UserShell`)**:
+  - Avvolto il mini player a capsula in un `ValueListenableBuilder<String?>` reattivo su `playingTrackId` di `AudioPreviewService`, risolvendo il bug delle schede vuote e disallineate in assenza di brani attivi.
+- **Hardening e Sicurezza Tasto Indietro Fluttuante**:
+  - Aggiornato l'onPressed del tasto indietro fluttuante del profilo artista per fare il `pop` nativo se spinto via `Navigator.push`.
+  - Risolti i warning di analisi sul BuildContext asincrono catturando `NavigatorState` prima dell'`await` su `_audio.stop()`.
+- **Verifica Statica**:
+  - Eseguito `flutter analyze` confermando la totale assenza di errori e warning per tutti i moduli modificati.

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../app/router/route_names.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/widgets/bottom_nav.dart';
+import '../../../core/services/audio_preview_service.dart';
+import '../../../core/widgets/global_mini_player.dart';
+import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
 import '../../user/profile/presentation/screens/home_profile.dart';
 import '../../user/search/presentation/screens/home_search.dart';
@@ -26,6 +29,27 @@ class LabelShell extends StatefulWidget {
 class _LabelShellState extends State<LabelShell> {
   static const _received = 'label_pitch_received';
   String _screen = RouteNames.home;
+
+  // Artist profile navigation state
+  String? _artistId;
+  String? _artistName;
+  static const _artistProfileRoute = 'artist_profile';
+
+  void _onArtistTap(String artistId, String artistName) {
+    setState(() {
+      _artistId = artistId;
+      _artistName = artistName;
+      _screen = _artistProfileRoute;
+    });
+  }
+
+  void _onArtistBack() {
+    setState(() {
+      _screen = RouteNames.home;
+      _artistId = null;
+      _artistName = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,12 +75,18 @@ class _LabelShellState extends State<LabelShell> {
           safeTop: safeTop,
           safeBottom: safeBottom,
         ),
+      _artistProfileRoute => ArtistPublicProfileScreen(
+          artistId: _artistId!,
+          artistName: _artistName!,
+          onBack: _onArtistBack,
+        ),
       _ => HomeFeed(
           vibe: widget.vibe,
           accent: widget.accent,
           waveform: widget.waveform,
           safeTop: safeTop,
           safeBottom: safeBottom,
+          onArtistTap: _onArtistTap,
         ),
     };
 
@@ -66,13 +96,31 @@ class _LabelShellState extends State<LabelShell> {
         child: Stack(
           children: [
             Positioned.fill(child: body),
+            // Mini player — solo nel profilo artista, sopra la nav bar
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 84 + safeBottom,
+              child: ValueListenableBuilder<String?>(
+                valueListenable: AudioPreviewService.instance.playingTrackId,
+                builder: (context, trackId, _) {
+                  if (_screen != _artistProfileRoute) return const SizedBox.shrink();
+                  if (trackId == null || trackId.isEmpty) return const SizedBox.shrink();
+                  return GlobalMiniPlayer(vibe: widget.vibe);
+                },
+              ),
+            ),
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
               child: BottomNav(
-                active: _screen,
-                onChange: (value) => setState(() => _screen = value),
+                active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
+                onChange: (value) => setState(() {
+                  _screen = value;
+                  _artistId = null;
+                  _artistName = null;
+                }),
                 vibe: widget.vibe,
                 accent: widget.accent,
                 safeBottom: safeBottom,

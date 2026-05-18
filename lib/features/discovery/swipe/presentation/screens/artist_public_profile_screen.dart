@@ -7,6 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
+import '../../../../shared/domain/user_role.dart';
+import '../../../../shared/presentation/providers/user_role_provider.dart';
+import '../../../../auth/presentation/auth_providers.dart';
 
 class ArtistPublicProfileScreen extends ConsumerStatefulWidget {
   final String artistId;
@@ -98,6 +101,10 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator(color: NuraBrand.pink));
 
+    final authUser = ref.watch(authStateProvider).value;
+    final mockRole = ref.watch(userRoleProvider);
+    final role = authUser?.role ?? mockRole;
+
     final artistName = _displayName ?? widget.artistName;
 
     return Scaffold(
@@ -171,8 +178,10 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                         child: Row(
                           children: [
                             Expanded(child: _mainBtn(label: _following ? 'Following' : 'Follow', isSolid: _following, onTap: () => setState(() => _following = !_following))),
-                            const SizedBox(width: 12),
-                            Expanded(child: _mainBtn(label: 'Battle', isSolid: false, onTap: () {})),
+                            if (role == UserRole.artist) ...[
+                              const SizedBox(width: 12),
+                              Expanded(child: _mainBtn(label: 'Battle', isSolid: false, onTap: () {})),
+                            ],
                           ],
                         ),
                       ),
@@ -258,7 +267,15 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
                     padding: EdgeInsets.zero,
-                    onPressed: widget.onBack,
+                    onPressed: () async {
+                      final nav = Navigator.of(context);
+                      await _audio.stop();
+                      if (widget.onBack != null) {
+                        widget.onBack!();
+                      } else if (nav.canPop()) {
+                        nav.pop();
+                      }
+                    },
                   ),
                 ),
               ),
