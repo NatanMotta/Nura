@@ -406,8 +406,11 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     final assetPath = 'assets/audio/$fileName';
 
     if (_audio.playingTrackId.value == id) {
-      if (_audio.isPlaying.value) await _audio.pause();
-      else await _audio.resume();
+      if (_audio.isPlaying.value) {
+        await _audio.pause();
+      } else {
+        await _audio.resume();
+      }
     } else {
       await _audio.playTrack(trackId: id, assetPath: assetPath);
     }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../core/models/track.dart';
+import '../../../../../core/services/audio_preview_service.dart';
 import '../providers/pitch_providers.dart';
 
 class ArtistPitchScreen extends ConsumerStatefulWidget {
@@ -37,6 +38,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    AudioPreviewService.instance.stop();
     super.dispose();
   }
 
@@ -453,7 +455,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
             }
 
             return SizedBox(
-              height: 205,
+              height: 170,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -468,9 +470,18 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                     isSelected: isSelected,
                     onTap: () {
                       HapticFeedback.lightImpact();
+                      final isSelectedNow = !isSelected;
                       setState(() {
-                        _selectedTrackId = isSelected ? null : track.id;
+                        _selectedTrackId = isSelectedNow ? track.id : null;
                       });
+                      if (isSelectedNow) {
+                        AudioPreviewService.instance.togglePreview(
+                          trackId: track.id,
+                          assetPath: track.audioAsset,
+                        );
+                      } else {
+                        AudioPreviewService.instance.stop();
+                      }
                     },
                   );
                 },
@@ -478,7 +489,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
             );
           },
           loading: () => const SizedBox(
-            height: 205,
+            height: 170,
             child: Center(child: CircularProgressIndicator(color: NuraBrand.pink)),
           ),
           error: (err, _) => Padding(
@@ -963,25 +974,47 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
       vsync: this,
       duration: const Duration(seconds: 12),
     );
-    if (widget.isSelected) {
-      _spinController.repeat();
+    
+    // Listen to audio changes
+    AudioPreviewService.instance.playingTrackId.addListener(_onAudioChanged);
+    AudioPreviewService.instance.isPlaying.addListener(_onAudioChanged);
+    
+    _updateSpinState();
+  }
+
+  void _onAudioChanged() {
+    if (mounted) {
+      setState(() {
+        _updateSpinState();
+      });
     }
   }
 
-  @override
-  void didUpdateWidget(VinylTrackCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isSelected != oldWidget.isSelected) {
-      if (widget.isSelected) {
+  void _updateSpinState() {
+    final isCurrentPlaying = AudioPreviewService.instance.playingTrackId.value == widget.track.id &&
+        AudioPreviewService.instance.isPlaying.value;
+    
+    if (widget.isSelected && isCurrentPlaying) {
+      if (!_spinController.isAnimating) {
         _spinController.repeat();
-      } else {
+      }
+    } else {
+      if (_spinController.isAnimating) {
         _spinController.stop();
       }
     }
   }
 
   @override
+  void didUpdateWidget(VinylTrackCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updateSpinState();
+  }
+
+  @override
   void dispose() {
+    AudioPreviewService.instance.playingTrackId.removeListener(_onAudioChanged);
+    AudioPreviewService.instance.isPlaying.removeListener(_onAudioChanged);
     _spinController.dispose();
     super.dispose();
   }
@@ -994,31 +1027,29 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        width: 175,
+        width: 155,
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Vinyl and Sleeve Stack
             SizedBox(
-              height: 130,
-              width: 175,
+              height: 108,
+              width: 155,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   // 1. Vinyl Record (Slides out from behind cover)
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 550),
-                    curve: Curves.easeOutBack,
-                    left: isSelected ? 48 : 6,
-                    top: 10,
+                    curve: isSelected ? Curves.easeOutBack : Curves.easeOut,
+                    left: isSelected ? 56 : 12,
+                    top: 9,
                     child: AnimatedBuilder(
                       animation: _spinController,
                       builder: (context, child) {
                         return Transform.rotate(
-                          angle: isSelected 
-                              ? _spinController.value * 2 * 3.1415926535 
-                              : 0.0,
+                          angle: _spinController.value * 2 * 3.1415926535,
                           child: child,
                         );
                       },
@@ -1031,8 +1062,8 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                     left: 6,
                     top: 5,
                     child: Container(
-                      width: 120,
-                      height: 120,
+                      width: 96,
+                      height: 96,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
@@ -1053,8 +1084,8 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                             track.coverAsset != null
                                 ? Image.asset(
                                     track.coverAsset!,
-                                    width: 120,
-                                    height: 120,
+                                    width: 96,
+                                    height: 96,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => _buildPlaceholderCover(track),
                                   )
@@ -1076,10 +1107,10 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                             // Selected Check Icon Overlay
                             if (isSelected)
                               Positioned(
-                                top: 6,
-                                right: 6,
+                                top: 4,
+                                right: 4,
                                 child: Container(
-                                  padding: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(3),
                                   decoration: const BoxDecoration(
                                     color: NuraBrand.pink,
                                     shape: BoxShape.circle,
@@ -1087,7 +1118,7 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                                   child: const Icon(
                                     Icons.check,
                                     color: Colors.white,
-                                    size: 14,
+                                    size: 11,
                                   ),
                                 ),
                               ),
@@ -1099,7 +1130,7 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             // Track Info
             Padding(
               padding: const EdgeInsets.only(left: 8),
@@ -1112,7 +1143,7 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: const Color(0xFF1A1A1A),
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
                       shadows: isSelected ? [
                         Shadow(
@@ -1128,7 +1159,7 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                     track.genre.toUpperCase(),
                     style: TextStyle(
                       color: isSelected ? NuraBrand.pink : Colors.black38,
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.6,
                     ),
@@ -1144,8 +1175,8 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
 
   Widget _buildVinylRecord(Track track) {
     return Container(
-      width: 110,
-      height: 110,
+      width: 88,
+      height: 88,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(
@@ -1161,14 +1192,14 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
         alignment: Alignment.center,
         children: [
           // Groove concentric lines (simulate physical vinyl)
-          _buildVinylGroove(size: 94),
-          _buildVinylGroove(size: 78),
+          _buildVinylGroove(size: 76),
           _buildVinylGroove(size: 62),
+          _buildVinylGroove(size: 48),
 
           // Center Sticker
           Container(
-            width: 36,
-            height: 36,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: track.swatch,
@@ -1183,8 +1214,8 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
             child: Center(
               // Center hole
               child: Container(
-                width: 8,
-                height: 8,
+                width: 6,
+                height: 6,
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -1224,7 +1255,7 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
         child: Icon(
           Icons.music_note_outlined,
           color: Colors.white38,
-          size: 32,
+          size: 28,
         ),
       ),
     );

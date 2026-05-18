@@ -28,14 +28,26 @@ class ArtistPitchService {
           .eq('artist_id', artistId)
           .order('created_at', ascending: false);
 
-      final tracks = rows
+      final List<Track> tracks = rows
           .whereType<Map<String, dynamic>>()
           .map(_toTrack)
-          .toList(growable: false);
+          .toList(growable: true);
 
       if (tracks.isEmpty) {
         return kTracks;
       }
+
+      // Sviluppo & Test Mock: Aggiungi tracce fittizie solo se in modalità mock (nessun login serio)
+      final isMockSession = client.auth.currentUser == null;
+      if (isMockSession && tracks.length < 5) {
+        for (var i = 0; i < kTracks.length && tracks.length < 5; i++) {
+          final mockTrack = kTracks[i];
+          if (!tracks.any((t) => t.id == mockTrack.id)) {
+            tracks.add(mockTrack);
+          }
+        }
+      }
+
       return tracks;
     } catch (_) {
       return kTracks;
