@@ -972,7 +972,7 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
     super.initState();
     _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 12),
+      duration: const Duration(seconds: 3),
     );
     
     // Listen to audio changes
