@@ -429,14 +429,21 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Implementata la schermata principale unificata `ArtistPitchScreen` reattiva e performante.
   - Integrato lo sfondo premium a parallasse `ParallaxOrganicMeshPainter` (blu e rosa) reattivo allo scorrimento verticale, ereditando l'identità cromatico-mesh fluida del profilo artista.
   - Sviluppato un Segmented Tab Control personalizzato ("Nuovo Pitch" / "I Miei Pitch") con micro-vibrazioni aptiche integrate.
+- **Mock Login Fallback & Hardening Offline**:
+  - Introdotto il provider `resolvedArtistIdProvider` in `pitch_providers.dart` per risolvere dinamicamente la sessione. Se l'utente effettua l'accesso rapido finto ("Entra come Artista"), rileva l'ID del primo artista reale configurato a DB per consentire di testare l'invio reale sul server, salvaguardando l'esperienza utente.
+  - Integrati i fallback automatici sui dati mock locali ad alta fedeltà (`kTracks`, `kLabels` e `kPitchRequests`) all'interno di `ArtistPitchService` nel caso in cui Supabase sia offline o non popolato.
+- **Interactive 3D Vinyl Deck Selector (Opzione B)**:
+  - Sostituita la lista brani orizzontale classica con un espositore di vinili interattivo ad altissimo impatto sensoriale.
+  - Ogni traccia è rappresentata all'interno di una custodia (sleeve) con bordi in vetro satinato e bagliore neon rosa a terra.
+  - Al tocco di selezione (`isSelected == true`), un vero disco in vinile nero (disegnato programmaticamente in Flutter con riflessi radiali metallici, solchi fisici e adesivo centrale colorato in base all'HSL del brano) **scivola lateralmente fuori di 48px** con un'animazione elastica (`Curves.easeOutBack`) e **inizia a girare continuamente a 360°** a tempo di musica. Deselezionando la traccia, il vinile smette di ruotare e rientra docilmente nella custodia.
 - **Flusso "Nuovo Pitch" & Feedback Sensoriale**:
-  - Creato il Selettore Traccia orizzontale con card illuminate da bordi neon rosa glow, spunta visiva all'attivazione e allineamento automatico dei campi del modello core `Track` (`swatch` per colore, `track` per titolo).
   - Sviluppato il Selettore Label verticale a card frosted glass con risoluzione dinamica delle icone brandizzate da Supabase, biografie degli A&R e città di provenienza.
   - Implementato un bottone CTA premium con gradiente rosa Nura e un overlay dialog immersivo a comparsa con spunta animata, descrizione di successo e feedback aptico vibrante `HapticFeedback.mediumImpact()`.
 - **Storico e Badge di Stato Colorati**:
   - Creato il feed cronologico dei pitch inviati nella seconda scheda.
   - Sviluppati i badge di stato satinati e colorati per tenere traccia delle letture (`sent` = Grigio/INVIATO, `viewed` = Viola/LETTO, `shortlisted` = Verde/SELEZIONATO, `rejected` = Rosso/NON SEL.).
-- **Integrazione e Hardening**:
-  - Sostituito il placeholder temporaneo all'interno di `artist_shell.dart` e rimosso il widget orfano `_PlaceholderScreen`.
-  - Risolti i warning di import e pulizia sintattica, confermando una compilazione totalmente pulita con `flutter analyze`.
+- **Hardening e Pulizia Compilatore**:
+  - Eliminati gli import inutilizzati e pulito l'albero sintattico di `ArtistPitchScreen` e `ArtistPitchService`.
+  - Risolti ed eliminati tutti i warning e gli errori sintattici: compilazione superata con successo con **0 ERRORI e 0 AVVISI** rilevati da `flutter analyze`.
+  - Committato e inviato in push l'intero aggiornamento sul repository GitHub sul branch remoto `invio-pitch-artista`.
 
