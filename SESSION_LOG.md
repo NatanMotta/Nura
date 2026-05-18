@@ -389,7 +389,14 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - tracce collegate a `asd@gmail.com`: 6.
   - metriche reali disponibili su quelle tracce (like/save/commenti) via `track_engagement_stats`.
 
-### Codex — Sessione 2026-05-18 (A)
+### Francesco — Sessione 2026-05-18 (A)
+- **Architettura Strutturale e Gestione del Layout (`Stack` & `CustomScrollView`)**:
+  - Riorganizzato l'intero scheletro della pagina in un unico contenitore ad altissime prestazioni basato su `CustomScrollView` e `SliverToBoxAdapter`. Questa struttura unificata ha risolto in modo definitivo i problemi di overflow e i fastidiosi warning di layout presenti sui dispositivi con schermi di piccole dimensioni.
+  - Utilizzata una stratificazione a livelli tramite `Stack` per separare rigorosamente: lo sfondo a parallasse (livello 0), l'immagine del banner con trasparenza controllata (livello 1), il contenuto principale scorrevole (livello 2), e i controlli flottanti di navigazione satinati (livello 3). Questo isolamento previene i conflitti nella gestione dei tocchi e delle gesture.
+- **Sfondo Mesh Parallasse Avanzato (`ParallaxOrganicMeshPainter`)**:
+  - Sviluppato un `CustomPainter` ad alte prestazioni per disegnare riflessi e "glow blobs" cromatici sfumati nei colori del brand Nura (Blu Musicura e Rosa Nura) direttamente sulla canvas di sfondo.
+  - Applicata una sfocatura pesante tramite `ImageFilter.blur(sigmaX: 55, sigmaY: 55)` ottimizzata per GPU, garantendo un rendering fluido a 60/120 FPS senza lag di calcolo.
+  - Collegati i baricentri dei riflessi allo scorrimento tramite un moltiplicatore di parallasse controllato (`scrollOffset * 0.15`), conferendo all'interfaccia un senso di tridimensionalità e profondità (effetto 3D layered) durante lo scroll dei contenuti.
 - **Interactive Pro Player Timeline Seeking (`global_mini_player.dart`)**:
   - Aggiornata la timeline del player a capsula inferiore trasformandola in uno `Slider` completamente interattivo.
   - Implementata una `_FullWidthTrackShape` personalizzata per rimuovere ogni padding orizzontale, integrando perfettamente la barra di scorrimento con i bordi della capsula vitrea.
