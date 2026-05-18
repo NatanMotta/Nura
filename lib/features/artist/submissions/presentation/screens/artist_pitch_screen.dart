@@ -991,15 +991,20 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
   }
 
   void _updateSpinState() {
-    final isCurrentPlaying = AudioPreviewService.instance.playingTrackId.value == widget.track.id &&
-        AudioPreviewService.instance.isPlaying.value;
+    final playingId = AudioPreviewService.instance.playingTrackId.value;
+    final isPlaying = AudioPreviewService.instance.isPlaying.value;
+    final isCurrentPlaying = playingId == widget.track.id && isPlaying;
+    
+    debugPrint('[VinylTrackCard] track.id=${widget.track.id} | playingId=$playingId | isPlaying=$isPlaying | isSelected=${widget.isSelected} | isCurrentPlaying=$isCurrentPlaying');
     
     if (widget.isSelected && isCurrentPlaying) {
       if (!_spinController.isAnimating) {
+        debugPrint('[VinylTrackCard] -> START SPINNING per ${widget.track.id}');
         _spinController.repeat();
       }
     } else {
       if (_spinController.isAnimating) {
+        debugPrint('[VinylTrackCard] -> STOP SPINNING per ${widget.track.id}');
         _spinController.stop();
       }
     }
