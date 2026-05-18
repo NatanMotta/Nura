@@ -1201,14 +1201,34 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
           _buildVinylGroove(size: 62),
           _buildVinylGroove(size: 48),
 
+          // Shiny physical glare overlay that rotates
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.0),
+                  Colors.white.withValues(alpha: 0.12),
+                  Colors.white.withValues(alpha: 0.03),
+                  Colors.white.withValues(alpha: 0.12),
+                  Colors.white.withValues(alpha: 0.0),
+                ],
+                stops: const [0.0, 0.45, 0.5, 0.55, 1.0],
+              ),
+            ),
+          ),
+
           // Center Sticker
           Container(
             width: 28,
             height: 28,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: track.swatch,
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
                   color: Colors.black26,
                   blurRadius: 4,
@@ -1216,16 +1236,46 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                 ),
               ],
             ),
-            child: Center(
-              // Center hole
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
+            child: Stack(
+              children: [
+                // Two-toned sticker gradient
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        track.swatch,
+                        track.swatch.withValues(alpha: 0.6),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // Off-center indicator dot to show spin clearly
+                Align(
+                  alignment: const Alignment(0.0, -0.55),
+                  child: Container(
+                    width: 3.5,
+                    height: 3.5,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                // Center hole
+                Center(
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
