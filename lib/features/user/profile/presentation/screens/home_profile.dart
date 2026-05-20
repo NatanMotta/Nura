@@ -6,8 +6,10 @@ import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
+import '../../../../../core/widgets/global_mini_player.dart';
 import '../../../../auth/domain/auth_user.dart';
 import '../../../../auth/presentation/auth_providers.dart';
+import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../../../shared/domain/user_role.dart';
 import '../../../../shared/presentation/providers/user_role_provider.dart';
 import 'profile_settings_screen.dart';
@@ -51,8 +53,11 @@ class HomeProfile extends ConsumerStatefulWidget {
 }
 
 class _HomeProfileState extends ConsumerState<HomeProfile> {
+  static const String _defaultProfileHeroImage =
+      'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg';
   static const double _bottomNavHeight = 74;
   final _audio = AudioPreviewService.instance;
+  final ScrollController _scrollController = ScrollController();
 
   bool _loading = true;
   AppAuthUser? _authUser;
@@ -63,13 +68,28 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
 
   List<_ProfileTrack> _tracks = const [];
   bool _showMiniPlayer = false;
-  bool _playerExpanded = false;
   int? _currentTrackIndex;
+  double _scrollOffset = 0;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!mounted) return;
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -377,331 +397,167 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   }
 
   Widget _miniPlayer() {
-    return AnimatedBuilder(
-      animation: Listenable.merge(
-        [_audio.playingTrackId, _audio.isPlaying, _audio.position, _audio.duration],
-      ),
-      builder: (context, _) {
-        final activeTrackId = _audio.playingTrackId.value;
-        final playingIndex = _tracks.indexWhere((t) => t.id == activeTrackId);
-        final resolvedIndex = playingIndex >= 0
-            ? playingIndex
-            : (_currentTrackIndex ?? (_tracks.isNotEmpty ? 0 : -1));
-        final shouldShow = _showMiniPlayer || playingIndex >= 0;
-        final hidden = !shouldShow || resolvedIndex < 0 || resolvedIndex >= _tracks.length;
-        if (hidden) return const SizedBox.shrink();
-
-        final index = resolvedIndex;
-        final track = _tracks[index];
-        final duration = _audio.duration.value ?? Duration(seconds: track.durationSeconds);
-        final currentPosition =
-            _audio.position.value > duration ? duration : _audio.position.value;
-        final canPrev = index > 0;
-        final canNext = index < _tracks.length - 1;
-
-        return SafeArea(
-          top: false,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _playerExpanded = !_playerExpanded),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              decoration: BoxDecoration(
-                color: NuraBrand.deepMidAlpha(0.96),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                border: Border(top: BorderSide(color: widget.vibe.cardBorder)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.18),
-                    blurRadius: 14,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: widget.accent.withOpacity(0.15),
-                        ),
-                        child: Icon(Icons.music_note, color: widget.accent),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              track.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: NuraBrand.mint,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              track.genre,
-                              style: TextStyle(
-                                color: NuraBrand.mintAlpha(0.6),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!_playerExpanded)
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _audio.isPlaying,
-                          builder: (context, isPlaying, _) => IconButton(
-                            onPressed: () {
-                              if (isPlaying) {
-                                _audio.pause();
-                              } else {
-                                _audio.resume();
-                              }
-                            },
-                            icon: Icon(
-                              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                              color: NuraBrand.mint,
-                              size: 34,
-                            ),
-                          ),
-                        )
-                      else
-                        const SizedBox(width: 48),
-                      IconButton(
-                        onPressed: () => setState(() => _playerExpanded = !_playerExpanded),
-                        icon: Icon(
-                          _playerExpanded ? Icons.expand_more : Icons.expand_less,
-                          color: NuraBrand.mintAlpha(0.75),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_playerExpanded) ...[
-                    Slider(
-                      value: currentPosition.inMilliseconds.toDouble(),
-                      max: duration.inMilliseconds <= 0 ? 1 : duration.inMilliseconds.toDouble(),
-                      min: 0,
-                      activeColor: NuraBrand.mint,
-                      inactiveColor: NuraBrand.mintAlpha(0.2),
-                      onChanged: (v) => _audio.seek(Duration(milliseconds: v.floor())),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          onPressed: canPrev ? () => _playAtIndex(index - 1) : null,
-                          icon: const Icon(Icons.skip_previous_rounded),
-                          color: NuraBrand.mint,
-                        ),
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _audio.isPlaying,
-                          builder: (context, isPlaying, _) => IconButton(
-                            onPressed: () => isPlaying ? _audio.pause() : _audio.resume(),
-                            icon: Icon(
-                              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                              size: 42,
-                            ),
-                            color: NuraBrand.mint,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: canNext ? () => _playAtIndex(index + 1) : null,
-                          icon: const Icon(Icons.skip_next_rounded),
-                          color: NuraBrand.mint,
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
+    return ValueListenableBuilder<String?>(
+      valueListenable: _audio.playingTrackId,
+      builder: (context, trackId, _) {
+        final hasActiveTrack = trackId != null && trackId.isNotEmpty;
+        if (!hasActiveTrack) return const SizedBox.shrink();
+        return GlobalMiniPlayer(vibe: widget.vibe);
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(0, 0, 0, 170 + widget.safeBottom),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(16, widget.safeTop + 10, 16, 22),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
+    final mockImageAsset = ref.watch(mockProfileImageAssetProvider);
+    final effectiveProfileImageAsset =
+        mockImageAsset ?? _profileImageAsset ?? _defaultProfileHeroImage;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: ParallaxOrganicMeshPainter(
+                scrollOffset: _scrollOffset,
+                musicuraBlu: NuraBrand.deep,
+                nuraPink: NuraBrand.pink,
+              ),
+            ),
+          ),
+          if (effectiveProfileImageAsset != null &&
+              effectiveProfileImageAsset.isNotEmpty)
+            Positioned(
+              top: -_scrollOffset,
+              left: 0,
+              right: 0,
+              height: 380,
+              child: Opacity(
+                opacity: (1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0),
+                child: ShaderMask(
+                  shaderCallback: (rect) => const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    stops: const [0.0, 0.34, 0.72, 1.0],
-                    colors: [
-                      const Color(0xFF46D4F1),
-                      const Color(0xFF1A9DB7),
-                      const Color(0xFF005D6D),
-                      NuraBrand.deep,
-                    ],
-                  ),
+                    colors: [Colors.white, Colors.white, Colors.transparent],
+                    stops: [0.0, 0.45, 0.95],
+                  ).createShader(rect),
+                  blendMode: BlendMode.dstIn,
+                  child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover),
                 ),
-                child: _loading
-                    ? const SizedBox(
-                        height: 180,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            ),
+          SingleChildScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(0, 0, 0, 170 + widget.safeBottom),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(24, widget.safeTop + 18, 24, 24),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 240),
+                      Text(
+                        _name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF1A1A1A),
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '$_handle · ${_roleLabel(_authUser?.role)}',
+                        style: const TextStyle(
+                          color: Colors.black45,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ProfileSettingsScreen(),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1A1A1A),
+                            side: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+                            backgroundColor: Colors.white.withValues(alpha: 0.55),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          icon: const Icon(Icons.image_outlined, size: 16),
+                          label: const Text('Modifica immagine'),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Profilo',
-                                style: TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFFEFFFFF),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => const ProfileSettingsScreen(),
-                                    ),
-                                  );
-                                },
-                                icon: Icon(
-                                  Icons.tune_rounded,
-                                  size: 22,
-                                  color: const Color(0xFFD7F9FF).withOpacity(0.96),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              _profileAvatar(size: 74),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    _SummaryMetric(
-                                      label: 'post',
-                                      value: _tracks.length.toString(),
-                                      center: true,
-                                    ),
-                                    _SummaryMetric(
-                                      label: 'follower',
-                                      value: _mockFollowers.toString(),
-                                      center: true,
-                                    ),
-                                    _SummaryMetric(
-                                      label: 'seguiti',
-                                      value: _mockFollowing.toString(),
-                                      center: true,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFEFFFFF),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 17,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$_handle · ${_roleLabel(_authUser?.role)}',
-                            style: TextStyle(
-                              color: const Color(0xFFD7F9FF).withOpacity(0.95),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _profileBio,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: const Color(0xFFCFF7FF).withOpacity(0.94),
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => const ProfileSettingsScreen(),
-                                      ),
-                                    );
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: NuraBrand.mint,
-                                    side: BorderSide(color: NuraBrand.mintAlpha(0.35)),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                          Expanded(
+                            child: _mainBtn(
+                              label: 'Modifica',
+                              isSolid: false,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const ProfileSettingsScreen(),
                                   ),
-                                  child: const Text('Modifica profilo'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton(
-                                onPressed: () {},
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: NuraBrand.mint,
-                                  side: BorderSide(color: NuraBrand.mintAlpha(0.35)),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 10,
-                                    horizontal: 12,
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _mainBtn(
+                              label: 'Upload',
+                              isSolid: false,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const _UploadTrackMockScreen(),
                                   ),
-                                ),
-                                child: const Icon(Icons.share_outlined, size: 16),
-                              ),
-                            ],
+                                );
+                              },
+                            ),
                           ),
                         ],
                       ),
-              ),
-              Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF005D6D),
-                      Color(0xFF005563),
+                      const SizedBox(height: 40),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _statItem(_tracks.length.toString(), 'POST'),
+                          _vDivider(),
+                          _statItem(_mockFollowers.toString(), 'FOLLOWERS'),
+                          _vDivider(),
+                          _statItem(_mockFollowing.toString(), 'SEGUITI'),
+                        ],
+                      ),
+                      const SizedBox(height: 56),
                     ],
                   ),
                 ),
+              Container(
+                width: double.infinity,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -709,11 +565,12 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Le tue canzoni',
+                            'BRANI',
                             style: TextStyle(
-                              color: NuraBrand.mintAlpha(0.95),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
+                              color: const Color(0xFF1A1A1A),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                              letterSpacing: 1.5,
                             ),
                           ),
                         ),
@@ -725,17 +582,18 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.add_circle_outline, color: NuraBrand.mint),
+                          icon: const Icon(Icons.add_circle_outline, color: Color(0xFF1A1A1A)),
                           tooltip: 'Carica brano (mock)',
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tracce recenti in stile stream',
+                      'Le tue canzoni',
                       style: TextStyle(
-                        color: NuraBrand.mintAlpha(0.56),
-                        fontSize: 12,
+                        color: Colors.black54,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -744,9 +602,9 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         decoration: BoxDecoration(
-                          color: NuraBrand.deepMidAlpha(0.32),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: NuraBrand.mintAlpha(0.1)),
+                          border: Border.all(color: const Color(0xFFE4E8EE)),
                         ),
                         child: Center(
                           child: Text(
@@ -760,24 +618,26 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                         animation: Listenable.merge([_audio.playingTrackId, _audio.isPlaying]),
                         builder: (context, _) => Column(
                           children: [
-                            for (final t in _tracks)
+                            for (var i = 0; i < _tracks.length; i++)
                               _TrackPostCard(
-                                track: t,
-                                mockLikes: 20 + (t.id.hashCode.abs() % 240),
-                                mockComments: 3 + (t.id.hashCode.abs() % 48),
-                                hideInlinePlay:
-                                    _playerExpanded && _audio.playingTrackId.value == t.id,
-                                isCurrentTrack: _audio.playingTrackId.value == t.id,
+                                rank: i + 1,
+                                track: _tracks[i],
+                                mockLikes: 20 + (_tracks[i].id.hashCode.abs() % 240),
+                                mockComments: 3 + (_tracks[i].id.hashCode.abs() % 48),
+                                hideInlinePlay: _audio.playingTrackId.value == _tracks[i].id,
+                                isCurrentTrack:
+                                    _audio.playingTrackId.value == _tracks[i].id,
                                 isPlaying: _audio.isPlaying.value &&
-                                    _audio.playingTrackId.value == t.id,
-                                durationLabel: _durationLabel(t.durationSeconds),
+                                    _audio.playingTrackId.value == _tracks[i].id,
+                                durationLabel: _durationLabel(_tracks[i].durationSeconds),
                                 canEditDelete:
-                                    _authUser?.id != null && _authUser!.id == t.artistId,
-                                onPlayPause: () => _onTapTrack(t),
-                                onTitleTap: () => _openTrackDetail(t),
+                                    _authUser?.id != null &&
+                                    _authUser!.id == _tracks[i].artistId,
+                                onPlayPause: () => _onTapTrack(_tracks[i]),
+                                onTitleTap: () => _openTrackDetail(_tracks[i]),
                                 onLike: _showSocialMockInfo,
                                 onComment: _showSocialMockInfo,
-                                onDelete: () => _deleteTrack(t.id),
+                                onDelete: () => _deleteTrack(_tracks[i].id),
                                 accent: widget.accent,
                               ),
                           ],
@@ -790,15 +650,75 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
             ],
           ),
         ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: _bottomNavHeight,
-          child: _miniPlayer(),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: _bottomNavHeight + widget.safeBottom,
+            child: _miniPlayer(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mainBtn({
+    required String label,
+    required bool isSolid,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: isSolid ? NuraBrand.pink : Colors.black.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSolid ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.black.withValues(alpha: 0.4),
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
         ),
       ],
     );
   }
+
+  Widget _vDivider() => Container(
+        width: 1,
+        height: 20,
+        color: Colors.black.withValues(alpha: 0.05),
+      );
 }
 
 class _SummaryMetric extends StatelessWidget {
@@ -820,9 +740,9 @@ class _SummaryMetric extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            color: Color(0xFFF2FFFF),
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
+            color: Color(0xFF1A1A1A),
+            fontWeight: FontWeight.w900,
+            fontSize: 24,
             height: 1,
           ),
         ),
@@ -830,9 +750,9 @@ class _SummaryMetric extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: const Color(0xFFD2F7FF).withOpacity(0.95),
+            color: Colors.black54,
             fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -841,6 +761,7 @@ class _SummaryMetric extends StatelessWidget {
 }
 
 class _TrackPostCard extends StatelessWidget {
+  final int rank;
   final _ProfileTrack track;
   final int mockLikes;
   final int mockComments;
@@ -857,6 +778,7 @@ class _TrackPostCard extends StatelessWidget {
   final Color accent;
 
   const _TrackPostCard({
+    required this.rank,
     required this.track,
     required this.mockLikes,
     required this.mockComments,
@@ -876,116 +798,112 @@ class _TrackPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: NuraBrand.deepMidAlpha(0.22),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: NuraBrand.mintAlpha(0.08)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (!hideInlinePlay)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: onPlayPause,
-                    icon: Icon(
-                      isCurrentTrack
-                          ? (isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill)
-                          : Icons.play_circle_fill,
-                      color: accent,
-                      size: 34,
-                    ),
-                  )
-                else
-                  const SizedBox(width: 44),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: onTitleTap,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: NuraBrand.mint,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          '${track.artistName ?? 'Artist'} · ${track.genre} · $durationLabel',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: NuraBrand.mintAlpha(0.58),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
+      padding: const EdgeInsets.only(bottom: 2),
+      child: GestureDetector(
+        onTap: onPlayPause,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          color: Colors.transparent,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: Text(
+                  rank.toString(),
+                  style: TextStyle(
+                    color: isCurrentTrack ? NuraBrand.pink : Colors.black26,
+                    fontSize: 12,
                   ),
                 ),
-                PopupMenuButton<String>(
-                  iconSize: 20,
-                  icon: Icon(Icons.more_horiz, color: NuraBrand.mintAlpha(0.7)),
-                  color: NuraBrand.deepMid,
-                  onSelected: (v) {
-                    if (v == 'open') onTitleTap();
-                    if (v == 'edit' && canEditDelete) onTitleTap();
-                    if (v == 'delete' && canEditDelete) onDelete();
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: canEditDelete ? 'edit' : 'open',
-                      child: Text(
-                        canEditDelete ? 'Modifica' : 'Dettaglio',
-                        style: const TextStyle(color: NuraBrand.mint),
-                      ),
+              ),
+              const SizedBox(width: 10),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      color: Colors.black12,
+                      child: const Icon(Icons.music_note, color: Colors.white, size: 20),
                     ),
-                    if (canEditDelete)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
+                  ),
+                  if (isCurrentTrack && isPlaying)
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 3,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                gradient: LinearGradient(
-                  colors: [
-                    accent.withOpacity(0.95),
-                    accent.withOpacity(0.25),
-                  ],
+                      child: const Center(child: AudioVisualizerAnimation()),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: GestureDetector(
+                  onTap: onTitleTap,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: const Color(0xFF1A1A1A),
+                          fontSize: 15,
+                          fontWeight: isCurrentTrack ? FontWeight.w900 : FontWeight.w700,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.favorite, size: 10, color: Colors.black12),
+                          const SizedBox(width: 2),
+                          Text('$mockLikes', style: const TextStyle(color: Colors.black26, fontSize: 10)),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chat_bubble, size: 10, color: Colors.black12),
+                          const SizedBox(width: 2),
+                          Text('$mockComments', style: const TextStyle(color: Colors.black26, fontSize: 10)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _Action(icon: Icons.favorite_border, onTap: onLike, color: NuraBrand.mintAlpha(0.72)),
-                const SizedBox(width: 4),
-                Text('$mockLikes', style: TextStyle(color: NuraBrand.mintAlpha(0.66), fontSize: 11)),
-                const SizedBox(width: 12),
-                _Action(icon: Icons.chat_bubble_outline, onTap: onComment, color: NuraBrand.mintAlpha(0.72)),
-                const SizedBox(width: 4),
-                Text('$mockComments', style: TextStyle(color: NuraBrand.mintAlpha(0.66), fontSize: 11)),
-              ],
-            ),
-          ],
+              Text(
+                durationLabel,
+                style: TextStyle(color: Colors.black.withValues(alpha: 0.3), fontSize: 12),
+              ),
+              PopupMenuButton<String>(
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.more_horiz, color: Colors.black38),
+                color: Colors.white,
+                onSelected: (v) {
+                  if (v == 'open') onTitleTap();
+                  if (v == 'edit' && canEditDelete) onTitleTap();
+                  if (v == 'delete' && canEditDelete) onDelete();
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: canEditDelete ? 'edit' : 'open',
+                    child: Text(
+                      canEditDelete ? 'Modifica' : 'Dettaglio',
+                      style: const TextStyle(color: Color(0xFF1A1A1A)),
+                    ),
+                  ),
+                  if (canEditDelete)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1003,7 +921,7 @@ class _Action extends StatelessWidget {
   Widget build(BuildContext context) => InkResponse(
     onTap: onTap,
     radius: 18,
-    child: Icon(icon, size: 20, color: color),
+    child: Icon(icon, size: 19, color: const Color(0xFF617087)),
   );
 }
 

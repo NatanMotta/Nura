@@ -14,6 +14,12 @@ class ProfileSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
+  static const List<String> _testProfileImages = [
+    'assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg',
+    'assets/images/artists/elevate-nYgy58eb9aw-unsplash.jpg',
+    'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
+  ];
+
   bool _loading = false;
   String? _error;
 
@@ -27,6 +33,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       await ref.read(authRepositoryProvider).signOut();
       ref.read(userRoleProvider.notifier).clear();
       ref.read(mockProfileIdentityProvider.notifier).clear();
+      ref.read(mockProfileImageAssetProvider.notifier).state = null;
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       setState(() {
@@ -42,7 +49,21 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   void _exitMockRole() {
     ref.read(userRoleProvider.notifier).clear();
     ref.read(mockProfileIdentityProvider.notifier).clear();
+    ref.read(mockProfileImageAssetProvider.notifier).state = null;
     Navigator.of(context).pop();
+  }
+
+  void _setTestProfileImage() {
+    final current = ref.read(mockProfileImageAssetProvider);
+    final currentIndex = _testProfileImages.indexOf(current ?? '');
+    final nextIndex = currentIndex < 0
+        ? 0
+        : (currentIndex + 1) % _testProfileImages.length;
+    final selected = _testProfileImages[nextIndex];
+    ref.read(mockProfileImageAssetProvider.notifier).state = selected;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Immagine profilo test impostata')),
+    );
   }
 
   @override
@@ -97,7 +118,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
             _mockSettingTile(
               icon: Icons.image_outlined,
               title: 'Immagine profilo',
-              subtitle: 'Carica/ritaglia avatar (mock UI)',
+              subtitle: 'Modifica immagine profilo (test mock)',
+              onTap: _setTestProfileImage,
             ),
             const SizedBox(height: 10),
             _mockSettingTile(
@@ -135,6 +157,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
+    VoidCallback? onTap,
   }) {
     return ListTile(
       shape: RoundedRectangleBorder(
@@ -150,11 +173,12 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       trailing: Icon(Icons.chevron_right, color: NuraBrand.mintAlpha(0.7)),
       onTap: _loading
           ? null
-          : () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Funzione in mock, non ancora attiva')),
-              );
-            },
+          : onTap ??
+              () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Funzione in mock, non ancora attiva')),
+                );
+              },
     );
   }
 }

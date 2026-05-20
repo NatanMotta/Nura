@@ -44,3 +44,5 @@ final mockProfileIdentityProvider =
     StateNotifierProvider<MockProfileIdentityNotifier, MockProfileIdentity?>(
   (ref) => MockProfileIdentityNotifier(),
 );
+
+final mockProfileImageAssetProvider = StateProvider<String?>((ref) => null);
