@@ -9,6 +9,7 @@ import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/models/track.dart';
 import '../../../../../core/services/audio_preview_service.dart';
+import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/nura_mark.dart';
 import '../../../../../core/widgets/striped_panel.dart';
@@ -236,7 +237,29 @@ class _HomeFeedState extends State<HomeFeed>
   }
 
   Future<void> _openArtistProfile(Track track) async {
-    final artistId = track.artistId;
+    var artistId = track.artistId;
+
+    if (artistId == null || artistId.isEmpty) {
+      for (final artist in kArtists) {
+        if (artist.stageName == track.artist) {
+          artistId = artist.id;
+          break;
+        }
+      }
+    }
+
+    if ((artistId == null || artistId.isEmpty) &&
+        SupabaseBootstrap.isInitialized) {
+      try {
+        final row = await Supabase.instance.client
+            .from('profiles')
+            .select('id')
+            .eq('display_name', track.artist)
+            .eq('role', 'artist')
+            .maybeSingle();
+        artistId = row?['id'] as String?;
+      } catch (_) {}
+    }
 
     if (!mounted) return;
     if (artistId == null || artistId.isEmpty) {
@@ -246,13 +269,14 @@ class _HomeFeedState extends State<HomeFeed>
       return;
     }
 
+    final resolvedArtistId = artistId!;
     if (widget.onArtistTap != null) {
-      widget.onArtistTap!(artistId, track.artist);
+      widget.onArtistTap!(resolvedArtistId, track.artist);
     } else {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => ArtistPublicProfileScreen(
-            artistId: artistId,
+            artistId: resolvedArtistId,
             artistName: track.artist,
           ),
         ),
@@ -814,75 +838,83 @@ class _SwipeCardState extends State<SwipeCard>
               },
               child: Transform.scale(
                 scale: stackScale,
-                child: GestureDetector(
-                  behavior: widget.isTop
-                      ? HitTestBehavior.translucent
-                      : HitTestBehavior.deferToChild,
-                  onPanUpdate: widget.isTop ? _onPanUpdate : null,
-                  onPanEnd: widget.isTop ? _onPanEnd : null,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(widget.vibe.radius),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: widget.track.coverAsset != null
-                              ? Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.asset(
-                                      widget.track.coverAsset!,
-                                      fit: BoxFit.cover,
-                                      filterQuality: FilterQuality.low,
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            Colors.black.withValues(alpha: 0.12),
-                                            NuraBrand.deepMidAlpha(0.38),
-                                            NuraBrand.deepMidAlpha(0.62),
-                                          ],
-                                          stops: const [0.0, 0.55, 1.0],
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: RadialGradient(
-                                          center: Alignment.center,
-                                          radius: 1.15,
-                                          colors: [
-                                            Colors.transparent,
-                                            NuraBrand.deepMidAlpha(0.16),
-                                          ],
-                                          stops: const [0.72, 1.0],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : StripedPanel(
-                                  hue: widget.track.hue,
-                                  vibe: widget.vibe,
-                                ),
-                        ),
-                        Positioned(
-                          top: 14,
-                          left: 16,
-                          right: 16,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(widget.vibe.radius),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: widget.isTop
+                              ? HitTestBehavior.opaque
+                              : HitTestBehavior.deferToChild,
+                          onPanUpdate: widget.isTop ? _onPanUpdate : null,
+                          onPanEnd: widget.isTop ? _onPanEnd : null,
+                          child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              Mono(widget.track.genre,
-                                  color: NuraBrand.mintAlpha(0.85)),
-                              Mono('${widget.track.bpm} BPM',
-                                  color: NuraBrand.mintAlpha(0.85)),
+                              widget.track.coverAsset != null
+                                  ? Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.asset(
+                                          widget.track.coverAsset!,
+                                          fit: BoxFit.cover,
+                                          filterQuality: FilterQuality.low,
+                                        ),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Colors.black
+                                                    .withValues(alpha: 0.12),
+                                                NuraBrand.deepMidAlpha(0.38),
+                                                NuraBrand.deepMidAlpha(0.62),
+                                              ],
+                                              stops: const [0.0, 0.55, 1.0],
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            gradient: RadialGradient(
+                                              center: Alignment.center,
+                                              radius: 1.15,
+                                              colors: [
+                                                Colors.transparent,
+                                                NuraBrand.deepMidAlpha(0.16),
+                                              ],
+                                              stops: const [0.72, 1.0],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : StripedPanel(
+                                      hue: widget.track.hue,
+                                      vibe: widget.vibe,
+                                    ),
+                              Positioned(
+                                top: 14,
+                                left: 16,
+                                right: 16,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Mono(widget.track.genre,
+                                        color: NuraBrand.mintAlpha(0.85)),
+                                    Mono('${widget.track.bpm} BPM',
+                                        color: NuraBrand.mintAlpha(0.85)),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        Positioned(
+                      ),
+                      Positioned(
                           bottom: 16,
                           left: 12,
                           right: 12,
@@ -910,6 +942,7 @@ class _SwipeCardState extends State<SwipeCard>
                                               CrossAxisAlignment.start,
                                           children: [
                                             GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
                                               onTap: widget.onOpenArtist,
                                               child: Text(
                                                 widget.track.artist,
@@ -1025,7 +1058,6 @@ class _SwipeCardState extends State<SwipeCard>
                 ),
               ),
             ),
-          ),
         );
       },
     );

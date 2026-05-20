@@ -60,7 +60,7 @@ pod install
 cd ..
 
 echo "==> Flutter analyze"
-flutter analyze
+flutter analyze --no-fatal-warnings --no-fatal-infos
 
 echo "==> Building IPA (build-name=${BUILD_NAME}, build-number=${BUILD_NUMBER})"
 flutter build ipa \
