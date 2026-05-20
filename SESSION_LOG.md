@@ -419,3 +419,47 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Rimossi overlay invasivi come la sticky app bar e indicatori complessi per preservare la fluidità di scorrimento nativa di iOS/Android.
 - **Verifica e Hardening**:
   - Eseguito `flutter analyze` con esito pulito senza errori sintattici o logici nel modulo Artist Profile.
+
+### Francesco — Sessione 2026-05-18 (B)
+- **Creazione Branch e Setup Modulo Dati (`invio-pitch-artista`)**:
+  - Creato e attivato il nuovo branch dedicato `invio-pitch-artista` per isolare lo sviluppo.
+  - Sviluppato `artist_pitch_service.dart` in `submissions/data/` che implementa le query per caricare le tracce demo dell'artista, recuperare le etichette con loghi integrati tramite join relazionali su Supabase, inviare i pitch (`sendPitch`) e storicizzare le candidature.
+  - Creato `pitch_providers.dart` in `submissions/presentation/providers/` per esporre i dati in cache reattiva Riverpod, abilitando l'invalidazione immediata dello stato a ogni nuovo invio.
+- **Interfaccia Utente e Parallasse Mesh (`ArtistPitchScreen`)**:
+  - Implementata la schermata principale unificata `ArtistPitchScreen` reattiva e performante.
+  - Integrato lo sfondo premium a parallasse `ParallaxOrganicMeshPainter` (blu e rosa) reattivo allo scorrimento verticale, ereditando l'identità cromatico-mesh fluida del profilo artista.
+  - Sviluppato un Segmented Tab Control personalizzato ("Nuovo Pitch" / "I Miei Pitch") con micro-vibrazioni aptiche integrate.
+- **Mock Login Fallback & Hardening Offline**:
+  - Introdotto il provider `resolvedArtistIdProvider` in `pitch_providers.dart` per risolvere dinamicamente la sessione. Se l'utente effettua l'accesso rapido finto ("Entra come Artista"), rileva l'ID del primo artista reale configurato a DB per consentire di testare l'invio reale sul server, salvaguardando l'esperienza utente.
+  - Integrati i fallback automatici sui dati mock locali ad alta fedeltà (`kTracks`, `kLabels` e `kPitchRequests`) all'interno di `ArtistPitchService` nel caso in cui Supabase sia offline o non popolato.
+- **Interactive 3D Vinyl Deck Selector (Opzione B)**:
+  - Sostituita la lista brani orizzontale classica con un espositore di vinili interattivo ad altissimo impatto sensoriale.
+  - Ogni traccia è rappresentata all'interno di una custodia (sleeve) con bordi in vetro satinato e bagliore neon rosa a terra.
+  - Al tocco di selezione (`isSelected == true`), un vero disco in vinile nero (disegnato programmaticamente in Flutter con riflessi radiali metallici, solchi fisici e adesivo centrale colorato in base all'HSL del brano) **scivola lateralmente fuori di 48px** con un'animazione elastica (`Curves.easeOutBack`) e **inizia a girare continuamente a 360°** a tempo di musica. Deselezionando la traccia, il vinile smette di ruotare e rientra docilmente nella custodia.
+- **Flusso "Nuovo Pitch" & Feedback Sensoriale**:
+  - Sviluppato il Selettore Label verticale a card frosted glass con risoluzione dinamica delle icone brandizzate da Supabase, biografie degli A&R e città di provenienza.
+  - Implementato un bottone CTA premium con gradiente rosa Nura e un overlay dialog immersivo a comparsa con spunta animata, descrizione di successo e feedback aptico vibrante `HapticFeedback.mediumImpact()`.
+- **Storico e Badge di Stato Colorati**:
+  - Creato il feed cronologico dei pitch inviati nella seconda scheda.
+  - Sviluppati i badge di stato satinati e colorati per tenere traccia delle letture (`sent` = Grigio/INVIATO, `viewed` = Viola/LETTO, `shortlisted` = Verde/SELEZIONATO, `rejected` = Rosso/NON SEL.).
+- **Hardening e Pulizia Compilatore**:
+  - Eliminati gli import inutilizzati e pulito l'albero sintattico di `ArtistPitchScreen` e `ArtistPitchService`.
+  - Risolti ed eliminati tutti i warning e gli errori sintattici: compilazione superata con successo con **0 ERRORI e 0 AVVISI** rilevati da `flutter analyze`.
+  - Committato e inviato in push l'intero aggiornamento sul repository GitHub sul branch remoto `invio-pitch-artista`.
+
+### Francesco — Sessione 2026-05-18 (C)
+- **Risoluzione "Scroll Brutto" e allineamento cache**:
+  - Identificata e spiegata la causa dell'header bianco fisso e bloccato ("Artist 01"), dovuto alla persistenza della vecchia `SliverAppBar` nella cache dell'emulatore. Spiegata la necessità di effettuare un semplice **Hot Restart** per caricare la versione parallasse con pulsanti satinati.
+- **Controllo di Ruolo e Rimozione Pulsante "Battle"**:
+  - Integrato il tracciamento reattivo del ruolo dell'utente (`UserRole`) in `ArtistPublicProfileScreen` tramite i provider di Riverpod (`userRoleProvider` e `authStateProvider`).
+  - Nascosto condizionalmente il pulsante **Battle** per Utenti ed Etichette, rendendolo esclusivo per la visualizzazione da parte di altri Artisti.
+- **Allineamento e Navigazione In-Line Shell Etichetta (`LabelShell`)**:
+  - Unificata la navigazione di `LabelShell` sullo stesso modello in-line e fluido di `UserShell`, mantenendo la barra di navigazione inferiore sempre persistente ed evitando il push nativo a tutto schermo.
+  - Integrata la capsula del `GlobalMiniPlayer` reattivo sopra la barra di navigazione a 4 elementi (`bottom: 84 + safeBottom`).
+- **Hardening Mini Player Shell Utente (`UserShell`)**:
+  - Avvolto il mini player a capsula in un `ValueListenableBuilder<String?>` reattivo su `playingTrackId` di `AudioPreviewService`, risolvendo il bug delle schede vuote e disallineate in assenza di brani attivi.
+- **Hardening e Sicurezza Tasto Indietro Fluttuante**:
+  - Aggiornato l'onPressed del tasto indietro fluttuante del profilo artista per fare il `pop` nativo se spinto via `Navigator.push`.
+  - Risolti i warning di analisi sul BuildContext asincrono catturando `NavigatorState` prima dell'`await` su `_audio.stop()`.
+- **Verifica Statica**:
+  - Eseguito `flutter analyze` confermando la totale assenza di errori e warning per tutti i moduli modificati.

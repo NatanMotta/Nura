@@ -4,6 +4,7 @@ import '../../../app/router/route_names.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/widgets/bottom_nav.dart';
 import '../../../core/widgets/global_mini_player.dart';
+import '../../../core/services/audio_preview_service.dart';
 import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
 import '../profile/presentation/screens/home_profile.dart';
@@ -106,13 +107,19 @@ class _UserShellState extends State<UserShell> {
               ),
             Positioned.fill(child: body),
             // Mini player — solo nel profilo artista, sopra la nav bar
-            if (_screen == _artistProfileRoute)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 72 + safeBottom,
-                child: GlobalMiniPlayer(vibe: widget.vibe),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 72 + safeBottom,
+              child: ValueListenableBuilder<String?>(
+                valueListenable: AudioPreviewService.instance.playingTrackId,
+                builder: (context, trackId, _) {
+                  if (_screen != _artistProfileRoute) return const SizedBox.shrink();
+                  if (trackId == null || trackId.isEmpty) return const SizedBox.shrink();
+                  return GlobalMiniPlayer(vibe: widget.vibe);
+                },
               ),
+            ),
             // Bottom Nav — always visible
             Positioned(
               left: 0,

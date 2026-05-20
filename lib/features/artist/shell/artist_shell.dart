@@ -9,6 +9,7 @@ import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
 import '../../user/profile/presentation/screens/home_profile.dart';
 import '../../user/search/presentation/screens/home_search.dart';
+import '../submissions/presentation/screens/artist_pitch_screen.dart';
 
 class ArtistShell extends StatefulWidget {
   final NuraVibe vibe;
@@ -65,10 +66,7 @@ class _ArtistShellState extends State<ArtistShell> {
           safeTop: safeTop,
           safeBottom: safeBottom,
         ),
-      _pitch => const _PlaceholderScreen(
-          title: 'Pitch',
-          subtitle: 'Sezione invio brani (mock shell)',
-        ),
+      _pitch => const ArtistPitchScreen(),
       RouteNames.profile => HomeProfile(
           vibe: widget.vibe,
           accent: widget.accent,
@@ -137,34 +135,6 @@ class _ArtistShellState extends State<ArtistShell> {
                   BottomNavItem(RouteNames.profile, 'Profilo', Icons.person_outline),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _PlaceholderScreen({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ),
