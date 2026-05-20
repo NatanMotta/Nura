@@ -481,57 +481,17 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                         ),
                       ),
                       const SizedBox(height: 32),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const ProfileSettingsScreen(),
-                              ),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF1A1A1A),
-                            side: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
-                            backgroundColor: Colors.white.withValues(alpha: 0.55),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                          icon: const Icon(Icons.image_outlined, size: 16),
-                          label: const Text('Modifica immagine'),
-                        ),
-                      ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
                             child: _mainBtn(
-                              label: 'Modifica',
+                              label: 'Impostazioni',
                               isSolid: false,
                               onTap: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
                                     builder: (_) => const ProfileSettingsScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _mainBtn(
-                              label: 'Upload',
-                              isSolid: false,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const _UploadTrackMockScreen(),
                                   ),
                                 );
                               },
@@ -655,6 +615,27 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
             right: 0,
             bottom: _bottomNavHeight + widget.safeBottom,
             child: _miniPlayer(),
+          ),
+          Positioned(
+            top: widget.safeTop + 8,
+            right: 16,
+            child: Opacity(
+              opacity: (1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0),
+              child: IconButton(
+                tooltip: 'Modifica immagine',
+                visualDensity: VisualDensity.compact,
+                iconSize: 20,
+                icon: const Icon(Icons.image_outlined),
+                color: Colors.white.withValues(alpha: 0.92),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -799,25 +780,25 @@ class _TrackPostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: GestureDetector(
-        onTap: onPlayPause,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          color: Colors.transparent,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                child: Text(
-                  rank.toString(),
-                  style: TextStyle(
-                    color: isCurrentTrack ? NuraBrand.pink : Colors.black26,
-                    fontSize: 12,
-                  ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        color: Colors.transparent,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              child: Text(
+                rank.toString(),
+                style: TextStyle(
+                  color: isCurrentTrack ? NuraBrand.pink : Colors.black26,
+                  fontSize: 12,
                 ),
               ),
-              const SizedBox(width: 10),
-              Stack(
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: onPlayPause,
+              child: Stack(
                 alignment: Alignment.center,
                 children: [
                   ClipRRect(
@@ -829,81 +810,95 @@ class _TrackPostCard extends StatelessWidget {
                       child: const Icon(Icons.music_note, color: Colors.white, size: 20),
                     ),
                   ),
+                  if (!(isCurrentTrack && isPlaying))
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
                   if (isCurrentTrack && isPlaying)
                     Container(
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
+                        color: Colors.black.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Center(child: AudioVisualizerAnimation()),
                     ),
                 ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onTitleTap,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        track.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: const Color(0xFF1A1A1A),
-                          fontSize: 15,
-                          fontWeight: isCurrentTrack ? FontWeight.w900 : FontWeight.w700,
-                        ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: GestureDetector(
+                onTap: onTitleTap,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFF1A1A1A),
+                        fontSize: 15,
+                        fontWeight: isCurrentTrack ? FontWeight.w900 : FontWeight.w700,
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.favorite, size: 10, color: Colors.black12),
-                          const SizedBox(width: 2),
-                          Text('$mockLikes', style: const TextStyle(color: Colors.black26, fontSize: 10)),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.chat_bubble, size: 10, color: Colors.black12),
-                          const SizedBox(width: 2),
-                          Text('$mockComments', style: const TextStyle(color: Colors.black26, fontSize: 10)),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.favorite, size: 10, color: Colors.black12),
+                        const SizedBox(width: 2),
+                        Text('$mockLikes', style: const TextStyle(color: Colors.black26, fontSize: 10)),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chat_bubble, size: 10, color: Colors.black12),
+                        const SizedBox(width: 2),
+                        Text('$mockComments', style: const TextStyle(color: Colors.black26, fontSize: 10)),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                durationLabel,
-                style: TextStyle(color: Colors.black.withValues(alpha: 0.3), fontSize: 12),
-              ),
-              PopupMenuButton<String>(
-                iconSize: 18,
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.more_horiz, color: Colors.black38),
-                color: Colors.white,
-                onSelected: (v) {
-                  if (v == 'open') onTitleTap();
-                  if (v == 'edit' && canEditDelete) onTitleTap();
-                  if (v == 'delete' && canEditDelete) onDelete();
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: canEditDelete ? 'edit' : 'open',
-                    child: Text(
-                      canEditDelete ? 'Modifica' : 'Dettaglio',
-                      style: const TextStyle(color: Color(0xFF1A1A1A)),
-                    ),
+            ),
+            Text(
+              durationLabel,
+              style: TextStyle(color: Colors.black.withValues(alpha: 0.3), fontSize: 12),
+            ),
+            PopupMenuButton<String>(
+              iconSize: 18,
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_horiz, color: Colors.black38),
+              color: Colors.white,
+              onSelected: (v) {
+                if (v == 'open') onTitleTap();
+                if (v == 'edit' && canEditDelete) onTitleTap();
+                if (v == 'delete' && canEditDelete) onDelete();
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: canEditDelete ? 'edit' : 'open',
+                  child: Text(
+                    canEditDelete ? 'Modifica' : 'Dettaglio',
+                    style: const TextStyle(color: Color(0xFF1A1A1A)),
                   ),
-                  if (canEditDelete)
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
-                    ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                if (canEditDelete)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );
