@@ -52,6 +52,19 @@ app.*.map.json
 *.xcresult
 DerivedData/
 **/Pods/
+*.xcuserstate
+**/xcuserdata/
+ios/Flutter/ephemeral/
 
 # Local CLI/tool caches
 .wrangler/
+
+# Android / Gradle local artifacts
+**/.gradle/
+android/build/reports/
+android/local.properties
+
+# Flutter generated plugin registrants and package metadata
+**/GeneratedPluginRegistrant.java
+**/GeneratedPluginRegistrant.m
+**/GeneratedPluginRegistrant.h
