@@ -36,7 +36,8 @@ class HomeFeed extends StatefulWidget {
   State<HomeFeed> createState() => _HomeFeedState();
 }
 
-class _HomeFeedState extends State<HomeFeed> {
+class _HomeFeedState extends State<HomeFeed>
+    with SingleTickerProviderStateMixin {
   late List<Track> deck;
   late List<Track> _sourceDeck;
   final _audio = AudioPreviewService.instance;
@@ -45,15 +46,22 @@ class _HomeFeedState extends State<HomeFeed> {
   String? impulse;
   int likes = 12, skips = 38;
   bool _deckReady = false;
+  final ValueNotifier<double> _topDragDx = ValueNotifier<double>(0);
   String? _lastAudioErrorShown;
   Map<String, EngagementCounts> _engagementByTrack = const {};
   Set<String> _likedTrackIds = <String>{};
   Set<String> _savedTrackIds = <String>{};
   String? _authUserId;
+  late final AnimationController _deckIntroController;
+  bool _deckIntroPlayed = false;
 
   @override
   void initState() {
     super.initState();
+    _deckIntroController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _audio.lastError.addListener(_onAudioError);
     _sourceDeck = List.of(kTracks);
     deck = const [];
@@ -106,6 +114,12 @@ class _HomeFeedState extends State<HomeFeed> {
       deck = List.of(selected);
       _deckReady = true;
     });
+    if (!_deckIntroPlayed) {
+      _deckIntroPlayed = true;
+      _deckIntroController
+        ..value = 0
+        ..forward();
+    }
 
     unawaited(_loadEngagement(selected));
 
@@ -207,6 +221,7 @@ class _HomeFeedState extends State<HomeFeed> {
       deck.removeAt(0);
       if (deck.isEmpty) deck = List.of(_sourceDeck);
       impulse = null;
+      _topDragDx.value = 0;
     });
 
     if (action == 'like' && userId != null) {
@@ -265,6 +280,8 @@ class _HomeFeedState extends State<HomeFeed> {
   void dispose() {
     _audio.lastError.removeListener(_onAudioError);
     _audio.stop();
+    _topDragDx.dispose();
+    _deckIntroController.dispose();
     super.dispose();
   }
 
@@ -276,8 +293,17 @@ class _HomeFeedState extends State<HomeFeed> {
     }
     final topTrack = deck.first;
     final topStats = _engagementByTrack[topTrack.id] ?? const EngagementCounts();
-    final isSavedTop = _savedTrackIds.contains(topTrack.id);
+    final dragNorm = (_topDragDx.value.abs() / 120).clamp(0.0, 1.0);
     return Stack(children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: ParallaxOrganicMeshPainter(
+              scrollOffset: 0,
+              musicuraBlu: NuraBrand.deep,
+              nuraPink: NuraBrand.pink,
+            ),
+          ),
+        ),
         // Header
         Padding(
           padding: EdgeInsets.fromLTRB(18, widget.safeTop, 18, 8),
@@ -288,14 +314,24 @@ class _HomeFeedState extends State<HomeFeed> {
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: NuraBrand.mint,
+                    color: Color(0xFF1A1A1A),
                     letterSpacing: 0.4)),
             const Spacer(),
-            Mono('♥ $likes', color: NuraBrand.mint),
+            Mono('♥ $likes', color: Color(0xFF1A1A1A)),
             const SizedBox(width: 8),
-            Mono('↳ $skips', color: NuraBrand.mintAlpha(0.45)),
+            Mono('↳ $skips', color: Colors.black45),
           ]),
         ),
+        // While dragging, push everything else visually to the background.
+        if (dragNorm > 0)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 80),
+                color: Colors.black.withValues(alpha: 0.12 * dragNorm),
+              ),
+            ),
+          ),
         // Card stack
         Positioned(
           top: widget.safeTop + 50,
@@ -303,30 +339,57 @@ class _HomeFeedState extends State<HomeFeed> {
           right: 16,
           bottom: nav + 100,
           child: Stack(children: [
-            for (int i = math.min(2, deck.length - 1); i >= 0; i--)
-              SwipeCard(
-                key: ValueKey('${deck[i].id}-${deck.length}-$i'),
-                track: deck[i],
-                vibe: widget.vibe,
-                accent: widget.accent,
-                waveStyle: widget.waveform,
-                depth: i,
-                isTop: i == 0,
-                timeLabel: deck[i].dur,
-                playingTrackId: _audio.playingTrackId,
-                position: _audio.position,
-                duration: _audio.duration,
-                formatMmSs: _formatMmSs,
-                onTogglePreview: i == 0
-                    ? () => _audio.togglePreview(
-                        trackId: deck[i].id,
-                        assetPath: deck[i].audioAsset,
-                      )
-                    : null,
-                onOpenArtist: () async => _openArtistProfile(deck[i]),
-                manualImpulse: i == 0 ? impulse : null,
-                onDecide: _decide,
-              ),
+            AnimatedBuilder(
+              animation: _deckIntroController,
+              builder: (context, _) {
+                final t = Curves.easeOutCubic.transform(_deckIntroController.value);
+                return Stack(
+                  children: [
+                    for (int i = math.min(2, deck.length - 1); i >= 0; i--)
+                      Transform.translate(
+                        offset: _introOffsetForDepth(i, t),
+                        child: Transform.scale(
+                          scale: _introScaleForDepth(i, t),
+                          child: Opacity(
+                            opacity: _introOpacityForDepth(i, t),
+                            child: SwipeCard(
+                              key: ValueKey('${deck[i].id}-${deck.length}-$i'),
+                              track: deck[i],
+                              vibe: widget.vibe,
+                              accent: widget.accent,
+                              waveStyle: widget.waveform,
+                              depth: i,
+                              isTop: i == 0,
+                              timeLabel: deck[i].dur,
+                              playingTrackId: _audio.playingTrackId,
+                              isPlaying: _audio.isPlaying,
+                              position: _audio.position,
+                              duration: _audio.duration,
+                              formatMmSs: _formatMmSs,
+                              onTogglePreview: i == 0
+                                  ? () => _audio.togglePreview(
+                                      trackId: deck[i].id,
+                                      assetPath: deck[i].audioAsset,
+                                    )
+                                  : null,
+                              onOpenArtist: () async => _openArtistProfile(deck[i]),
+                              manualImpulse: i == 0 ? impulse : null,
+                              onDragChanged: i == 0
+                                  ? (dx) {
+                                      if (!mounted) return;
+                                      if ((dx - _topDragDx.value).abs() < 3) return;
+                                      _topDragDx.value = dx;
+                                    }
+                                  : null,
+                              onDecide: _decide,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ]),
         ),
         // Action buttons
@@ -334,82 +397,67 @@ class _HomeFeedState extends State<HomeFeed> {
           left: 0,
           right: 0,
           bottom: nav + 16,
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _RoundBtn(
-                size: 54,
-                border: widget.vibe.cardBorder,
-                onTap: () => setState(() => impulse = 'skip'),
-                child:
-                    const Icon(Icons.close, size: 22, color: NuraBrand.mint)),
-            const SizedBox(width: 22),
-            GestureDetector(
-              onTap: () => setState(() => impulse = 'like'),
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.accent,
-                  boxShadow: [
-                    BoxShadow(
-                        color: widget.accent.withOpacity(0.4),
-                        blurRadius: 36,
-                        offset: const Offset(0, 12))
-                  ],
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
-                ),
-                child:
-                    const Icon(Icons.favorite, size: 26, color: Colors.white),
-              ),
-            ),
-            const SizedBox(width: 22),
-            _RoundBtn(
-                size: 54,
-                border: widget.vibe.cardBorder,
-                onTap: () => _openCommentsSheet(topTrack),
-                child: const Icon(Icons.chat_bubble_outline,
-                    size: 19, color: NuraBrand.mint)),
-            const SizedBox(width: 12),
-            _RoundBtn(
-                size: 54,
-                border: widget.vibe.cardBorder,
-                onTap: _toggleSaveTopTrack,
-                child: Icon(
-                    isSavedTop ? Icons.bookmark : Icons.bookmark_outline,
-                    size: 20,
-                    color: isSavedTop ? widget.accent : NuraBrand.mint)),
-          ]),
-        ),
-        Positioned(
-          left: 20,
-          right: 20,
-          bottom: nav + 86,
-          child: IgnorePointer(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _SocialStatChip(
-                  icon: Icons.favorite,
-                  value: topStats.likes,
-                  color: NuraBrand.mintAlpha(0.9),
-                ),
-                const SizedBox(width: 10),
-                _SocialStatChip(
-                  icon: Icons.chat_bubble_outline,
-                  value: topStats.comments,
-                  color: NuraBrand.mintAlpha(0.85),
-                ),
-                const SizedBox(width: 10),
-                _SocialStatChip(
-                  icon: Icons.bookmark_outline,
-                  value: topStats.saves,
-                  color: NuraBrand.mintAlpha(0.85),
-                ),
-              ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ValueListenableBuilder<double>(
+              valueListenable: _topDragDx,
+              builder: (_, dx, __) {
+                final norm = (dx.abs() / 120).clamp(0.0, 1.0);
+                final skipBtnOpacity = dx > 0 ? (1.0 - norm) : 1.0;
+                final likeBtnOpacity = dx < 0 ? (1.0 - norm) : 1.0;
+                return Row(children: [
+                  Expanded(
+                    child: Opacity(
+                      opacity: skipBtnOpacity,
+                      child: _RoundBtn(
+                        height: 52,
+                        border: Colors.black.withValues(alpha: 0.10),
+                        onTap: () => setState(() => impulse = 'skip'),
+                        child: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF1A1A1A)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Opacity(
+                      opacity: likeBtnOpacity,
+                      child: _RoundBtn(
+                        height: 52,
+                        fill: widget.accent,
+                        border: Colors.transparent,
+                        onTap: () => setState(() => impulse = 'like'),
+                        child: const Icon(Icons.favorite, size: 22, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ]);
+              },
             ),
           ),
         ),
+        
       ]);
+  }
+
+  Offset _introOffsetForDepth(int depth, double t) {
+    const starts = <Offset>[
+      Offset(0, 46),
+      Offset(-58, 16),
+      Offset(66, -26),
+    ];
+    final start = starts[depth.clamp(0, 2)];
+    return Offset(start.dx * (1 - t), start.dy * (1 - t));
+  }
+
+  double _introScaleForDepth(int depth, double t) {
+    const starts = <double>[0.95, 0.92, 0.90];
+    final start = starts[depth.clamp(0, 2)];
+    return start + ((1.0 - start) * t);
+  }
+
+  double _introOpacityForDepth(int depth, double t) {
+    final base = depth == 0 ? 0.85 : 0.68;
+    return (base + ((1 - base) * t)).clamp(0.0, 1.0);
   }
 
   Future<void> _openCommentsSheet(Track track) async {
@@ -560,25 +608,26 @@ class _HomeFeedState extends State<HomeFeed> {
 }
 
 class _RoundBtn extends StatelessWidget {
-  final double size;
+  final double height;
   final Widget child;
   final Color border;
+  final Color? fill;
   final VoidCallback onTap;
   const _RoundBtn(
-      {required this.size,
+      {required this.height,
       required this.child,
       required this.border,
+      this.fill,
       required this.onTap});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Container(
-          width: size,
-          height: size,
+          height: height,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: NuraBrand.deepMidAlpha(0.7),
+            borderRadius: BorderRadius.circular(height / 2),
+            color: fill ?? Colors.white.withValues(alpha: 0.55),
             border: Border.all(color: border),
           ),
           child: child,
@@ -602,9 +651,9 @@ class _SocialStatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: NuraBrand.deepMidAlpha(0.55),
+        color: Colors.white.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: NuraBrand.mintAlpha(0.16)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -636,12 +685,14 @@ class SwipeCard extends StatefulWidget {
   final bool isTop;
   final String timeLabel;
   final ValueListenable<String?> playingTrackId;
+  final ValueListenable<bool> isPlaying;
   final ValueListenable<Duration> position;
   final ValueListenable<Duration?> duration;
   final String Function(Duration) formatMmSs;
   final VoidCallback? onTogglePreview;
   final VoidCallback? onOpenArtist;
   final String? manualImpulse;
+  final ValueChanged<double>? onDragChanged;
   final ValueChanged<String> onDecide;
   const SwipeCard(
       {super.key,
@@ -653,12 +704,14 @@ class SwipeCard extends StatefulWidget {
       required this.isTop,
       required this.timeLabel,
       required this.playingTrackId,
+      required this.isPlaying,
       required this.position,
       required this.duration,
       required this.formatMmSs,
       required this.onTogglePreview,
       required this.onOpenArtist,
       required this.manualImpulse,
+      required this.onDragChanged,
       required this.onDecide});
   @override
   State<SwipeCard> createState() => _SwipeCardState();
@@ -666,9 +719,8 @@ class SwipeCard extends StatefulWidget {
 
 class _SwipeCardState extends State<SwipeCard>
     with SingleTickerProviderStateMixin {
-  Offset drag = Offset.zero;
+  final ValueNotifier<Offset> _drag = ValueNotifier(Offset.zero);
   String? exit;
-  int _lastPanTickUs = 0;
 
   @override
   void didUpdateWidget(SwipeCard oldWidget) {
@@ -683,241 +735,299 @@ class _SwipeCardState extends State<SwipeCard>
 
   void _onPanUpdate(DragUpdateDetails d) {
     if (!widget.isTop || exit != null) return;
-    final nowUs = DateTime.now().microsecondsSinceEpoch;
-    if (nowUs - _lastPanTickUs < 16000) return;
-    _lastPanTickUs = nowUs;
-    setState(() => drag += d.delta);
+    final next = _drag.value + d.delta;
+    _drag.value = next;
+    widget.onDragChanged?.call(next.dx);
   }
 
-  void _onPanEnd(DragEndDetails _) {
+  void _onPanEnd(DragEndDetails details) {
     if (!widget.isTop || exit != null) return;
-    const threshold = 90.0;
-    if (drag.dx > threshold) {
+    const threshold = 95.0;
+    const flingVelocity = 700.0;
+    final drag = _drag.value;
+    final vx = details.velocity.pixelsPerSecond.dx;
+    if (drag.dx > threshold || vx > flingVelocity) {
       setState(() => exit = 'like');
       Future.delayed(const Duration(milliseconds: 280), () {
         if (mounted) widget.onDecide('like');
       });
-    } else if (drag.dx < -threshold) {
+    } else if (drag.dx < -threshold || vx < -flingVelocity) {
       setState(() => exit = 'skip');
       Future.delayed(const Duration(milliseconds: 280), () {
         if (mounted) widget.onDecide('skip');
       });
     } else {
-      setState(() => drag = Offset.zero);
+      _drag.value = Offset.zero;
+      widget.onDragChanged?.call(0);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    double tx = drag.dx, ty = drag.dy, rotation = drag.dx / 18 * math.pi / 180;
-    if (exit == 'like') {
-      tx = 600;
-      rotation = 24 * math.pi / 180;
-    }
-    if (exit == 'skip') {
-      tx = -600;
-      rotation = -24 * math.pi / 180;
-    }
+  void dispose() {
+    _drag.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final stackOffset = widget.depth * 12.0;
     final stackScale = 1 - widget.depth * 0.04;
-    final likeOpacity = (drag.dx / 110).clamp(0.0, 1.0);
-    final skipOpacity = (-drag.dx / 110).clamp(0.0, 1.0);
+    return ValueListenableBuilder<Offset>(
+      valueListenable: _drag,
+      builder: (context, drag, _) {
+        final tx = drag.dx;
+        final ty = drag.dy;
+        final dragRotation = drag.dx / 18 * math.pi / 180;
+        final isExiting = exit != null;
+        final exitingLike = exit == 'like';
+        final exitingSkip = exit == 'skip';
+        final slideOffset = exitingLike
+            ? const Offset(1.35, 0)
+            : exitingSkip
+                ? const Offset(-1.35, 0)
+                : Offset.zero;
+        final targetRotation = exitingLike
+            ? (24 * math.pi / 180)
+            : exitingSkip
+                ? (-24 * math.pi / 180)
+                : dragRotation;
 
-    return AnimatedPositioned(
-      duration:
-          Duration(milliseconds: exit != null || drag == Offset.zero ? 280 : 0),
-      curve: Curves.easeOut,
-      left: tx,
-      right: -tx,
-      top: ty + stackOffset,
-      bottom: -ty - stackOffset,
-      child: Transform.rotate(
-        angle: rotation,
-        child: Transform.scale(
-          scale: stackScale,
-          child: GestureDetector(
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(widget.vibe.radius),
-              child: Stack(children: [
-                Positioned.fill(
-                  child: widget.track.coverAsset != null
-                      ? Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Lower filter quality keeps swipe smooth on real devices.
-                            Image.asset(
-                              widget.track.coverAsset!,
-                              fit: BoxFit.cover,
-                              filterQuality: FilterQuality.low,
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.black.withOpacity(0.20),
-                                    Colors.black.withOpacity(0.45),
+        return Padding(
+          padding: EdgeInsets.only(top: stackOffset, bottom: stackOffset),
+          child: AnimatedSlide(
+            offset: slideOffset,
+            duration: Duration(milliseconds: isExiting ? 280 : 0),
+            curve: Curves.easeOutCubic,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: targetRotation),
+              duration: Duration(milliseconds: isExiting ? 280 : 0),
+              curve: Curves.easeOutCubic,
+              builder: (context, animatedRotation, child) {
+                return Transform.rotate(
+                  angle: animatedRotation,
+                  child: Transform.translate(
+                    // Keep current drag offset while exiting to avoid snap-back bounce.
+                    offset: Offset(tx, ty),
+                    child: child,
+                  ),
+                );
+              },
+              child: Transform.scale(
+                scale: stackScale,
+                child: GestureDetector(
+                  behavior: widget.isTop
+                      ? HitTestBehavior.translucent
+                      : HitTestBehavior.deferToChild,
+                  onPanUpdate: widget.isTop ? _onPanUpdate : null,
+                  onPanEnd: widget.isTop ? _onPanEnd : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(widget.vibe.radius),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: widget.track.coverAsset != null
+                              ? Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.asset(
+                                      widget.track.coverAsset!,
+                                      fit: BoxFit.cover,
+                                      filterQuality: FilterQuality.low,
+                                    ),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.black.withValues(alpha: 0.12),
+                                            NuraBrand.deepMidAlpha(0.38),
+                                            NuraBrand.deepMidAlpha(0.62),
+                                          ],
+                                          stops: const [0.0, 0.55, 1.0],
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: RadialGradient(
+                                          center: Alignment.center,
+                                          radius: 1.15,
+                                          colors: [
+                                            Colors.transparent,
+                                            NuraBrand.deepMidAlpha(0.16),
+                                          ],
+                                          stops: const [0.72, 1.0],
+                                        ),
+                                      ),
+                                    ),
                                   ],
+                                )
+                              : StripedPanel(
+                                  hue: widget.track.hue,
+                                  vibe: widget.vibe,
+                                ),
+                        ),
+                        Positioned(
+                          top: 14,
+                          left: 16,
+                          right: 16,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Mono(widget.track.genre,
+                                  color: NuraBrand.mintAlpha(0.85)),
+                              Mono('${widget.track.bpm} BPM',
+                                  color: NuraBrand.mintAlpha(0.85)),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 16,
+                          left: 12,
+                          right: 12,
+                          child: ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(widget.vibe.radius - 4),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: NuraBrand.deepMidAlpha(0.62),
+                                border: Border.all(color: widget.vibe.cardBorder),
+                                borderRadius: BorderRadius.circular(
+                                  widget.vibe.radius - 4,
                                 ),
                               ),
-                            ),
-                          ],
-                        )
-                      : StripedPanel(hue: widget.track.hue, vibe: widget.vibe),
-                ),
-                // Top meta
-                Positioned(
-                  top: 14,
-                  left: 16,
-                  right: 16,
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Mono(widget.track.genre,
-                            color: NuraBrand.mintAlpha(0.85)),
-                        Mono('${widget.track.bpm} BPM',
-                            color: NuraBrand.mintAlpha(0.85)),
-                      ]),
-                ),
-                // LIKE / SKIP badges
-                Positioned(
-                    top: 28,
-                    left: 22,
-                    child: Opacity(
-                        opacity: likeOpacity,
-                        child: Transform.rotate(
-                            angle: -12 * math.pi / 180,
-                            child:
-                                _Badge(text: 'LIKE', color: widget.accent)))),
-                Positioned(
-                    top: 28,
-                    right: 22,
-                    child: Opacity(
-                        opacity: skipOpacity,
-                        child: Transform.rotate(
-                            angle: 12 * math.pi / 180,
-                            child: const _Badge(
-                                text: 'SKIP', color: NuraBrand.mint)))),
-                // Bottom overlay
-                Positioned(
-                  bottom: 16,
-                  left: 12,
-                  right: 12,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(widget.vibe.radius - 4),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: NuraBrand.deepMidAlpha(0.62),
-                        border: Border.all(color: widget.vibe.cardBorder),
-                        borderRadius:
-                            BorderRadius.circular(widget.vibe.radius - 4),
-                      ),
-                      child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(children: [
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            GestureDetector(
+                                              onTap: widget.onOpenArtist,
+                                              child: Text(
+                                                widget.track.artist,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: NuraBrand.mintAlpha(0.65),
+                                                  letterSpacing: 0.4,
+                                                  decoration:
+                                                      widget.onOpenArtist != null
+                                                          ? TextDecoration
+                                                              .underline
+                                                          : TextDecoration.none,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              widget.track.track,
+                                              style: const TextStyle(
+                                                fontSize: 19,
+                                                fontWeight: FontWeight.w600,
+                                                color: NuraBrand.mint,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                       GestureDetector(
-                                        onTap: widget.onOpenArtist,
-                                        child: Text(
-                                          widget.track.artist,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: NuraBrand.mintAlpha(0.65),
-                                            letterSpacing: 0.4,
-                                            decoration: widget.onOpenArtist != null
-                                                ? TextDecoration.underline
-                                                : TextDecoration.none,
+                                        onTap: widget.onTogglePreview,
+                                        child: AnimatedBuilder(
+                                          animation: Listenable.merge([
+                                            widget.playingTrackId,
+                                            widget.isPlaying,
+                                          ]),
+                                          builder: (context, _) {
+                                            final isCurrentTrack =
+                                                widget.playingTrackId.value ==
+                                                    widget.track.id;
+                                            final showPause = widget.isTop &&
+                                                isCurrentTrack &&
+                                                widget.isPlaying.value;
+                                            return Container(
+                                              width: 38,
+                                              height: 38,
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: Color(0xFF1A1A1A),
+                                              ),
+                                              child: Icon(
+                                                showPause
+                                                    ? Icons.pause
+                                                    : Icons.play_arrow,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: RepaintBoundary(
+                                          child: Waveform(
+                                            style: widget.waveStyle,
+                                            color: NuraBrand.mint,
+                                            height: 22,
+                                            count: 24,
+                                            seed: widget.track.id.codeUnitAt(1),
+                                            animate:
+                                                widget.isTop && exit == null,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(widget.track.track,
-                                          style: const TextStyle(
-                                              fontSize: 19,
-                                              fontWeight: FontWeight.w600,
-                                              color: NuraBrand.mint)),
-                                    ])),
-                                GestureDetector(
-                                  onTap: widget.onTogglePreview,
-                                  child: ValueListenableBuilder<String?>(
-                                    valueListenable: widget.playingTrackId,
-                                    builder: (context, playingId, _) {
-                                      final isPlaying = widget.isTop && playingId == widget.track.id;
-                                      return Container(
-                                        width: 38,
-                                        height: 38,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: NuraBrand.mint,
+                                      const SizedBox(width: 10),
+                                      if (!widget.isTop)
+                                        Mono(widget.timeLabel,
+                                            color: NuraBrand.mintAlpha(0.55))
+                                      else
+                                        AnimatedBuilder(
+                                          animation: Listenable.merge([
+                                            widget.playingTrackId,
+                                            widget.position,
+                                            widget.duration,
+                                          ]),
+                                          builder: (context, _) {
+                                            final playingId =
+                                                widget.playingTrackId.value;
+                                            if (playingId != widget.track.id) {
+                                              return Mono(widget.timeLabel,
+                                                  color:
+                                                      NuraBrand.mintAlpha(0.55));
+                                            }
+                                            return Mono(
+                                              '${widget.formatMmSs(widget.position.value)} / ${widget.formatMmSs(widget.duration.value ?? Duration.zero)}',
+                                              color: NuraBrand.mintAlpha(0.55),
+                                            );
+                                          },
                                         ),
-                                        child: Icon(
-                                          isPlaying ? Icons.pause : Icons.play_arrow,
-                                          color: NuraBrand.deep,
-                                          size: 18,
-                                        ),
-                                      );
-                                    },
+                                    ],
                                   ),
-                                ),
-                              ]),
-                              const SizedBox(height: 8),
-                              Row(children: [
-                                Expanded(
-                                    child: RepaintBoundary(
-                                      child: Waveform(
-                                        style: widget.waveStyle,
-                                        color: NuraBrand.mint,
-                                        height: 22,
-                                        count: 24,
-                                        seed: widget.track.id.codeUnitAt(1),
-                                        animate:
-                                            widget.isTop && drag == Offset.zero && exit == null,
-                                      ),
-                                    )),
-                                const SizedBox(width: 10),
-                                if (!widget.isTop)
-                                  Mono(widget.timeLabel,
-                                      color: NuraBrand.mintAlpha(0.55))
-                                else
-                                  AnimatedBuilder(
-                                    animation: Listenable.merge([
-                                      widget.playingTrackId,
-                                      widget.position,
-                                      widget.duration,
-                                    ]),
-                                    builder: (context, _) {
-                                      final playingId = widget.playingTrackId.value;
-                                      if (playingId != widget.track.id) {
-                                        return Mono(widget.timeLabel,
-                                            color: NuraBrand.mintAlpha(0.55));
-                                      }
-                                      return Mono(
-                                        '${widget.formatMmSs(widget.position.value)} / ${widget.formatMmSs(widget.duration.value ?? Duration.zero)}',
-                                        color: NuraBrand.mintAlpha(0.55),
-                                      );
-                                    },
-                                  ),
-                              ]),
-                            ]),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ]),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
