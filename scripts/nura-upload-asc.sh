@@ -34,3 +34,7 @@ if [[ "${ASC_WAIT:-0}" == "1" ]]; then
 else
   asc builds upload --app "$APP_ID" --ipa "$IPA_PATH" --output json --pretty
 fi
+
+echo
+echo "✅ Upload completato: build inviata correttamente a TestFlight (App Store Connect)."
+echo "ℹ️  Se non la vedi subito, attendi il processing Apple (tipicamente 10-30+ minuti)."

@@ -16,6 +16,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# Backward compatibility: allow NURA_* env var names.
+APPLE_API_KEY_ID="${APPLE_API_KEY_ID:-${NURA_APPLE_API_KEY_ID:-}}"
+APPLE_API_ISSUER_ID="${APPLE_API_ISSUER_ID:-${NURA_APPLE_API_ISSUER_ID:-}}"
+APPLE_ID_EMAIL="${APPLE_ID_EMAIL:-${NURA_APPLE_ID_EMAIL:-}}"
+
 use_api_key_auth=false
 if [[ -n "${APPLE_API_KEY_ID:-}" && -n "${APPLE_API_ISSUER_ID:-}" ]]; then
   use_api_key_auth=true
@@ -85,3 +90,5 @@ fi
 
 echo "==> Upload request sent."
 echo "Note: App Store Connect processing can take 10-30+ minutes before build appears in TestFlight."
+echo
+echo "✅ Upload completato: build inviata correttamente a TestFlight (App Store Connect)."
