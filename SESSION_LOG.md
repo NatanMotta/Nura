@@ -693,6 +693,8 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Eseguito `flutter analyze` confermando la totale assenza di errori e warning nel codice dell'applicazione.
 
 ### Francesco — Sessione 2026-05-29 (A)
+- [x] **Walkthrough** per Artist Pitch creato e approvato.
+- [x] Rimosso `Scaffold` duplicato e background in `artist_pitch_screen.dart`.
 - **Motore di Ricerca e Filtri Dimensione Etichette (`artist_pitch_screen.dart`)**:
   - Esteso il modello `Label` e i dati mock (`kLabels`) con il campo `size` per categorizzare le etichette in `small`, `medium` e `big`. Questi tag in produzione saranno collegati direttamente ai campi del profilo dell'etichetta su Supabase.
   - Implementata una barra di ricerca testuale (con icona a lente) per filtrare in tempo reale le etichette per nome direttamente nello Step 2 (Selezione Etichetta Discografica).
@@ -713,3 +715,24 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Storico candidature (Scheda "I Miei Pitch") con timeline di accettazione, bottom sheet in glassmorphism, player miniaturizzato e lettera di feedback dal curatore A&R.
   - Backend Services interfacciati via mock fallback e pronti per l'integrazione di produzione (Supabase schema `pitch_requests`).
   - Analisi statica del codice passata integralmente (`flutter analyze` clean su tutto il flow).
+
+---
+
+## [2026-05-29] Update: Redesign Navigation Bar & Calm UX
+
+**Branch Attuale:** `rework-navbar`
+
+**Obiettivi Raggiunti:**
+1. **Design "Liquid Glass" 2026**:
+   - `BottomNav` trasformata in un "Floating Dock" sopraelevato e aderente in sicurezza alla Safe Area inferiore.
+   - Sfondo `LinearGradient` sfumato (Cyan leggerissimo o Pink verso un base dark) estremamente trasparente per un effetto glass puro senza ingombri pesanti.
+   - Rimozione completa di testi ed etichette, focalizzando la UI sulle icone bianche minimali ad alto contrasto.
+   - Barretta inferiore indicatoria dipinta dinamicamente in colore Accento.
+2. **Logica "Calm UX" Assoluta**:
+   - Scomparsa dinamica su scroll in `UserShell` e `ArtistShell`: scorrendo attivamente verso il basso, la navbar scompare morbidamente, liberando spazio prezioso a schermo.
+   - **Risoluzione Bug Bouncing**: Intercettato il rimbalzo fisico (`outOfRange` e `pixels <= 0`) per impedire artefatti grafici/scomparsa accidentale ai bordi delle liste.
+   - **Riapparizione Immediata a Inerzia Finita**: Aggiunto hook su `ScrollEndNotification` e direzioni `idle`. Appena lo scroll giunge a destinazione o il tocco termina, la barra riappare istantaneamente senza necessitare scroll inversi espliciti.
+3. **Ottimizzazione Fisica Pagine**:
+   - Rimosso il fastidioso `BouncingScrollPhysics` custom da schermate chiave come `ArtistPitchScreen` e `ArtistPublicProfileScreen`, uniformando lo scorrimento e l'attrito al resto dell'esperienza Nura.
+
+*Navbar minimalista, reattiva organicamente al contesto dell'utente, ed esteticamente pulita senza eccessi. Branch pronto al merge!*

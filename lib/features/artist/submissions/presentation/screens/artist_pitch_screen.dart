@@ -283,7 +283,6 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
           Positioned.fill(
             child: CustomScrollView(
               controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
               slivers: [
                 // Top Header Section
                 SliverToBoxAdapter(
@@ -478,7 +477,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                physics: const BouncingScrollPhysics(),
+
                 itemCount: tracks.length,
                 itemBuilder: (context, index) {
                   final track = tracks[index];
@@ -583,7 +582,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
               // Size Filter Chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
+
                 child: Row(
                   children: [
                     _buildSizeFilterChip('all', 'Tutte'),
@@ -1246,7 +1245,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
             child: BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

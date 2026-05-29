@@ -157,7 +157,6 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
           Positioned.fill(
             child: CustomScrollView(
               controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
               slivers: [
                 // MAIN ARTIST HEADER (Opaque, scrolls normally up and away)
                 SliverToBoxAdapter(
