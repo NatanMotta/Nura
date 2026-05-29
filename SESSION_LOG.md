@@ -778,3 +778,11 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
 
 *Navbar minimalista, reattiva organicamente al contesto dell'utente, ed esteticamente pulita senza eccessi. Branch pronto al merge!*
 
+---
+
+## [2026-05-29] Integrazione (Merge Test)
+- Eseguito con successo il workflow di "test merge" su branch temporaneo `test-merge-kekko`.
+- Uniti senza crash i branch `rework-navbar` (Francesco) e `Update-nuovo-tema-+-fix-sezione-swipe` (Natan).
+- Test utente locale completato con successo.
+- Codice validato e pronto per la promozione stabile su `test-version`.
+
