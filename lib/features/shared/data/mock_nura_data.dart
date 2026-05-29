@@ -176,6 +176,7 @@ const List<Label> kLabels = [
     city: 'Milano, IT',
     bio: 'Boutique label focalizzata su pop alternativo e new wave.',
     logoAsset: 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
+    size: 'small',
   ),
   Label(
     id: 'l2',
@@ -183,6 +184,7 @@ const List<Label> kLabels = [
     city: 'Berlin, DE',
     bio: 'Curation elettronica, deep house e progetti cross-club.',
     logoAsset: 'assets/images/labels/jason-leung-wmyE5IBiOmo-unsplash.jpg',
+    size: 'medium',
   ),
   Label(
     id: 'l3',
@@ -190,6 +192,7 @@ const List<Label> kLabels = [
     city: 'London, UK',
     bio: 'A&R orientato a voci emergenti e sviluppo artistico.',
     logoAsset: 'assets/images/labels/joel-filipe-QwoNAhbmLLo-unsplash.jpg',
+    size: 'big',
   ),
 ];
 
@@ -200,6 +203,7 @@ const List<PitchRequest> kPitchRequests = [
     labelId: 'l1',
     trackId: 't1',
     visualStatus: PitchVisualStatus.sent,
+    message: 'Ciao team Aurora! Questo brano parla di notti solitarie e riflessioni sotto la pioggia, spero vi colpisca il sound etereo.',
   ),
   PitchRequest(
     id: 'p2',
@@ -207,6 +211,7 @@ const List<PitchRequest> kPitchRequests = [
     labelId: 'l2',
     trackId: 't3',
     visualStatus: PitchVisualStatus.viewed,
+    message: 'North District! Un pezzo deep house perfetto per il club a tarda notte. Bassline calda e groove incalzante.',
   ),
   PitchRequest(
     id: 'p3',
@@ -214,6 +219,7 @@ const List<PitchRequest> kPitchRequests = [
     labelId: 'l3',
     trackId: 't5',
     visualStatus: PitchVisualStatus.shortlisted,
+    message: 'Ciao Capitol! Ecco la mia nuova traccia electro-pop ad alto contrasto energetico. Pronto a lavorarci insieme!',
   ),
   PitchRequest(
     id: 'p4',
@@ -221,6 +227,7 @@ const List<PitchRequest> kPitchRequests = [
     labelId: 'l1',
     trackId: 't4',
     visualStatus: PitchVisualStatus.rejected,
+    message: 'Un songwriting intimo registrato interamente in acustico in una baita di montagna. Spero possiate cogliere il calore selvaggio.',
   ),
 ];
 

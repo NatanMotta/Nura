@@ -11,6 +11,7 @@ class PitchRequest {
   final String labelId;
   final String trackId;
   final PitchVisualStatus visualStatus;
+  final String? message;
 
   const PitchRequest({
     required this.id,
@@ -18,5 +19,6 @@ class PitchRequest {
     required this.labelId,
     required this.trackId,
     required this.visualStatus,
+    this.message,
   });
 }

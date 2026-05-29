@@ -456,6 +456,201 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
 - **Allineamento e Navigazione In-Line Shell Etichetta (`LabelShell`)**:
   - Unificata la navigazione di `LabelShell` sullo stesso modello in-line e fluido di `UserShell`, mantenendo la barra di navigazione inferiore sempre persistente ed evitando il push nativo a tutto schermo.
   - Integrata la capsula del `GlobalMiniPlayer` reattivo sopra la barra di navigazione a 4 elementi (`bottom: 84 + safeBottom`).
+- in `inactive/hidden/paused`: pausa automatica se il player era in play
+  - in `resumed`: resume automatico solo se prima del background era in play
+  - mantenuto stato `_wasPlayingBeforeBackground` per evitare resume indesiderati.
+- Verifica statica: `flutter analyze` senza errori.
+
+(appendere qui le sessioni successive)
+
+### Natan — Sessione 2026-05-11 (Q)
+- EPIC 5 hardening errori audio completato (timeout + fallback UI).
+- `AudioPreviewService` aggiornato con:
+  - `lastError` (`ValueNotifier<String?>`) per error reporting centralizzato
+  - timeout operazioni audio (`setAsset/play/pause/seek/stop`) con soglia 4s
+  - wrapper `_runGuarded` con catch uniforme (`MissingPluginException`, `TimeoutException`, errori runtime)
+  - messaggi fallback utente quando preview/player non disponibili.
+- Fallback UI aggiunto (SnackBar errori audio) in:
+  - `home_feed.dart`
+  - `artist_public_profile_screen.dart`
+  - `home_profile.dart`
+- Verifica statica: `flutter analyze` senza errori.
+
+(appendere qui le sessioni successive)
+
+### Natan — Sessione 2026-05-11 (R)
+- Separazione documentazione di tracking:
+  - creazione `ROADMAP.md` come documento principale roadmap
+  - mantenuto `SESSION_LOG.md` come diario cronologico
+  - rimosso `SESSION_RECAP.md` su richiesta.
+- Build/TestFlight tooling migliorato:
+  - aggiornato `scripts/testflight_build.sh` con supporto build number da parametro (`./scripts/testflight_build.sh 3`)
+  - aggiunta modalità auto-increment (`--auto`) con stato locale su `.nura_build_number`
+  - aggiunti alias shell:
+    - `nura-ipa <build_number>`
+    - `nura-ipa-auto`.
+- Git housekeeping:
+  - eliminato branch locale `codex/ottimizzazione-generale`
+  - eliminato branch remoto `origin/codex/ott-gen-epic-new`
+  - confermati branch attivi: `main`, `codex/ottimizzazione-next`.
+- Supporto operativo:
+  - spiegati flussi merge/fork/branch
+  - generato albero git aggiornato per stato repository.
+
+
+(appendere qui le sessioni successive)
+
+### Natan — Sessione 2026-05-12 (A)
+- Merge completato del ramo `codex/ottimizzazione-next` in `main` dopo test utente positivi.
+- Setup pipeline ASC CLI (`asc`) per upload TestFlight:
+  - raccolte credenziali API key (`Key ID`, `Issuer ID`, file `.p8`)
+  - fix permessi file private key (`chmod 600`)
+  - login riuscito con profilo keychain `Nura` (`asc auth status --validate` OK)
+  - identificata app target `Nura App` con App ID `6768263432`.
+- Automazione terminale upload:
+  - creato script `scripts/nura-upload-asc.sh`
+  - aggiornato alias `nura-upload` per usare ASC upload (con `ASC_WAIT=1` opzionale)
+  - mantenuto flusso operativo semplice: `nura-ipa-auto` -> `nura-upload`.
+- Profilo utente (tab destra footer) rifatto in versione minimal:
+  - semplificata `home_profile.dart`
+  - card profilo essenziale con nome/handle/email/ruolo reali da auth+`profiles` (fallback puliti)
+  - lista azioni minima (`Dettagli account`, `Notifiche`, `Impostazioni`).
+- Branch dedicato per la nuova fase profilo:
+  - creato `codex/implementazione-profilo-utente`
+  - commit effettuato: `f2ddea8` (`feat(profile): implementa sezione profilo utente minimal nel tab footer`).
+- Nota performance upload:
+  - IPA attuale ~83 MB; evidenziati asset immagini come principale fattore di lentezza upload/processing.
+- Aggiornamento sessione (A) — audit live Supabase via CLI completato:
+  - verificato progetto linkato `vsfaemlbnufprlcxmzwi`
+  - stato pre-migrazione confermato: presenti solo `profiles`, `tracks`, `labels`, `pitch_requests`.
+- Implementazione immediata backend social MVP su remoto:
+  - creata migrazione `supabase/migrations/20260512184500_social_engagement_mvp.sql`
+  - eseguito `supabase db push` con successo.
+- Oggetti DB attivi in produzione Supabase:
+  - tabelle: `track_likes`, `track_saves`, `track_comments`
+  - view: `track_engagement_stats`, `community_artist_ranking`
+  - RLS/policy: select public + insert/delete owner (like/save), select/insert/update/delete owner (commenti).
+- Allineata roadmap:
+  - `ROADMAP.md` aggiornato con fase Social Foundation marcata parzialmente completata lato backend.
+  - prossimo focus: integrazione CRUD app -> Supabase + binding ranking reale in profilo.
+- Aggiornamento sessione (A) — integrazione app con backend social MVP completata:
+  - creato `lib/features/social/data/social_engagement_service.dart` (Supabase):
+    - fetch metriche engagement per track
+    - fetch like/save utente
+    - toggle like/save
+    - fetch/create commenti.
+  - `home_feed.dart` aggiornato:
+    - like swipe persistente su `track_likes` quando l'utente è autenticato
+    - bookmark salvati persistenti su `track_saves`
+    - contatori live per brano top (`like/saves/commenti`) da `track_engagement_stats`
+    - bottom sheet commenti con lettura/scrittura su `track_comments`.
+  - `home_profile.dart` aggiornato:
+    - metriche canzoni proprie alimentate da DB (`track_engagement_stats`) con fallback visivo solo se dati mancanti.
+- Verifica statica post-integrazione:
+  - `flutter analyze` su file modificati: nessun errore.
+- Aggiornamento sessione (A) — refactor profilo richiesto (meno gamer, più social/editoriale):
+  - `home_profile.dart` riscritto con layout sobrio (header account + metriche compatte + lista tracce).
+  - sezione `Le tue canzoni` ora alimentata da dati reali DB (`tracks` con `storage_path` R2), priorità a tracce dell'utente artista; fallback a ultime tracce reali caricate.
+  - tracce cliccabili: tap sulla riga avvia play/pause preview (mapping `storage_path` -> asset locale preview attuale).
+  - metriche per traccia (`likes/saves/comments`) lette da `track_engagement_stats` (niente conteggi mock).
+  - azioni social per ogni traccia (like/save/comment) mantenute reali su Supabase.
+- Verifica statica: `flutter analyze` su `home_profile.dart` senza errori.
+- Aggiornamento sessione (A) — audit live utenti/tracce Supabase per test end-to-end:
+  - confermato account utente reale `asd@gmail.com` presente su `auth.users` e `profiles`.
+  - confermati utenti fake (`user*.nura.test`, `artist*.nura.test`, `label*.nura.test`).
+  - confermate tracce reali con path `storage_path` `previews/...` (31 tracce).
+- Seed dati test social su tracce reali:
+  - distribuiti like/save/commenti su un set di 16 tracce recenti.
+  - coinvolti utenti fake + account `asd@gmail.com`.
+  - commenti seed marcati con prefisso `[seed]` per tracciabilità.
+- Fix critico metriche engagement:
+  - corretta view `track_engagement_stats` (prima sovracontava per join multiplicative).
+  - nuova migrazione: `20260513201500_fix_engagement_views_counts.sql` applicata su remoto.
+- Stato dati dopo seed/fix:
+  - `track_likes`: 139
+  - `track_saves`: 52
+  - `track_comments` attivi: 41
+  - `asd@gmail.com` incluso nel seed commenti/like.
+- Aggiornamento sessione (A) — fix profilo `asd@gmail.com` senza tracce:
+  - root cause 1: profilo `asd@gmail.com` era `role=user`, quindi nessuna traccia propria collegata.
+  - root cause 2: `home_profile.dart` interrogava `profiles.username` (colonna non presente), causando errore in load profilo.
+- Correzioni applicate:
+  - aggiornato `profiles.role` di `asd@gmail.com` a `artist`.
+  - assegnate 6 tracce reali (`storage_path` `previews/...`) a `asd@gmail.com` come owner artist.
+  - redistribuite le altre tracce reali sui fake artist per mantenere copertura test multi-profilo.
+  - patch codice `home_profile.dart` per leggere solo `display_name` da `profiles` e derivare handle da email (niente dipendenza da `username`).
+- Verifica post-fix:
+  - `asd@gmail.com` risulta `artist` su `profiles`.
+  - tracce collegate a `asd@gmail.com`: 6.
+  - metriche reali disponibili su quelle tracce (like/save/commenti) via `track_engagement_stats`.
+
+### Francesco — Sessione 2026-05-18 (A)
+- **Architettura Strutturale e Gestione del Layout (`Stack` & `CustomScrollView`)**:
+  - Riorganizzato l'intero scheletro della pagina in un unico contenitore ad altissime prestazioni basato su `CustomScrollView` e `SliverToBoxAdapter`. Questa struttura unificata ha risolto in modo definitivo i problemi di overflow e i fastidiosi warning di layout presenti sui dispositivi con schermi di piccole dimensioni.
+  - Utilizzata una stratificazione a livelli tramite `Stack` per separare rigorosamente: lo sfondo a parallasse (livello 0), l'immagine del banner con trasparenza controllata (livello 1), il contenuto principale scorrevole (livello 2), e i controlli flottanti di navigazione satinati (livello 3). Questo isolamento previene i conflitti nella gestione dei tocchi e delle gesture.
+- **Sfondo Mesh Parallasse Avanzato (`ParallaxOrganicMeshPainter`)**:
+  - Sviluppato un `CustomPainter` ad alte prestazioni per disegnare riflessi e "glow blobs" cromatici sfumati nei colori del brand Nura (Blu Musicura e Rosa Nura) direttamente sulla canvas di sfondo.
+  - Applicata una sfocatura pesante tramite `ImageFilter.blur(sigmaX: 55, sigmaY: 55)` ottimizzata per GPU, garantendo un rendering fluido a 60/120 FPS senza lag di calcolo.
+  - Collegati i baricentri dei riflessi allo scorrimento tramite un moltiplicatore di parallasse controllato (`scrollOffset * 0.15`), conferendo all'interfaccia un senso di tridimensionalità e profondità (effetto 3D layered) durante lo scroll dei contenuti.
+- **Interactive Pro Player Timeline Seeking (`global_mini_player.dart`)**:
+  - Aggiornata la timeline del player a capsula inferiore trasformandola in uno `Slider` completamente interattivo.
+  - Implementata una `_FullWidthTrackShape` personalizzata per rimuovere ogni padding orizzontale, integrando perfettamente la barra di scorrimento con i bordi della capsula vitrea.
+  - Collegati i controlli rapidi di play/pause, chiusura (stop preview via `AudioPreviewService`) e icona like direttamente sulla barra flottante.
+- **Engagement Stats & Social Metrics (`artist_public_profile_screen.dart`)**:
+  - Aggiunti i contatori di like e commenti reali direttamente sotto il titolo di ogni brano nella lista pubblica dell'artista.
+- **Audio Visualizer in Tempo Reale**:
+  - Sviluppato un mini-visualizzatore spettrale a 3 barre animate (`AudioVisualizerAnimation`) in overlay sulla copertina del brano in riproduzione attiva. L'animazione si attiva esclusivamente sulla traccia corrente.
+- **Swipe Haptics Dismissible**:
+  - Aggiunta l'azione swipe orizzontale (`Dismissible`) sui brani per aggiungere rapidamente la traccia ai preferiti, calibrata con micro-vibrazioni aptiche (`HapticFeedback.lightImpact` e `mediumImpact`) su device fisici.
+- **Hero Artist Banner Immersivo**:
+  - Rimosso l'avatar circolare limitato.
+  - Introdotta una foto banner a schermo intero (full-bleed) in formato rettangolare per valorizzare l'immagine dell'artista.
+  - Applicata una **`ShaderMask` con Linear Gradient Mask (da opaco a trasparente)** alla base dell'immagine per sfumare e "sciogliere" la foto in modo invisibile all'interno dello sfondo grigio chiaro/mesh (`Color(0xFFF8F9FA)`).
+- **Scorrimento Sincrono 1:1 con Dissolvenza Progressiva**:
+  - Configurato il posizionamento della foto banner a `top: -_scrollOffset` per agganciare lo scorrimento in sincrono perfetto (1:1) con il testo e i brani.
+  - Integrata una formula di opacità dinamica `(1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0)` che sfuma la sola foto banner in trasparenza mentre sale, lasciando i testi, pulsanti e statistiche totalmente solidi e leggibili.
+  - Ricalibrati gli spazi con un'altezza trasparente iniziale di ben **`280px`**, posizionando il nome artista, pulsanti e statistiche esattamente sotto il viso per una visibilità perfetta del volto al primo caricamento.
+  - Aggiunti pulsanti "Indietro" e "Opzioni" fissi in alto, isolati all'interno di cerchietti in vetro satinato (`BackdropFilter` + sfocatura `8.0`) per garantire massima visibilità e contrasto cromatico.
+  - Rimossi overlay invasivi come la sticky app bar e indicatori complessi per preservare la fluidità di scorrimento nativa di iOS/Android.
+- **Verifica e Hardening**:
+  - Eseguito `flutter analyze` con esito pulito senza errori sintattici o logici nel modulo Artist Profile.
+
+### Francesco — Sessione 2026-05-18 (B)
+- **Creazione Branch e Setup Modulo Dati (`invio-pitch-artista`)**:
+  - Creato e attivato il nuovo branch dedicato `invio-pitch-artista` per isolare lo sviluppo.
+  - Sviluppato `artist_pitch_service.dart` in `submissions/data/` che implementa le query per caricare le tracce demo dell'artista, recuperare le etichette con loghi integrati tramite join relazionali su Supabase, inviare i pitch (`sendPitch`) e storicizzare le candidature.
+  - Creato `pitch_providers.dart` in `submissions/presentation/providers/` per esporre i dati in cache reattiva Riverpod, abilitando l'invalidazione immediata dello stato a ogni nuovo invio.
+- **Interfaccia Utente e Parallasse Mesh (`ArtistPitchScreen`)**:
+  - Implementata la schermata principale unificata `ArtistPitchScreen` reattiva e performante.
+  - Integrato lo sfondo premium a parallasse `ParallaxOrganicMeshPainter` (blu e rosa) reattivo allo scorrimento verticale, ereditando l'identità cromatico-mesh fluida del profilo artista.
+  - Sviluppato un Segmented Tab Control personalizzato ("Nuovo Pitch" / "I Miei Pitch") con micro-vibrazioni aptiche integrate.
+- **Mock Login Fallback & Hardening Offline**:
+  - Introdotto il provider `resolvedArtistIdProvider` in `pitch_providers.dart` per risolvere dinamicamente la sessione. Se l'utente effettua l'accesso rapido finto ("Entra come Artista"), rileva l'ID del primo artista reale configurato a DB per consentire di testare l'invio reale sul server, salvaguardando l'esperienza utente.
+  - Integrati i fallback automatici sui dati mock locali ad alta fedeltà (`kTracks`, `kLabels` e `kPitchRequests`) all'interno di `ArtistPitchService` nel caso in cui Supabase sia offline o non popolato.
+- **Interactive 3D Vinyl Deck Selector (Opzione B)**:
+  - Sostituita la lista brani orizzontale classica con un espositore di vinili interattivo ad altissimo impatto sensoriale.
+  - Ogni traccia è rappresentata all'interno di una custodia (sleeve) con bordi in vetro satinato e bagliore neon rosa a terra.
+  - Al tocco di selezione (`isSelected == true`), un vero disco in vinile nero (disegnato programmaticamente in Flutter con riflessi radiali metallici, solchi fisici e adesivo centrale colorato in base all'HSL del brano) **scivola lateralmente fuori di 48px** con un'animazione elastica (`Curves.easeOutBack`) e **inizia a girare continuamente a 360°** a tempo di musica. Deselezionando la traccia, il vinile smette di ruotare e rientra docilmente nella custodia.
+- **Flusso "Nuovo Pitch" & Feedback Sensoriale**:
+  - Sviluppato il Selettore Label verticale a card frosted glass con risoluzione dinamica delle icone brandizzate da Supabase, biografie degli A&R e città di provenienza.
+  - Implementato un bottone CTA premium con gradiente rosa Nura e un overlay dialog immersivo a comparsa con spunta animata, descrizione di successo e feedback aptico vibrante `HapticFeedback.mediumImpact()`.
+- **Storico e Badge di Stato Colorati**:
+  - Creato il feed cronologico dei pitch inviati nella seconda scheda.
+  - Sviluppati i badge di stato satinati e colorati per tenere traccia delle letture (`sent` = Grigio/INVIATO, `viewed` = Viola/LETTO, `shortlisted` = Verde/SELEZIONATO, `rejected` = Rosso/NON SEL.).
+- **Hardening e Pulizia Compilatore**:
+  - Eliminati gli import inutilizzati e pulito l'albero sintattico di `ArtistPitchScreen` e `ArtistPitchService`.
+  - Risolti ed eliminati tutti i warning e gli errori sintattici: compilazione superata con successo con **0 ERRORI e 0 AVVISI** rilevati da `flutter analyze`.
+  - Committato e inviato in push l'intero aggiornamento sul repository GitHub sul branch remoto `invio-pitch-artista`.
+
+### Francesco — Sessione 2026-05-18 (C)
+- **Risoluzione "Scroll Brutto" e allineamento cache**:
+  - Identificata e spiegata la causa dell'header bianco fisso e bloccato ("Artist 01"), dovuto alla persistenza della vecchia `SliverAppBar` nella cache dell'emulatore. Spiegata la necessità di effettuare un semplice **Hot Restart** per caricare la versione parallasse con pulsanti satinati.
+- **Controllo di Ruolo e Rimozione Pulsante "Battle"**:
+  - Integrato il tracciamento reattivo del ruolo dell'utente (`UserRole`) in `ArtistPublicProfileScreen` tramite i provider di Riverpod (`userRoleProvider` e `authStateProvider`).
+  - Nascosto condizionalmente il pulsante **Battle** per Utenti ed Etichette, rendendolo esclusivo per la visualizzazione da parte di altri Artisti.
+- **Allineamento e Navigazione In-Line Shell Etichetta (`LabelShell`)**:
+  - Unificata la navigazione di `LabelShell` sullo stesso modello in-line e fluido di `UserShell`, mantenendo la barra di navigazione inferiore sempre persistente ed evitando il push nativo a tutto schermo.
+  - Integrata la capsula del `GlobalMiniPlayer` reattivo sopra la barra di navigazione a 4 elementi (`bottom: 84 + safeBottom`).
 - **Hardening Mini Player Shell Utente (`UserShell`)**:
   - Avvolto il mini player a capsula in un `ValueListenableBuilder<String?>` reattivo su `playingTrackId` di `AudioPreviewService`, risolvendo il bug delle schede vuote e disallineate in assenza di brani attivi.
 - **Hardening e Sicurezza Tasto Indietro Fluttuante**:
@@ -463,3 +658,81 @@ Questo file contiene il diario cronologico completo delle sessioni di lavoro.
   - Risolti i warning di analisi sul BuildContext asincrono catturando `NavigatorState` prima dell'`await` su `_audio.stop()`.
 - **Verifica Statica**:
   - Eseguito `flutter analyze` confermando la totale assenza di errori e warning per tutti i moduli modificati.
+
+### Francesco — Sessione 2026-05-18 (D)
+- **Estensione Modello Dati e Backend Pitch**:
+  - Esteso il modello `PitchRequest` e aggiornato il database con la colonna facoltativa `message` tramite lo script di migrazione Supabase.
+  - Aggiornato `ArtistPitchService` per supportare il caricamento del messaggio sia in produzione su Supabase che nei log locali mockup offline.
+- **Compact Frosted Genre Tags (Step 2)**:
+  - Inserite le capsule dei generi ricercati (es. *Dream Pop*, *Deep House*, *Neo-Classical*) sotto la biografia di ciascuna etichetta discografica nello Step 2.
+  - Palette HSL coordinata con bordi semitrasparenti e layout responsivo basato su `Wrap` per scongiurare overflow di layout.
+- **Progressive Disclosure & Frosted Glass Message Input (Step 3)**:
+  - Rivelato lo Step 3 in dissolvenza solo dopo la selezione congiunta di un brano e di un'etichetta.
+  - Disegnato un input di testo multi-riga in vetro satinato (`BackdropFilter`) con un contatore neon di caratteri limitato a 300 in Rosa Nura (con flash rosso in caso di superamento della soglia).
+  - Integrato il testo del messaggio nella transazione d'invio del pitch con feedback aptico integrato.
+- **Glass Bottom Sheet Dettaglio Candidature & Live Neon Visualizer (Task 4)**:
+  - Abilitato il tap interattivo con micro-vibrazione sulle card dello storico dei pitch inviati.
+  - Creato un **Glass Bottom Sheet immersivo** (sfocatura `BackdropFilter` 20.0) che ospita:
+    - **Mini-Player**: Per riprodurre/mettere in pausa la canzone.
+    - **Live Spectral Visualizer**: Quando il brano è in esecuzione, sopra la copertina appare un'animazione spettrale a 3 barre oscillanti al neon con ombreggiature soffuse.
+    - **Timeline Stepper al Neon**: Un tracciato verticale luminoso che mostra le tappe del pitch (Inviato -> Letto -> Shortlisted/Rejected).
+    - **Lettera di Feedback dell'A&R**: Una nota personalizzata ed emotivamente ricca firmata dai curatori dell'etichetta (in Verde Smeraldo se *Shortlisted*, in Rosso se *Non Selezionato*, o in Viola per esame in corso).
+- **Hardening, Risoluzione Errori e Allineamento Compilazione (Task 5)**:
+  - Risolti gli errori su `FontWeight.w950` correggendoli a `w900`.
+  - Risolto l'import di `kTracks` aggiungendo l'importazione di `mock_nura_data.dart`.
+  - Sostituita l'icona shortlist non definita con `Icons.stars_outlined`.
+  - Gestito il fallback per copertine nulle (`coverAsset`) con un gradiente inline.
+  - Eliminata la variabile inutilizzata `_pitchMessage` per ripulire completamente i warning di compilazione.
+  - Eseguito `flutter analyze` confermando la totale assenza di errori e warning per tutto il codice sviluppato.
+
+### Francesco — Sessione 2026-05-21 (A)
+- **Ottimizzazione UX Audio e Lifecycle Artist Pitch (`artist_pitch_screen.dart`)**:
+  - Implementata la disattivazione automatica della riproduzione dell'anteprima audio del brano quando l'utente scorre verso il basso (Step 2) o seleziona un'etichetta discografica per eliminare i rumori di sottofondo fastidiosi durante la fase decisionale.
+  - Aggiunta chiamata esplicita `AudioPreviewService.instance.stop()` al superamento dello scroll offset (quando l'utente scorre giù a `offset > 150` verso la selezione delle label).
+  - Aggiunto lo stop dell'audio anche direttamente all'interno della selezione manuale di un'etichetta discografica (callback `onTap` di Step 2).
+  - Eseguito `flutter analyze` confermando la totale assenza di errori e warning nel codice dell'applicazione.
+
+### Francesco — Sessione 2026-05-29 (A)
+- [x] **Walkthrough** per Artist Pitch creato e approvato.
+- [x] Rimosso `Scaffold` duplicato e background in `artist_pitch_screen.dart`.
+- **Motore di Ricerca e Filtri Dimensione Etichette (`artist_pitch_screen.dart`)**:
+  - Esteso il modello `Label` e i dati mock (`kLabels`) con il campo `size` per categorizzare le etichette in `small`, `medium` e `big`. Questi tag in produzione saranno collegati direttamente ai campi del profilo dell'etichetta su Supabase.
+  - Implementata una barra di ricerca testuale (con icona a lente) per filtrare in tempo reale le etichette per nome direttamente nello Step 2 (Selezione Etichetta Discografica).
+  - Aggiunti filter chips orizzontali ad alto contrasto per filtrare la visualizzazione tra Tutte, Small, Medium e Big.
+  - Aggiunto un badge visivo (`size` tag) in colore brandizzato (Rosa Nura) direttamente sulla card della singola etichetta, informando l'artista sulla dimensione dell'etichetta a colpo d'occhio.
+  - Ridotte le dimensioni e ottimizzati i padding interni della barra di ricerca "Cerca etichetta" per integrarsi meglio col design compatto.
+  - Inseriti i feedback aptici (`HapticFeedback`) tattili per dare una risposta fisica ai touch (su tap etichette, selezioni filtri e pulsante d'invio).
+  - Risolto l'errore fittizio in fase di invio: gestita correttamente la fallback alla modalità mock nel servizio `ArtistPitchService` per mostrare correttamente la modale di successo "PITCH INVIATO!" senza causare crash locali quando offline o in test mode.
+
+### Modulo "Artist Pitch" Concluso (Maggio 2026)
+- **Status: COMPLETATO ✅**
+- Il flusso di Invio Candidature e storico (Pitch) per gli artisti è stato ultimato. Comprende:
+  - Interfaccia Glassmorphism premium (Blur, sfumature neon rosa Nura, background mesh organico animato).
+  - Selezione brano (AudioPreviewService, visualizzatori spettrali interattivi).
+  - Selezione etichetta (filtri avanzati per dimensione `small/medium/big`, ricerca testuale real-time in UI, visualizzazione generi ricercati, blocco audio automatico allo scroll).
+  - Feedback Aptico completo su tutti i punti di contatto fisici dell'utente.
+  - Modale interattiva di successo post-invio con animazioni e badge.
+  - Storico candidature (Scheda "I Miei Pitch") con timeline di accettazione, bottom sheet in glassmorphism, player miniaturizzato e lettera di feedback dal curatore A&R.
+  - Backend Services interfacciati via mock fallback e pronti per l'integrazione di produzione (Supabase schema `pitch_requests`).
+  - Analisi statica del codice passata integralmente (`flutter analyze` clean su tutto il flow).
+
+---
+
+## [2026-05-29] Update: Redesign Navigation Bar & Calm UX
+
+**Branch Attuale:** `rework-navbar`
+
+**Obiettivi Raggiunti:**
+1. **Design "Liquid Glass" 2026**:
+   - `BottomNav` trasformata in un "Floating Dock" sopraelevato e aderente in sicurezza alla Safe Area inferiore.
+   - Sfondo `LinearGradient` sfumato (Cyan leggerissimo o Pink verso un base dark) estremamente trasparente per un effetto glass puro senza ingombri pesanti.
+   - Rimozione completa di testi ed etichette, focalizzando la UI sulle icone bianche minimali ad alto contrasto.
+   - Barretta inferiore indicatoria dipinta dinamicamente in colore Accento.
+2. **Logica "Calm UX" Assoluta**:
+   - Scomparsa dinamica su scroll in `UserShell` e `ArtistShell`: scorrendo attivamente verso il basso, la navbar scompare morbidamente, liberando spazio prezioso a schermo.
+   - **Risoluzione Bug Bouncing**: Intercettato il rimbalzo fisico (`outOfRange` e `pixels <= 0`) per impedire artefatti grafici/scomparsa accidentale ai bordi delle liste.
+   - **Riapparizione Immediata a Inerzia Finita**: Aggiunto hook su `ScrollEndNotification` e direzioni `idle`. Appena lo scroll giunge a destinazione o il tocco termina, la barra riappare istantaneamente senza necessitare scroll inversi espliciti.
+3. **Ottimizzazione Fisica Pagine**:
+   - Rimosso il fastidioso `BouncingScrollPhysics` custom da schermate chiave come `ArtistPitchScreen` e `ArtistPublicProfileScreen`, uniformando lo scorrimento e l'attrito al resto dell'esperienza Nura.
+
+*Navbar minimalista, reattiva organicamente al contesto dell'utente, ed esteticamente pulita senza eccessi. Branch pronto al merge!*

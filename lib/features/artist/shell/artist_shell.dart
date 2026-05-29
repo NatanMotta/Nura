@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../app/theme/app_theme.dart';
@@ -34,6 +35,7 @@ class _ArtistShellState extends State<ArtistShell> {
 
   String? _artistId;
   String? _artistName;
+  bool _isNavVisible = true;
 
   void _onArtistTap(String artistId, String artistName) {
     setState(() {
@@ -94,14 +96,41 @@ class _ArtistShellState extends State<ArtistShell> {
         child: Stack(
           children: [
             // 1. IL CORPO DELLA SCHERMATA
-            Positioned.fill(child: body),
+            Positioned.fill(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Se stiamo "rimbalzando" in cima o in fondo, mantieni visibile e ignora
+                  if (notification.metrics.outOfRange || notification.metrics.pixels <= 0) {
+                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                    return false;
+                  }
+
+                  if (notification is UserScrollNotification) {
+                    final direction = notification.direction;
+                    if (direction == ScrollDirection.reverse && _isNavVisible) {
+                      setState(() => _isNavVisible = false);
+                    } else if (direction == ScrollDirection.forward && !_isNavVisible) {
+                      setState(() => _isNavVisible = true);
+                    } else if (direction == ScrollDirection.idle && !_isNavVisible) {
+                      setState(() => _isNavVisible = true);
+                    }
+                  } else if (notification is ScrollEndNotification) {
+                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                  }
+
+                  return false;
+                },
+                child: body,
+              ),
+            ),
             
             // 2. MINI PLAYER PRO (Stile Spotify)
-            // Il Positioned DEVE essere figlio diretto dello Stack
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
               left: 0,
               right: 0,
-              bottom: 84 + safeBottom,
+              bottom: _isNavVisible ? 84 + safeBottom : -100, // Calm UX
               child: ValueListenableBuilder<String?>(
                 valueListenable: audio.playingTrackId,
                 builder: (context, trackId, _) {
@@ -114,26 +143,23 @@ class _ArtistShellState extends State<ArtistShell> {
             ),
 
             // 3. BOTTOM NAV (Sempre visibile)
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
               left: 0,
               right: 0,
-              bottom: 0,
+              bottom: _isNavVisible ? 0 : -120, // Calm UX Floating Nav
               child: BottomNav(
                 active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
                 onChange: (value) => setState(() {
                   _screen = value;
                   _artistId = null;
                   _artistName = null;
+                  _isNavVisible = true; // reset
                 }),
                 vibe: widget.vibe,
                 accent: widget.accent,
                 safeBottom: safeBottom,
-                items: const [
-                  BottomNavItem(RouteNames.home, 'Home', Icons.home_outlined),
-                  BottomNavItem(RouteNames.search, 'Cerca', Icons.search),
-                  BottomNavItem(_pitch, 'Pitch', Icons.send_outlined),
-                  BottomNavItem(RouteNames.profile, 'Profilo', Icons.person_outline),
-                ],
               ),
             ),
           ],

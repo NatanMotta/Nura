@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../app/theme/app_theme.dart';
@@ -32,6 +33,7 @@ class _UserShellState extends State<UserShell> {
   // Artist profile navigation state
   String? _artistId;
   String? _artistName;
+  bool _isNavVisible = true;
   static const _artistProfileRoute = 'artist_profile';
 
   void _onArtistTap(String artistId, String artistName) {
@@ -105,12 +107,40 @@ class _UserShellState extends State<UserShell> {
                   ),
                 ),
               ),
-            Positioned.fill(child: body),
+            Positioned.fill(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Se stiamo "rimbalzando" in cima o in fondo, ignora l'evento
+                  if (notification.metrics.outOfRange || notification.metrics.pixels <= 0) {
+                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                    return false;
+                  }
+
+                  if (notification is UserScrollNotification) {
+                    final direction = notification.direction;
+                    if (direction == ScrollDirection.reverse && _isNavVisible) {
+                      setState(() => _isNavVisible = false);
+                    } else if (direction == ScrollDirection.forward && !_isNavVisible) {
+                      setState(() => _isNavVisible = true);
+                    } else if (direction == ScrollDirection.idle && !_isNavVisible) {
+                      setState(() => _isNavVisible = true);
+                    }
+                  } else if (notification is ScrollEndNotification) {
+                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                  }
+
+                  return false;
+                },
+                child: body,
+              ),
+            ),
             // Mini player — solo nel profilo artista, sopra la nav bar
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
               left: 0,
               right: 0,
-              bottom: 72 + safeBottom,
+              bottom: _isNavVisible ? 84 + safeBottom : -100, // Calm UX
               child: ValueListenableBuilder<String?>(
                 valueListenable: AudioPreviewService.instance.playingTrackId,
                 builder: (context, trackId, _) {
@@ -121,25 +151,23 @@ class _UserShellState extends State<UserShell> {
               ),
             ),
             // Bottom Nav — always visible
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
               left: 0,
               right: 0,
-              bottom: 0,
+              bottom: _isNavVisible ? 0 : -120, // Calm UX Floating Nav
               child: BottomNav(
                 active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
                 onChange: (value) => setState(() {
                   _screen = value;
                   _artistId = null;
                   _artistName = null;
+                  _isNavVisible = true; // reset
                 }),
                 vibe: widget.vibe,
                 accent: widget.accent,
                 safeBottom: safeBottom,
-                items: const [
-                  BottomNavItem(RouteNames.home, 'Home', Icons.home_outlined),
-                  BottomNavItem(RouteNames.search, 'Cerca', Icons.search),
-                  BottomNavItem(RouteNames.profile, 'Profilo', Icons.person_outline),
-                ],
               ),
             ),
           ],
