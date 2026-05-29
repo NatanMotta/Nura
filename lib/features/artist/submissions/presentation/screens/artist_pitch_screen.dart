@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../core/models/track.dart';
 import '../../../../../core/services/audio_preview_service.dart';
+import '../../../../shared/data/mock_nura_data.dart';
 import '../providers/pitch_providers.dart';
 
 class ArtistPitchScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,14 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
   String? _selectedTrackId;
   String? _selectedLabelId;
   bool _isSubmitting = false;
+  
+  // Step 3 Message State
+  final TextEditingController _messageController = TextEditingController();
+
+  // Filters State
+  final TextEditingController _searchController = TextEditingController();
+  String _labelSearchQuery = '';
+  String _selectedLabelSizeFilter = 'all'; // all, small, medium, big
 
   @override
   void initState() {
@@ -32,12 +41,19 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
       setState(() {
         _scrollOffset = _scrollController.offset;
       });
+      // Ferma l'anteprima audio se l'utente scorre giù verso le etichette per evitare disturbi
+      if (_scrollController.offset > 150 &&
+          AudioPreviewService.instance.playingTrackId.value != null) {
+        AudioPreviewService.instance.stop();
+      }
     });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _messageController.dispose();
+    _searchController.dispose();
     AudioPreviewService.instance.stop();
     super.dispose();
   }
@@ -50,11 +66,13 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
     });
 
     try {
+      final messageText = _messageController.text.trim();
       final service = ref.read(artistPitchServiceProvider);
       await service.sendPitch(
         artistId: artistId,
         labelId: _selectedLabelId!,
         trackId: _selectedTrackId!,
+        message: messageText.isNotEmpty ? messageText : null,
       );
 
       // Trigger Haptic Vibe
@@ -69,6 +87,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
       setState(() {
         _selectedTrackId = null;
         _selectedLabelId = null;
+        _messageController.clear();
       });
 
       // Invalidate the cache to reload history
@@ -530,21 +549,79 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
         ),
         const SizedBox(height: 16),
 
+        // SEARCH AND FILTERS
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              // Search Input
+              Container(
+                height: 42,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                ),
+                child: Center(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _labelSearchQuery = value.toLowerCase()),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+                    decoration: const InputDecoration(
+                      hintText: 'Cerca etichetta...',
+                      hintStyle: TextStyle(color: Colors.black38, fontSize: 13, fontWeight: FontWeight.w500),
+                      icon: Icon(Icons.search, color: Colors.black38, size: 20),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Size Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    _buildSizeFilterChip('all', 'Tutte'),
+                    const SizedBox(width: 8),
+                    _buildSizeFilterChip('small', 'Small'),
+                    const SizedBox(width: 8),
+                    _buildSizeFilterChip('medium', 'Medium'),
+                    const SizedBox(width: 8),
+                    _buildSizeFilterChip('big', 'Big'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
         // Vertical Record Labels Frosted List
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: labelsAsync.when(
             data: (labels) {
-              if (labels.isEmpty) {
+              final filteredLabels = labels.where((l) {
+                final matchesSearch = l.name.toLowerCase().contains(_labelSearchQuery);
+                final matchesSize = _selectedLabelSizeFilter == 'all' || l.size == _selectedLabelSizeFilter;
+                return matchesSearch && matchesSize;
+              }).toList();
+
+              if (filteredLabels.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(24),
                   alignment: Alignment.center,
-                  child: const Text('Nessuna etichetta disponibile.', style: TextStyle(color: Colors.black38)),
+                  child: const Text('Nessuna etichetta trovata.', style: TextStyle(color: Colors.black38)),
                 );
               }
 
               return Column(
-                children: labels.map((label) {
+                children: filteredLabels.map((label) {
                   final isSelected = _selectedLabelId == label.id;
 
                   return GestureDetector(
@@ -553,6 +630,8 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                       setState(() {
                         _selectedLabelId = isSelected ? null : label.id;
                       });
+                      // Ferma l'anteprima audio quando si sceglie un'etichetta
+                      AudioPreviewService.instance.stop();
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
@@ -601,12 +680,39 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      label.name,
-                                      style: const TextStyle(
-                                        color: Color(0xFF1A1A1A),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              label.name,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Color(0xFF1A1A1A),
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: NuraBrand.pink.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3)),
+                                            ),
+                                            child: Text(
+                                              label.size.toUpperCase(),
+                                              style: const TextStyle(
+                                                color: NuraBrand.pink,
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     Container(
@@ -638,6 +744,51 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                                     height: 1.3,
                                   ),
                                 ),
+                                const SizedBox(height: 10),
+                                // Subtitle "Cerca Sonorità"
+                                Row(
+                                  children: [
+                                    Icon(Icons.search_outlined, size: 12, color: Colors.black.withValues(alpha: 0.35)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'GENERI RICERCATI:',
+                                      style: TextStyle(
+                                        color: Colors.black.withValues(alpha: 0.35),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                // Curated genre tags wrap
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: _getSearchGenres(label.name, label.id).map((g) {
+                                    final col = _getGenreColor(g);
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: col.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: col.withValues(alpha: 0.25),
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        g,
+                                        style: TextStyle(
+                                          color: col,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
                               ],
                             ),
                           ),
@@ -653,6 +804,141 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
           ),
         ),
 
+        // STEP 3: PRESENTATION MESSAGE
+        if (_selectedTrackId != null && _selectedLabelId != null) ...[
+          const SizedBox(height: 36),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Step 3 Header Title
+                Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        color: NuraBrand.pink,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '3',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'SCRIVI LA TUA PRESENTAZIONE',
+                      style: TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 38),
+                  child: Text(
+                    'Presenta il brano catturando l\'attenzione dei curatori A&R dell\'etichetta discografica.',
+                    style: TextStyle(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Frosted glass text area
+                Padding(
+                  padding: const EdgeInsets.only(left: 38),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: TextField(
+                          controller: _messageController,
+                          maxLines: 4,
+                          maxLength: 300,
+                          onChanged: (_) {
+                            setState(() {});
+                          },
+                          style: const TextStyle(
+                            color: Color(0xFF1A1A1A),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          buildCounter: (
+                            BuildContext context, {
+                            required int currentLength,
+                            required bool isFocused,
+                            required int? maxLength,
+                          }) {
+                            return const SizedBox.shrink(); // Hide default counter
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Spiega perché questo brano è speciale, le tue ispirazioni, le influenze principali o i tuoi piani di lancio...',
+                            hintStyle: TextStyle(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Dynamic neon character counter
+                Padding(
+                  padding: const EdgeInsets.only(left: 38, right: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${_messageController.text.length} / 300',
+                        style: TextStyle(
+                          color: _messageController.text.length >= 285
+                              ? Colors.redAccent
+                              : _messageController.text.isNotEmpty
+                                  ? NuraBrand.pink
+                                  : Colors.black38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         const SizedBox(height: 36),
 
         // SUBMIT ACTION CTA BUTTON
@@ -665,6 +951,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
               child: GestureDetector(
                 onTap: () {
                   if (_isSubmitting) return;
+                  HapticFeedback.heavyImpact();
                   final labels = labelsAsync.value ?? [];
                   final targetLabel = labels.firstWhere((l) => l.id == _selectedLabelId);
                   _submitPitch(artistId, targetLabel.name);
@@ -780,14 +1067,19 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
 
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.65),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.black.withOpacity(0.05)),
-                  ),
-                  child: Row(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    _showPitchDetailsBottomSheet(context, pitch);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.65),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.black.withOpacity(0.05)),
+                    ),
+                    child: Row(
                     children: [
                       // Label Logo
                       ClipRRect(
@@ -842,8 +1134,9 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+            );
+          },
             childCount: pitches.length,
           ),
         );
@@ -912,6 +1205,539 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
       'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'
     ];
     return months[month - 1];
+  }
+
+  // ============================================================================
+  // IMMERSIVE GLASS BOTTOM SHEET WITH A&R FEEDBACK & COMPACT PLAYER
+  // ============================================================================
+  void _showPitchDetailsBottomSheet(BuildContext context, Map<String, dynamic> pitch) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        final trackData = pitch['track'] as Map<String, dynamic>? ?? {};
+        final trackTitle = trackData['title'] as String? ?? '';
+        final fullTrack = kTracks.firstWhere((t) => t.track == trackTitle, orElse: () => kTracks[0]);
+        final labelData = pitch['label'] as Map<String, dynamic>? ?? {};
+        final labelName = labelData['name'] as String? ?? 'Label';
+        final status = pitch['status'] as String? ?? 'sent';
+        final message = pitch['message'] as String?;
+        final createdAt = DateTime.tryParse(pitch['created_at'] as String? ?? '') ?? DateTime.now();
+        final dateStr = '${createdAt.day} ${_getMonthName(createdAt.month)} ${createdAt.year}';
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.85),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Top drag handle
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Immersive track player card
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.04),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          // Rounded cover image with visualizer overlay
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: SizedBox(
+                                  width: 64,
+                                  height: 64,
+                                  child: fullTrack.coverAsset != null
+                                      ? Image.asset(
+                                          fullTrack.coverAsset!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                fullTrack.swatch,
+                                                fullTrack.swatch.withValues(alpha: 0.5),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.music_note_outlined,
+                                              color: Colors.white38,
+                                              size: 24,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              ValueListenableBuilder<String?>(
+                                valueListenable: AudioPreviewService.instance.playingTrackId,
+                                builder: (context, playingId, _) {
+                                  final isPlaying = playingId == fullTrack.id;
+                                  if (!isPlaying) return const SizedBox.shrink();
+                                  return Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black38,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const _MiniAudioVisualizer(color: NuraBrand.pink),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Text details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  fullTrack.track,
+                                  style: const TextStyle(
+                                    color: Color(0xFF1A1A1A),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  fullTrack.artist.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  fullTrack.genre,
+                                  style: TextStyle(
+                                    color: fullTrack.swatch,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Floating Play / Pause Action
+                          ValueListenableBuilder<String?>(
+                            valueListenable: AudioPreviewService.instance.playingTrackId,
+                            builder: (context, playingId, _) {
+                              final isPlaying = playingId == fullTrack.id;
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  AudioPreviewService.instance.togglePreview(
+                                    trackId: fullTrack.id,
+                                    assetPath: fullTrack.audioAsset,
+                                  );
+                                },
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isPlaying
+                                        ? Colors.black
+                                        : NuraBrand.pink.withValues(alpha: 0.1),
+                                    border: Border.all(
+                                      color: isPlaying
+                                          ? Colors.black
+                                          : NuraBrand.pink.withValues(alpha: 0.2),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: isPlaying ? Colors.white : NuraBrand.pink,
+                                    size: 22,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // 2. TIMELINE SECTION
+                    const Text(
+                      'STATO DELLA PROPOSTA',
+                      style: TextStyle(
+                        color: Colors.black45,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTimelineStepper(status, dateStr),
+                    const SizedBox(height: 28),
+
+                    // 3. PITCH MESSAGE BOX
+                    if (message != null && message.trim().isNotEmpty) ...[
+                      const Text(
+                        'IL TUO MESSAGGIO DI PRESENTAZIONE',
+                        style: TextStyle(
+                          color: Colors.black45,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.black.withValues(alpha: 0.04),
+                          ),
+                        ),
+                        child: Text(
+                          '"$message"',
+                          style: const TextStyle(
+                            color: Color(0xFF1A1A1A),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            fontStyle: FontStyle.italic,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                    ],
+
+                    // 4. A&R FEEDBACK NOTE SECTION
+                    const Text(
+                      'RISPOSTA DELL\'A&R CURATORE',
+                      style: TextStyle(
+                        color: Colors.black45,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildARFeedbackBox(status, labelName),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTimelineStepper(String status, String dateStr) {
+    final isViewed = status == 'viewed' || status == 'shortlisted' || status == 'rejected';
+    final isShortlisted = status == 'shortlisted';
+    final isRejected = status == 'rejected';
+
+    return Column(
+      children: [
+        // 1. INVIATO (SENT)
+        _buildTimelineStep(
+          label: 'Proposta Inviata',
+          subtitle: 'Il tuo pitch è stato recapitato con successo.',
+          time: dateStr,
+          isActive: true,
+          isCompleted: true,
+          accentColor: NuraBrand.pink,
+        ),
+        _buildTimelineConnector(isActive: isViewed),
+
+        // 2. LETTO (VIEWED)
+        _buildTimelineStep(
+          label: 'Ascoltato dall\'Etichetta',
+          subtitle: isViewed
+              ? 'L\'A&R ha ascoltato la preview del tuo brano.'
+              : 'In attesa di primo ascolto da parte dei curatori.',
+          time: isViewed ? 'Completo' : '',
+          isActive: isViewed,
+          isCompleted: isViewed,
+          accentColor: const Color(0xFF7C5BFF),
+        ),
+        _buildTimelineConnector(isActive: isShortlisted || isRejected),
+
+        // 3. DECISION (SHORTLISTED OR REJECTED OR SENT/VIEWED)
+        _buildTimelineStep(
+          label: isShortlisted
+              ? 'Shortlisted'
+              : isRejected
+                  ? 'Valutazione Completata'
+                  : 'Esito Valutazione',
+          subtitle: isShortlisted
+              ? 'CONGRATULAZIONI! Il brano è entrato nella shortlist ufficiale!'
+              : isRejected
+                  ? 'L\'etichetta ha completato l\'esame della proposta.'
+                  : 'Il team A&R sta decidendo se selezionare la traccia.',
+          time: isShortlisted ? 'Selezionato' : isRejected ? 'Non selezionato' : 'In esame',
+          isActive: isShortlisted || isRejected,
+          isCompleted: isShortlisted || isRejected,
+          isFinal: true,
+          accentColor: isShortlisted
+              ? const Color(0xFF10AC84)
+              : isRejected
+                  ? Colors.redAccent
+                  : Colors.grey,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineStep({
+    required String label,
+    required String subtitle,
+    required String time,
+    required bool isActive,
+    required bool isCompleted,
+    required Color accentColor,
+    bool isFinal = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Glowing dot
+        Column(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isCompleted ? accentColor : Colors.white,
+                border: Border.all(
+                  color: isActive ? accentColor : Colors.black12,
+                  width: 2.0,
+                ),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: accentColor.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: isCompleted
+                  ? const Icon(Icons.check, color: Colors.white, size: 10)
+                  : null,
+            ),
+          ],
+        ),
+        const SizedBox(width: 16),
+
+        // Text Content
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isActive ? const Color(0xFF1A1A1A) : Colors.black38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (time.isNotEmpty)
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: isCompleted ? accentColor : Colors.black26,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: isActive ? Colors.black54 : Colors.black26,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineConnector({required bool isActive}) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 9),
+      child: Row(
+        children: [
+          Container(
+            width: 2,
+            height: 26,
+            color: isActive ? NuraBrand.pink : Colors.black12,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildARFeedbackBox(String status, String labelName) {
+    final isShortlisted = status == 'shortlisted';
+    final isRejected = status == 'rejected';
+
+    Color accentCol;
+    String feedbackText;
+    IconData icon;
+
+    if (isShortlisted) {
+      accentCol = const Color(0xFF10AC84);
+      icon = Icons.stars_outlined;
+      feedbackText =
+          '"Ciao! Ci è piaciuto moltissimo il mood e il groove di questo brano, l\'atmosfera ti rapisce fin dai primi secondi. Vogliamo approfondire la tua visione artistica, ti contatteremo via email nei prossimi giorni per fissare una call conoscitiva!"\n\n— Team A&R, $labelName';
+    } else if (isRejected) {
+      accentCol = Colors.redAccent;
+      icon = Icons.info_outline;
+      feedbackText =
+          '"Grazie mille per aver condiviso la tua musica con noi. La traccia è prodotta molto bene e le melodie sono forti, tuttavia per le nostre prossime release siamo orientati a sonorità diverse. Ti facciamo i nostri migliori auguri!"\n\n— Direzione Artistica, $labelName';
+    } else {
+      accentCol = const Color(0xFF7C5BFF);
+      icon = Icons.hourglass_empty;
+      feedbackText =
+          '"Il tuo brano è attualmente all\'attenzione del nostro team A&R per la valutazione. Riceverai una notifica con l\'esito e le note di ascolto non appena avremo completato il review."\n\n— Segreteria A&R, $labelName';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: accentCol.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: accentCol.withValues(alpha: 0.25),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: accentCol, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              feedbackText,
+              style: TextStyle(
+                color: Colors.black.withValues(alpha: 0.7),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSizeFilterChip(String value, String label) {
+    final isSelected = _selectedLabelSizeFilter == value;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() {
+          _selectedLabelSizeFilter = value;
+          // Se cambi filtro, deseleziona l'etichetta corrente se non corrisponde più ai criteri
+          _selectedLabelId = null;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1A1A1A) : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF1A1A1A) : Colors.black.withValues(alpha: 0.05),
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black45,
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1301,6 +2127,103 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
           size: 28,
         ),
       ),
+    );
+  }
+}
+
+// ============================================================================
+// EDITORIAL GENRE HELPERS FOR RECORD LABELS
+// ============================================================================
+List<String> _getSearchGenres(String labelName, String labelId) {
+  final name = labelName.toLowerCase();
+  if (name.contains('aurora') || labelId == 'l1') {
+    return ['Dream Pop', 'Art Folk', 'Indie'];
+  } else if (name.contains('north') || labelId == 'l2') {
+    return ['Deep House', 'Techno', 'Electro'];
+  } else if (name.contains('capitol') || labelId == 'l3') {
+    return ['Neo-Classical', 'Ambient', 'Songwriter'];
+  }
+  return ['Electronic', 'Alternative', 'Pop'];
+}
+
+Color _getGenreColor(String genre) {
+  switch (genre.toLowerCase()) {
+    case 'dream pop': return const Color(0xFFFF529D);
+    case 'art folk': return const Color(0xFFFF8A3D);
+    case 'indie': return const Color(0xFFE5A93B);
+    case 'deep house': return const Color(0xFF7C5BFF);
+    case 'techno': return const Color(0xFF00C9A7);
+    case 'electro': return const Color(0xFF0089FF);
+    case 'neo-classical': return const Color(0xFF33D9FF);
+    case 'ambient': return const Color(0xFF1DD1A1);
+    case 'singer-songwriter':
+    case 'songwriter': return const Color(0xFF10AC84);
+    default: return const Color(0xFF888888);
+  }
+}
+
+// ============================================================================
+// BOUNCING NEON SPECTRAL AUDIO VISUALIZER FOR PITCH PLAYERS
+// ============================================================================
+class _MiniAudioVisualizer extends StatefulWidget {
+  final Color color;
+  const _MiniAudioVisualizer({required this.color});
+
+  @override
+  State<_MiniAudioVisualizer> createState() => _MiniAudioVisualizerState();
+}
+
+class _MiniAudioVisualizerState extends State<_MiniAudioVisualizer> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 650),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: List.generate(3, (index) {
+            final scale = index == 0
+                ? 0.3 + (_controller.value * 0.7)
+                : index == 1
+                    ? 0.6 - (_controller.value * 0.4)
+                    : 0.2 + (_controller.value * 0.8);
+            return Container(
+              width: 3.5,
+              height: 18 * scale,
+              margin: const EdgeInsets.symmetric(horizontal: 2.0),
+              decoration: BoxDecoration(
+                color: widget.color,
+                borderRadius: BorderRadius.circular(2),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withValues(alpha: 0.45),
+                    blurRadius: 4,
+                    spreadRadius: 0.5,
+                  ),
+                ],
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

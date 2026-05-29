@@ -101,10 +101,13 @@ class ArtistPitchService {
     required String artistId,
     required String labelId,
     required String trackId,
+    String? message,
   }) async {
     final client = _client;
-    if (client == null) {
-      debugPrint('Offline mock pitch sent: artist:$artistId, label:$labelId, track:$trackId');
+    // Se il client non c'è oppure l'utente non è autenticato (mock session), non scrivere sul DB
+    if (client == null || client.auth.currentUser == null) {
+      debugPrint('Offline/Mock pitch sent: artist:$artistId, label:$labelId, track:$trackId, msg:$message');
+      await Future.delayed(const Duration(milliseconds: 800)); // Simula un piccolo caricamento
       return;
     }
 
@@ -113,6 +116,7 @@ class ArtistPitchService {
       'label_id': labelId,
       'track_id': trackId,
       'status': 'sent',
+      'message': message,
     });
   }
 
@@ -126,7 +130,7 @@ class ArtistPitchService {
     try {
       final rows = await client
           .from('pitch_requests')
-          .select('id,status,created_at,track:tracks(title,genre),label:labels(name,city,profiles!labels_owner_id_fkey(image_asset))')
+          .select('id,status,created_at,message,track:tracks(title,genre),label:labels(name,city,profiles!labels_owner_id_fkey(image_asset))')
           .eq('artist_id', artistId)
           .order('created_at', ascending: false);
 
@@ -153,6 +157,7 @@ class ArtistPitchService {
           PitchVisualStatus.rejected => 'rejected',
         },
         'created_at': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+        'message': p.message,
         'track': {
           'title': track?.track ?? 'Untitled',
           'genre': track?.genre ?? 'demo',
