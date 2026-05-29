@@ -190,10 +190,29 @@ class AudioPreviewService with WidgetsBindingObserver {
         'Esegui full restart dell\'app.',
       );
     } on TimeoutException catch (_) {
+      // Avoid false positives: sometimes the command times out but the player
+      // completes asynchronously and keeps working.
+      if (_isPlayerOperationalAfterTimeout()) {
+        debugPrint(
+          'AudioPreviewService: timeout rilevato ma player operativo, '
+          'errore utente soppresso.',
+        );
+        return;
+      }
       _setError('Operazione audio in timeout');
     } catch (e) {
       _setError('Errore audio: $e');
     }
+  }
+
+  bool _isPlayerOperationalAfterTimeout() {
+    final player = _player;
+    if (player == null) return false;
+
+    if (player.playing) return true;
+
+    final state = player.playerState.processingState;
+    return state == ProcessingState.ready || state == ProcessingState.buffering;
   }
 
   void _setError(String message) {

@@ -48,6 +48,10 @@ class MockRoleLoginScreen extends ConsumerWidget {
                     role: UserRole.artist,
                     label: 'Entra come Artista',
                     icon: Icons.mic_none,
+                    identity: const MockProfileIdentity(
+                      displayName: 'Luca Neon',
+                      username: 'luca.neon',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _roleButton(
@@ -56,6 +60,10 @@ class MockRoleLoginScreen extends ConsumerWidget {
                     role: UserRole.user,
                     label: 'Entra come Utente',
                     icon: Icons.person_outline,
+                    identity: const MockProfileIdentity(
+                      displayName: 'Giulia Wave',
+                      username: 'giulia.wave',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _roleButton(
@@ -64,6 +72,10 @@ class MockRoleLoginScreen extends ConsumerWidget {
                     role: UserRole.label,
                     label: 'Entra come Etichetta',
                     icon: Icons.apartment_outlined,
+                    identity: const MockProfileIdentity(
+                      displayName: 'Marta A&R',
+                      username: 'marta.label',
+                    ),
                   ),
                   if (supabaseReady) ...[
                     const SizedBox(height: 14),
@@ -94,10 +106,12 @@ class MockRoleLoginScreen extends ConsumerWidget {
     required UserRole role,
     required String label,
     required IconData icon,
+    required MockProfileIdentity identity,
   }) {
     return ElevatedButton.icon(
       onPressed: () {
         ref.read(userRoleProvider.notifier).setRole(role);
+        ref.read(mockProfileIdentityProvider.notifier).setIdentity(identity);
       },
       icon: Icon(icon),
       label: Padding(

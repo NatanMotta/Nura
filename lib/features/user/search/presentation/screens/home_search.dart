@@ -8,6 +8,7 @@ import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/striped_panel.dart';
 import '../../../../../core/widgets/waveform.dart';
 import '../../../../shared/data/mock_nura_data.dart';
+import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 
 class HomeSearch extends StatefulWidget {
   final NuraVibe vibe;
@@ -29,21 +30,31 @@ class _HomeSearchState extends State<HomeSearch> {
   final _controller = TextEditingController();
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding:
-          EdgeInsets.fromLTRB(0, widget.safeTop, 0, 100 + widget.safeBottom),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Stack(children: [
+      Positioned.fill(
+        child: CustomPaint(
+          painter: ParallaxOrganicMeshPainter(
+            scrollOffset: 0,
+            musicuraBlu: NuraBrand.deep,
+            nuraPink: NuraBrand.pink,
+          ),
+        ),
+      ),
+      SingleChildScrollView(
+        padding:
+            EdgeInsets.fromLTRB(0, widget.safeTop, 0, 100 + widget.safeBottom),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Cerca',
                 style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: NuraBrand.mint,
-                    letterSpacing: -0.5)),
-            Mono('scopri · suoni · scene', color: NuraBrand.mintAlpha(0.5)),
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.0)),
+            Mono('scopri · suoni · scene', color: Colors.black45),
           ]),
         ),
         // Search field
@@ -55,21 +66,19 @@ class _HomeSearchState extends State<HomeSearch> {
             child: SizedBox(
                 height: 46,
                 child: Row(children: [
-                  Icon(Icons.search, size: 18, color: NuraBrand.mintAlpha(0.7)),
+                  const Icon(Icons.search, size: 18, color: Colors.black45),
                   const SizedBox(width: 10),
                   Expanded(
                       child: TextField(
                           controller: _controller,
-                          style: const TextStyle(
-                              color: NuraBrand.mint, fontSize: 14),
+                          style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: 'artisti, brani, mood…',
-                            hintStyle:
-                                TextStyle(color: NuraBrand.mintAlpha(0.5)),
+                            hintStyle: const TextStyle(color: Colors.black45),
                             isDense: true,
                           ))),
-                  Mono('⌘ K', color: NuraBrand.mintAlpha(0.45)),
+                  Mono('⌘ K', color: Colors.black38),
                 ])),
           ),
         ),
@@ -83,8 +92,8 @@ class _HomeSearchState extends State<HomeSearch> {
               child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Mono('↗ trend · oggi', color: NuraBrand.mint),
-                    Mono('04·29', color: NuraBrand.mintAlpha(0.4)),
+                    const Mono('↗ trend · oggi', color: Color(0xFF1A1A1A)),
+                    Mono('04·29', color: Colors.black38),
                   ]),
             ),
             Glass(
@@ -110,7 +119,7 @@ class _HomeSearchState extends State<HomeSearch> {
                                   fontFamily: 'JetBrainsMono',
                                   fontFamilyFallback: const ['monospace'],
                                   fontSize: 13,
-                                  color: NuraBrand.mintAlpha(0.6)))),
+                                  color: Colors.black45))),
                       Container(
                           width: 32,
                           height: 32,
@@ -130,12 +139,12 @@ class _HomeSearchState extends State<HomeSearch> {
                               children: [
                             Text(kTrending[i].track,
                                 style: const TextStyle(
-                                    color: NuraBrand.mint,
+                                    color: Color(0xFF1A1A1A),
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13)),
                             Text(kTrending[i].artist,
                                 style: TextStyle(
-                                    color: NuraBrand.mintAlpha(0.55),
+                                    color: Colors.black45,
                                     fontSize: 11)),
                           ])),
                       SizedBox(
@@ -156,7 +165,7 @@ class _HomeSearchState extends State<HomeSearch> {
                                   fontFamilyFallback: const ['monospace'],
                                   fontSize: 12,
                                   color: kTrending[i].delta.startsWith('−')
-                                      ? NuraBrand.mintAlpha(0.5)
+                                      ? Colors.black45
                                       : widget.accent))),
                     ]),
                   ),
@@ -170,8 +179,7 @@ class _HomeSearchState extends State<HomeSearch> {
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: Mono('◎ generi', color: NuraBrand.mint)),
+                padding: EdgeInsets.only(bottom: 10), child: Mono('◎ generi', color: Color(0xFF1A1A1A))),
             GridView.count(
               crossAxisCount: 2,
               crossAxisSpacing: 10,
@@ -208,11 +216,10 @@ class _HomeSearchState extends State<HomeSearch> {
                                 children: [
                                   Text(g.name,
                                       style: const TextStyle(
-                                          color: NuraBrand.mint,
+                                          color: Color(0xFF1A1A1A),
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14)),
-                                  Mono('${g.count} brani',
-                                      color: NuraBrand.mintAlpha(0.6)),
+                                  Mono('${g.count} brani', color: Colors.black45),
                                 ]),
                           ),
                         ]),
@@ -222,6 +229,6 @@ class _HomeSearchState extends State<HomeSearch> {
           ]),
         ),
       ]),
-    );
+    )]);
   }
 }
