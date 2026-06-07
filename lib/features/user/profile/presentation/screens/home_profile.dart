@@ -52,7 +52,10 @@ class HomeProfile extends ConsumerStatefulWidget {
   ConsumerState<HomeProfile> createState() => _HomeProfileState();
 }
 
-class _HomeProfileState extends ConsumerState<HomeProfile> {
+class _HomeProfileState extends ConsumerState<HomeProfile> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   static const String _defaultProfileHeroImage =
       'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg';
   static const double _bottomNavHeight = 74;
@@ -408,6 +411,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final mockImageAsset = ref.watch(mockProfileImageAssetProvider);
     final effectiveProfileImageAsset =
         mockImageAsset ?? _profileImageAsset ?? _defaultProfileHeroImage;

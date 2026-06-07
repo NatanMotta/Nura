@@ -50,7 +50,11 @@ Future<Color> _extractDominantColorFast(String assetPath) async {
 }
 
 class _HomeFeedState extends State<HomeFeed>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+  
+  @override
+  bool get wantKeepAlive => true;
+
   late List<Track> deck;
   late List<Track> _sourceDeck;
   final _musicManager = MusicPlayerManager();
@@ -311,6 +315,7 @@ class _HomeFeedState extends State<HomeFeed>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final nav = 86 + widget.safeBottom;
     if (!_deckReady) {
       return const Center(child: CircularProgressIndicator());

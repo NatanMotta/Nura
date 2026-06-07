@@ -26,10 +26,13 @@ class HomeSearch extends StatefulWidget {
   State<HomeSearch> createState() => _HomeSearchState();
 }
 
-class _HomeSearchState extends State<HomeSearch> {
+class _HomeSearchState extends State<HomeSearch> with AutomaticKeepAliveClientMixin {
   final _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -52,6 +55,7 @@ class _HomeSearchState extends State<HomeSearch> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Stack(children: [
       ValueListenableBuilder<double>(
         valueListenable: _scrollNotifier,

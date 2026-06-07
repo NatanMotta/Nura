@@ -29,7 +29,9 @@ class ArtistPublicProfileScreen extends ConsumerStatefulWidget {
       _ArtistPublicProfileScreenState();
 }
 
-class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileScreen> {
+class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final _audio = AudioPreviewService.instance;
   final ScrollController _scrollController = ScrollController();
   
@@ -97,6 +99,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     if (_loading) return const Center(child: CircularProgressIndicator(color: NuraBrand.pink));
 
     final authUser = ref.watch(authStateProvider).value;
