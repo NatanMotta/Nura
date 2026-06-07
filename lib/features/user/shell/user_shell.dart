@@ -75,6 +75,7 @@ class _UserShellState extends State<UserShell> {
           waveform: widget.waveform,
           safeTop: safeTop,
           safeBottom: safeBottom,
+          isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
           onArtistTap: _onArtistTap,
         ),
         HomeSearch(

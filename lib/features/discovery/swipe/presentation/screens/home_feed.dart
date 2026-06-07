@@ -23,6 +23,7 @@ class HomeFeed extends StatefulWidget {
   final Color accent;
   final String waveform;
   final double safeTop, safeBottom;
+  final bool isActive;
   final void Function(String artistId, String artistName)? onArtistTap;
   const HomeFeed(
       {super.key,
@@ -31,6 +32,7 @@ class HomeFeed extends StatefulWidget {
       required this.waveform,
       required this.safeTop,
       required this.safeBottom,
+      this.isActive = true,
       this.onArtistTap});
   @override
   State<HomeFeed> createState() => _HomeFeedState();
@@ -299,6 +301,20 @@ class _HomeFeedState extends State<HomeFeed>
         shouldLike: true,
       ));
       unawaited(_refreshTrackEngagement(decidedTrack.id));
+    }
+  }
+
+  @override
+  void didUpdateWidget(HomeFeed oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        if (deck.isNotEmpty) {
+          _musicManager.initFirstTrack(deck[0].audioAsset ?? '');
+        }
+      } else {
+        _musicManager.pause();
+      }
     }
   }
 
