@@ -69,7 +69,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   List<_ProfileTrack> _tracks = const [];
   bool _showMiniPlayer = false;
   int? _currentTrackIndex;
-  double _scrollOffset = 0;
+  final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
@@ -82,14 +82,13 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _scrollNotifier.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     if (!mounted) return;
-    setState(() {
-      _scrollOffset = _scrollController.offset;
-    });
+    _scrollNotifier.value = _scrollController.offset;
   }
 
   Future<void> _loadProfile() async {
@@ -251,7 +250,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: widget.accent.withOpacity(0.16),
+        color: widget.accent.withValues(alpha: 0.16),
         border: Border.all(color: widget.vibe.cardBorder),
       ),
       alignment: Alignment.center,
@@ -417,36 +416,50 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: ParallaxOrganicMeshPainter(
-                scrollOffset: _scrollOffset,
-                musicuraBlu: NuraBrand.deep,
-                nuraPink: NuraBrand.pink,
-              ),
-            ),
+          ValueListenableBuilder<double>(
+            valueListenable: _scrollNotifier,
+            builder: (context, scrollOffset, _) {
+              return Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        painter: ParallaxOrganicMeshPainter(
+                          scrollOffset: scrollOffset,
+                          musicuraBlu: NuraBrand.deep,
+                          nuraPink: NuraBrand.pink,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (effectiveProfileImageAsset != null &&
+                      effectiveProfileImageAsset.isNotEmpty)
+                    Positioned(
+                      top: -scrollOffset,
+                      left: 0,
+                      right: 0,
+                      height: 380,
+                      child: RepaintBoundary(
+                        child: Opacity(
+                          opacity: (1.0 - (scrollOffset / 260)).clamp(0.0, 1.0),
+                          child: ShaderMask(
+                            shaderCallback: (rect) => const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.white, Colors.white, Colors.transparent],
+                              stops: [0.0, 0.45, 0.95],
+                            ).createShader(rect),
+                            blendMode: BlendMode.dstIn,
+                            child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
-          if (effectiveProfileImageAsset != null &&
-              effectiveProfileImageAsset.isNotEmpty)
-            Positioned(
-              top: -_scrollOffset,
-              left: 0,
-              right: 0,
-              height: 380,
-              child: Opacity(
-                opacity: (1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0),
-                child: ShaderMask(
-                  shaderCallback: (rect) => const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.white, Colors.white, Colors.transparent],
-                    stops: [0.0, 0.45, 0.95],
-                  ).createShader(rect),
-                  blendMode: BlendMode.dstIn,
-                  child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover),
-                ),
-              ),
-            ),
           SingleChildScrollView(
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
@@ -619,24 +632,29 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
           Positioned(
             top: widget.safeTop + 8,
             right: 16,
-            child: Opacity(
-              opacity: (1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0),
-              child: IconButton(
-                tooltip: 'Modifica immagine',
-                visualDensity: VisualDensity.compact,
-                iconSize: 20,
-                icon: const Icon(Icons.image_outlined),
-                color: Colors.white.withValues(alpha: 0.92),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollNotifier,
+              builder: (context, scrollOffset, _) {
+                return Opacity(
+                  opacity: (1.0 - (scrollOffset / 260)).clamp(0.0, 1.0),
+                  child: IconButton(
+                    tooltip: 'Modifica immagine',
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 20,
+                    icon: const Icon(Icons.image_outlined),
+                    color: Colors.white.withValues(alpha: 0.92),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
                       builder: (_) => const ProfileSettingsScreen(),
                     ),
                   );
                 },
               ),
-            ),
-          ),
+            );
+          },
+        ),
+      ),
         ],
       ),
     );

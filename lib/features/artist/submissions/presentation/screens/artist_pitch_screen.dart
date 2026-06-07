@@ -18,7 +18,7 @@ class ArtistPitchScreen extends ConsumerStatefulWidget {
 
 class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
+  final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
   int _activeTab = 0; // 0 = Nuovo Pitch, 1 = I Miei Pitch
 
   // Form State
@@ -38,9 +38,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
+      _scrollNotifier.value = _scrollController.offset;
       // Ferma l'anteprima audio se l'utente scorre giù verso le etichette per evitare disturbi
       if (_scrollController.offset > 150 &&
           AudioPreviewService.instance.playingTrackId.value != null) {
@@ -52,6 +50,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _scrollNotifier.dispose();
     _messageController.dispose();
     _searchController.dispose();
     AudioPreviewService.instance.stop();
@@ -129,13 +128,13 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
           child: Opacity(
             opacity: opacity,
             child: AlertDialog(
-              backgroundColor: Colors.white.withOpacity(0.9),
+              backgroundColor: Colors.white.withValues(alpha: 0.9),
               elevation: 20,
               shadowColor: Colors.black12,
               surfaceTintColor: Colors.transparent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: Colors.black.withOpacity(0.05), width: 1.5),
+                side: BorderSide(color: Colors.black.withValues(alpha: 0.05), width: 1.5),
               ),
               content: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -159,7 +158,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: NuraBrand.pink.withOpacity(0.3),
+                                color: NuraBrand.pink.withValues(alpha: 0.3),
                                 blurRadius: 16,
                                 offset: const Offset(0, 8),
                               ),
@@ -269,14 +268,21 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
       body: Stack(
         children: [
           // 1. HIGH-END PARALLAX ORGANIC MESH BACKGROUND (Coerente col Profilo Artista)
-          Positioned.fill(
-            child: CustomPaint(
-              painter: ParallaxOrganicMeshPainter(
-                scrollOffset: _scrollOffset,
-                musicuraBlu: NuraBrand.deep,
-                nuraPink: NuraBrand.pink,
-              ),
-            ),
+          ValueListenableBuilder<double>(
+            valueListenable: _scrollNotifier,
+            builder: (context, scrollOffset, _) {
+              return Positioned.fill(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: ParallaxOrganicMeshPainter(
+                      scrollOffset: scrollOffset,
+                      musicuraBlu: NuraBrand.deep,
+                      nuraPink: NuraBrand.pink,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
 
           // 2. MAIN SCROLLABLE CONTENT
@@ -384,7 +390,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -448,9 +454,9 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.black.withOpacity(0.04)),
+                    border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
                   ),
                   child: Column(
                     children: [
@@ -637,16 +643,16 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(isSelected ? 0.95 : 0.65),
+                        color: Colors.white.withValues(alpha: isSelected ? 0.95 : 0.65),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected ? NuraBrand.pink : Colors.black.withOpacity(0.05),
+                          color: isSelected ? NuraBrand.pink : Colors.black.withValues(alpha: 0.05),
                           width: isSelected ? 2.5 : 1.0,
                         ),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: NuraBrand.pink.withOpacity(0.15),
+                                  color: NuraBrand.pink.withValues(alpha: 0.15),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -661,7 +667,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                             child: Container(
                               width: 56,
                               height: 56,
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               child: Image.asset(
                                 label.logoAsset,
                                 fit: BoxFit.cover,
@@ -717,7 +723,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.04),
+                                        color: Colors.black.withValues(alpha: 0.04),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -966,7 +972,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: NuraBrand.pink.withOpacity(0.3),
+                        color: NuraBrand.pink.withValues(alpha: 0.3),
                         blurRadius: 16,
                         offset: const Offset(0, 8),
                       ),
@@ -1020,7 +1026,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.send_outlined, color: Colors.black26, size: 32),
@@ -1074,9 +1080,9 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.65),
+                      color: Colors.white.withValues(alpha: 0.65),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.black.withOpacity(0.05)),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
                     ),
                     child: Row(
                     children: [
@@ -1086,7 +1092,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                         child: Container(
                           width: 48,
                           height: 48,
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           child: Image.asset(
                             logoAsset ?? 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
                             fit: BoxFit.cover,
@@ -1231,7 +1237,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             border: Border(
               top: BorderSide(
@@ -1257,7 +1263,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                         width: 44,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(2.5),
                         ),
                       ),
@@ -2192,37 +2198,39 @@ class _MiniAudioVisualizerState extends State<_MiniAudioVisualizer> with SingleT
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: List.generate(3, (index) {
-            final scale = index == 0
-                ? 0.3 + (_controller.value * 0.7)
-                : index == 1
-                    ? 0.6 - (_controller.value * 0.4)
-                    : 0.2 + (_controller.value * 0.8);
-            return Container(
-              width: 3.5,
-              height: 18 * scale,
-              margin: const EdgeInsets.symmetric(horizontal: 2.0),
-              decoration: BoxDecoration(
-                color: widget.color,
-                borderRadius: BorderRadius.circular(2),
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withValues(alpha: 0.45),
-                    blurRadius: 4,
-                    spreadRadius: 0.5,
-                  ),
-                ],
-              ),
-            );
-          }),
-        );
-      },
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: List.generate(3, (index) {
+              final scale = index == 0
+                  ? 0.3 + (_controller.value * 0.7)
+                  : index == 1
+                      ? 0.6 - (_controller.value * 0.4)
+                      : 0.2 + (_controller.value * 0.8);
+              return Container(
+                width: 3.5,
+                height: 18 * scale,
+                margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.color.withValues(alpha: 0.45),
+                      blurRadius: 4,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
+                ),
+              );
+            }),
+          );
+        },
+      ),
     );
   }
 }

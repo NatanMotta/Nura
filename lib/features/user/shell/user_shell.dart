@@ -117,7 +117,7 @@ class _UserShellState extends State<UserShell> {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        widget.accent.withOpacity(0.33),
+                        widget.accent.withValues(alpha: 0.33),
                         Colors.transparent
                       ],
                     ),

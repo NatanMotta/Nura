@@ -28,19 +28,49 @@ class HomeSearch extends StatefulWidget {
 
 class _HomeSearchState extends State<HomeSearch> {
   final _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _scrollNotifier.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    _scrollNotifier.value = _scrollController.offset;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
-      Positioned.fill(
-        child: CustomPaint(
-          painter: ParallaxOrganicMeshPainter(
-            scrollOffset: 0,
-            musicuraBlu: NuraBrand.deep,
-            nuraPink: NuraBrand.pink,
-          ),
-        ),
+      ValueListenableBuilder<double>(
+        valueListenable: _scrollNotifier,
+        builder: (context, scrollOffset, _) {
+          return Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: ParallaxOrganicMeshPainter(
+                  scrollOffset: scrollOffset,
+                  musicuraBlu: NuraBrand.deep,
+                  nuraPink: NuraBrand.pink,
+                ),
+              ),
+            ),
+          );
+        },
       ),
       SingleChildScrollView(
+        controller: _scrollController,
         padding:
             EdgeInsets.fromLTRB(0, widget.safeTop, 0, 100 + widget.safeBottom),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -205,7 +235,7 @@ class _HomeSearchState extends State<HomeSearch> {
                           Positioned.fill(
                               child: CustomPaint(
                                   painter: StripesPainter(
-                                      Colors.white.withOpacity(0.05)))),
+                                      Colors.white.withValues(alpha: 0.05)))),
                           Positioned(
                             left: 12,
                             right: 12,

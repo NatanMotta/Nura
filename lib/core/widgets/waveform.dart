@@ -106,7 +106,7 @@ class _WavePainter extends CustomPainter {
         canvas.drawPath(
             p,
             Paint()
-              ..color = color.withOpacity(alpha)
+              ..color = color.withValues(alpha: alpha)
               ..style = PaintingStyle.stroke
               ..strokeWidth = sw);
       }
@@ -121,7 +121,7 @@ class _WavePainter extends CustomPainter {
         final v = math.sin(i * 0.6 + t * 2 + seed).abs();
         final sz = 4 + v * 6;
         canvas.drawCircle(Offset(x + sz / 2, h / 2), sz / 2,
-            Paint()..color = color.withOpacity(0.4 + v * 0.6));
+            Paint()..color = color.withValues(alpha: 0.4 + v * 0.6));
         x += sz + gap;
       }
       return;
@@ -138,7 +138,7 @@ class _WavePainter extends CustomPainter {
       final bh = math.max(2.0, v * h);
       final r = Rect.fromLTWH(x, (h - bh) / 2, barW, bh);
       canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(2)),
-          Paint()..color = color.withOpacity(0.55 + v * 0.45));
+          Paint()..color = color.withValues(alpha: 0.55 + v * 0.45));
       x += barW + gap;
     }
   }

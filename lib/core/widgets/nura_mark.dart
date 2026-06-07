@@ -18,7 +18,7 @@ class NuraMark extends StatelessWidget {
     if (!dropShadow) return w;
     return DecoratedBox(
       decoration: BoxDecoration(
-        boxShadow: [BoxShadow(color: c.withOpacity(0.33), blurRadius: 16)],
+        boxShadow: [BoxShadow(color: c.withValues(alpha: 0.33), blurRadius: 16)],
       ),
       child: w,
     );
