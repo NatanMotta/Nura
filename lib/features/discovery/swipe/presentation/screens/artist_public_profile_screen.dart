@@ -136,38 +136,35 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 
           // 2. HERO BANNER IMAGE (Scrolls 1:1 with transparency & Linear Gradient Mask)
           if (_imageAsset != null && _imageAsset!.isNotEmpty)
-            ValueListenableBuilder<double>(
-              valueListenable: _scrollOffsetNotifier,
-              builder: (context, offset, child) {
-                return Positioned(
-                  top: -offset, // Normal 1:1 scrolling rate
-                  left: 0,
-                  right: 0,
-                  height: 380,
-                  child: Opacity(
-                    opacity: (1.0 - (offset / 260)).clamp(0.0, 1.0),
-                    child: ShaderMask(
-                      shaderCallback: (rect) {
-                        return const LinearGradient(
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 380,
+              child: ValueListenableBuilder<double>(
+                valueListenable: _scrollOffsetNotifier,
+                builder: (context, offset, child) {
+                  return Transform.translate(
+                    offset: Offset(0, -offset), // Normal 1:1 scrolling rate
+                    child: Opacity(
+                      opacity: (1.0 - (offset / 260)).clamp(0.0, 1.0),
+                      child: ShaderMask(
+                        shaderCallback: (rect) => const LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white,
-                            Colors.white,
-                            Colors.transparent,
-                          ],
-                          stops: [0.0, 0.45, 0.95],
-                        ).createShader(rect);
-                      },
-                      blendMode: BlendMode.dstIn,
-                      child: Image.asset(
-                        _imageAsset!,
-                        fit: BoxFit.cover,
+                          colors: [Colors.white, Colors.white, Colors.transparent],
+                          stops: [0.0, 0.4, 1.0],
+                        ).createShader(rect),
+                        blendMode: BlendMode.dstIn,
+                        child: Image.asset(
+                          _imageAsset!,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
 
           // 3. NORMAL SCROLLABLE CONTENT

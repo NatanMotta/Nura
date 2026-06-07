@@ -268,11 +268,11 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
       body: Stack(
         children: [
           // 1. HIGH-END PARALLAX ORGANIC MESH BACKGROUND (Coerente col Profilo Artista)
-          ValueListenableBuilder<double>(
-            valueListenable: _scrollNotifier,
-            builder: (context, scrollOffset, _) {
-              return Positioned.fill(
-                child: RepaintBoundary(
+          Positioned.fill(
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollNotifier,
+              builder: (context, scrollOffset, _) {
+                return RepaintBoundary(
                   child: CustomPaint(
                     painter: ParallaxOrganicMeshPainter(
                       scrollOffset: scrollOffset,
@@ -280,9 +280,9 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                       nuraPink: NuraBrand.pink,
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
 
           // 2. MAIN SCROLLABLE CONTENT

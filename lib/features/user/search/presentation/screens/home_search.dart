@@ -53,11 +53,11 @@ class _HomeSearchState extends State<HomeSearch> {
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
-      ValueListenableBuilder<double>(
-        valueListenable: _scrollNotifier,
-        builder: (context, scrollOffset, _) {
-          return Positioned.fill(
-            child: RepaintBoundary(
+      Positioned.fill(
+        child: ValueListenableBuilder<double>(
+          valueListenable: _scrollNotifier,
+          builder: (context, scrollOffset, _) {
+            return RepaintBoundary(
               child: CustomPaint(
                 painter: ParallaxOrganicMeshPainter(
                   scrollOffset: scrollOffset,
@@ -65,9 +65,9 @@ class _HomeSearchState extends State<HomeSearch> {
                   nuraPink: NuraBrand.pink,
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
       SingleChildScrollView(
         controller: _scrollController,
