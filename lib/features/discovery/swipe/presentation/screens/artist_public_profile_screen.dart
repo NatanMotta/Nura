@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -40,27 +41,23 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
   String? _imageAsset;
   List<Map<String, dynamic>> _tracks = const [];
 
-  double _scrollOffset = 0.0;
+  final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
     super.initState();
     _load();
-    _scrollController.addListener(_onScroll);
+    _scrollController.addListener(() {
+      _scrollOffsetNotifier.value = _scrollController.offset;
+    });
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
+    _scrollOffsetNotifier.dispose();
     _scrollController.dispose();
-    super.dispose();
-  }
 
-  void _onScroll() {
-    if (!mounted) return;
-    setState(() {
-      _scrollOffset = _scrollController.offset;
-    });
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -70,12 +67,13 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     }
     try {
       final client = Supabase.instance.client;
-      final profile = await client.from('profiles').select('display_name,image_asset').eq('id', widget.artistId).maybeSingle();
+      final profile = await client.from('profiles').select('display_name,image_asset').eq('id', widget.artistId).maybeSingle().timeout(const Duration(seconds: 4));
       final rows = await client
           .from('tracks')
           .select('id,title,genre,duration_seconds,storage_path')
           .eq('artist_id', widget.artistId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 4));
 
       if (mounted) {
         setState(() {
@@ -107,50 +105,69 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 
     final artistName = _displayName ?? widget.artistName;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _audio.stop();
+        if (context.mounted) {
+          Navigator.of(context).pop(result);
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
           // 1. PARALLAX BACKGROUND
           Positioned.fill(
-            child: CustomPaint(
-              painter: ParallaxOrganicMeshPainter(
-                scrollOffset: _scrollOffset,
-                musicuraBlu: NuraBrand.deep,
-                nuraPink: NuraBrand.pink,
-              ),
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollOffsetNotifier,
+              builder: (context, offset, child) {
+                return CustomPaint(
+                  painter: ParallaxOrganicMeshPainter(
+                    scrollOffset: offset,
+                    musicuraBlu: NuraBrand.deep,
+                    nuraPink: NuraBrand.pink,
+                  ),
+                );
+              },
             ),
           ),
 
           // 2. HERO BANNER IMAGE (Scrolls 1:1 with transparency & Linear Gradient Mask)
           if (_imageAsset != null && _imageAsset!.isNotEmpty)
-            Positioned(
-              top: -_scrollOffset, // Normal 1:1 scrolling rate
-              left: 0,
-              right: 0,
-              height: 380,
-              child: Opacity(
-                opacity: (1.0 - (_scrollOffset / 260)).clamp(0.0, 1.0),
-                child: ShaderMask(
-                  shaderCallback: (rect) {
-                    return const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white,
-                        Colors.white,
-                        Colors.transparent,
-                      ],
-                      stops: [0.0, 0.45, 0.95],
-                    ).createShader(rect);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: Image.asset(
-                    _imageAsset!,
-                    fit: BoxFit.cover,
+            ValueListenableBuilder<double>(
+              valueListenable: _scrollOffsetNotifier,
+              builder: (context, offset, child) {
+                return Positioned(
+                  top: -offset, // Normal 1:1 scrolling rate
+                  left: 0,
+                  right: 0,
+                  height: 380,
+                  child: Opacity(
+                    opacity: (1.0 - (offset / 260)).clamp(0.0, 1.0),
+                    child: ShaderMask(
+                      shaderCallback: (rect) {
+                        return const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white,
+                            Colors.white,
+                            Colors.transparent,
+                          ],
+                          stops: [0.0, 0.45, 0.95],
+                        ).createShader(rect);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: Image.asset(
+                        _imageAsset!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
 
           // 3. NORMAL SCROLLABLE CONTENT
@@ -303,7 +320,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _mainBtn({required String label, required bool isSolid, required VoidCallback onTap}) {

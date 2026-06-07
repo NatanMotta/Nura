@@ -58,26 +58,18 @@ class _UserShellState extends State<UserShell> {
     final safeTop = inset.top > 0 ? inset.top : 16.0;
     final safeBottom = inset.bottom > 0 ? inset.bottom : 16.0;
 
-    final body = switch (_screen) {
-      RouteNames.search => HomeSearch(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
-        ),
-      RouteNames.profile => HomeProfile(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
-        ),
-      _artistProfileRoute => ArtistPublicProfileScreen(
-          artistId: _artistId!,
-          artistName: _artistName!,
-          onBack: _onArtistBack,
-        ),
-      _ => HomeFeed(
+    final int currentIndex = switch (_screen) {
+      RouteNames.search => 1,
+      RouteNames.profile => 2,
+      _artistProfileRoute => 3,
+      _ => 0,
+    };
+
+    final body = IndexedStack(
+      index: currentIndex,
+      children: [
+        HomeFeed(
+          key: const PageStorageKey('home_feed'),
           vibe: widget.vibe,
           accent: widget.accent,
           waveform: widget.waveform,
@@ -85,7 +77,29 @@ class _UserShellState extends State<UserShell> {
           safeBottom: safeBottom,
           onArtistTap: _onArtistTap,
         ),
-    };
+        HomeSearch(
+          key: const PageStorageKey('home_search'),
+          vibe: widget.vibe,
+          accent: widget.accent,
+          waveform: widget.waveform,
+          safeTop: safeTop,
+          safeBottom: safeBottom,
+        ),
+        HomeProfile(
+          key: const PageStorageKey('home_profile'),
+          vibe: widget.vibe,
+          accent: widget.accent,
+          safeTop: safeTop,
+          safeBottom: safeBottom,
+        ),
+        ArtistPublicProfileScreen(
+          key: const PageStorageKey('artist_profile'),
+          artistId: _artistId ?? 'mock',
+          artistName: _artistName ?? 'Artist',
+          onBack: _onArtistBack,
+        ),
+      ],
+    );
 
     return Scaffold(
       body: Container(

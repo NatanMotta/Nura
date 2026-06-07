@@ -1,21 +1,21 @@
 import 'dart:async';
 import 'dart:math' as math;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/models/track.dart';
-import '../../../../../core/services/audio_preview_service.dart';
+import '../../../../../core/services/music_player_manager.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/nura_mark.dart';
-import '../../../../../core/widgets/striped_panel.dart';
 import '../../../../../core/widgets/waveform.dart';
 import '../../../../social/data/social_engagement_service.dart';
 import '../../../../shared/data/mock_nura_data.dart';
 import '../../data/remote_tracks_service.dart';
+import '../widgets/music_card.dart';
+import '../widgets/physics_swiper.dart';
 import 'artist_public_profile_screen.dart';
 
 class HomeFeed extends StatefulWidget {
@@ -36,18 +36,30 @@ class HomeFeed extends StatefulWidget {
   State<HomeFeed> createState() => _HomeFeedState();
 }
 
+Future<Color> _extractDominantColorFast(String assetPath) async {
+  try {
+    final imageProvider = ResizeImage(AssetImage(assetPath), width: 10, height: 10);
+    final palette = await PaletteGenerator.fromImageProvider(
+      imageProvider,
+      maximumColorCount: 3,
+    );
+    return palette.vibrantColor?.color ?? palette.dominantColor?.color ?? const Color(0xFF1E1E1E);
+  } catch (_) {
+    return const Color(0xFF1E1E1E);
+  }
+}
+
 class _HomeFeedState extends State<HomeFeed>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late List<Track> deck;
   late List<Track> _sourceDeck;
-  final _audio = AudioPreviewService.instance;
+  final _musicManager = MusicPlayerManager();
   final _remoteTracks = const RemoteTracksService();
   final _social = const SocialEngagementService();
   String? impulse;
   int likes = 12, skips = 38;
   bool _deckReady = false;
   final ValueNotifier<double> _topDragDx = ValueNotifier<double>(0);
-  String? _lastAudioErrorShown;
   Map<String, EngagementCounts> _engagementByTrack = const {};
   Set<String> _likedTrackIds = <String>{};
   Set<String> _savedTrackIds = <String>{};
@@ -55,33 +67,94 @@ class _HomeFeedState extends State<HomeFeed>
   late final AnimationController _deckIntroController;
   bool _deckIntroPlayed = false;
 
+  final Map<String, Color> _ambientGlowCache = {};
+  final Map<String, GlobalKey> _cardKeys = {};
+
+  /// Tracciamento monotono dei request ID per annullare Future orfani.
+  /// Quando una carta viene espulsa, il suo ID viene rimosso → il Future
+  /// in corso scarta il risultato e non chiama setState su un widget smontato.
+  final Map<String, int> _glowRequestIds = {};
+
+  GlobalKey _getCardKey(String id) {
+    return _cardKeys.putIfAbsent(id, () => GlobalKey());
+  }
+
+  Future<void> _resolveGlow(Track track) async {
+    if (_ambientGlowCache.containsKey(track.id)) return;
+
+    // Genera un request ID univoco per questa estrazione.
+    final requestId = (_glowRequestIds[track.id] ?? 0) + 1;
+    _glowRequestIds[track.id] = requestId;
+
+    if (track.coverAsset != null && track.coverAsset!.startsWith('assets/')) {
+      try {
+        final extractedColor = await _extractDominantColorFast(track.coverAsset!);
+        // ANNULLAMENTO IMPLICITO: se il requestId è cambiato, questa
+        // estrazione è obsoleta (la carta è stata espulsa). Scarta.
+        if (!mounted || _glowRequestIds[track.id] != requestId) return;
+        setState(() {
+          _ambientGlowCache[track.id] = extractedColor;
+        });
+      } catch (e) {
+        if (!mounted || _glowRequestIds[track.id] != requestId) return;
+        setState(() {
+          _ambientGlowCache[track.id] = track.swatch;
+        });
+      }
+    } else {
+      if (!mounted) return;
+      setState(() {
+        _ambientGlowCache[track.id] = track.swatch;
+      });
+    }
+  }
+
+  void _maintainRollingCache() {
+    if (!mounted) return;
+    
+    for (int i = 0; i < math.min(4, deck.length); i++) {
+      final t = deck[i];
+      unawaited(_resolveGlow(t));
+      
+      final cover = t.coverAsset;
+      if (cover != null && cover.startsWith('assets/')) {
+        try {
+          unawaited(precacheImage(ResizeImage(AssetImage(cover), width: 600), context));
+        } catch (_) {}
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _deckIntroController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _audio.lastError.addListener(_onAudioError);
     _sourceDeck = List.of(kTracks);
     deck = const [];
     _loadDeckFromCloud();
   }
 
-  void _onAudioError() {
-    final error = _audio.lastError.value;
-    if (!mounted || error == null || error.isEmpty) return;
-    if (_lastAudioErrorShown == error) return;
-    _lastAudioErrorShown = error;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error)),
-    );
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _musicManager.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      _musicManager.resume();
+    }
   }
 
   Future<void> _loadDeckFromCloud() async {
+    setState(() {
+      _deckReady = false;
+    });
+
     List<Track> selected = List.of(kTracks);
     try {
-      final remote = await _remoteTracks.fetchTracks();
+      final remote = await _remoteTracks.fetchTracks().timeout(const Duration(seconds: 5));
       if (remote.isNotEmpty) {
         selected = List.of(remote);
       } else {
@@ -89,31 +162,27 @@ class _HomeFeedState extends State<HomeFeed>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Nessuna traccia remota valida con artista reale trovata.',
+                'Nessuna traccia remota valida. Uso mock locali.',
               ),
             ),
           );
         }
       }
     } catch (_) {
-      // keep selected = mock deck
     }
 
     if (!mounted) return;
-
-    // Warm-up first covers to avoid first-frame visual jump on real devices.
-    for (final t in selected.take(3)) {
-      final cover = t.coverAsset;
-      if (cover != null && cover.startsWith('assets/')) {
-        unawaited(precacheImage(AssetImage(cover), context));
-      }
-    }
 
     setState(() {
       _sourceDeck = selected;
       deck = List.of(selected);
       _deckReady = true;
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maintainRollingCache();
+    });
+
     if (!_deckIntroPlayed) {
       _deckIntroPlayed = true;
       _deckIntroController
@@ -123,9 +192,14 @@ class _HomeFeedState extends State<HomeFeed>
 
     unawaited(_loadEngagement(selected));
 
-    // Start audio only after deck is mounted.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _playTopTrackPreview();
+      if (!mounted) return;
+      if (deck.isNotEmpty) {
+        _musicManager.initFirstTrack(deck[0].audioAsset ?? '');
+        if (deck.length > 1) {
+          _musicManager.preloadNext(deck[1].audioAsset ?? '');
+        }
+      }
     });
   }
 
@@ -151,49 +225,6 @@ class _HomeFeedState extends State<HomeFeed>
         _authUserId = userId;
       });
     } catch (_) {
-      // fallback: keep local counters
-    }
-  }
-
-  Future<void> _toggleSaveTopTrack() async {
-    if (deck.isEmpty) return;
-    final userId = _authUserId;
-    if (userId == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login richiesto per salvare brani')),
-      );
-      return;
-    }
-
-    final trackId = deck.first.id;
-    final wasSaved = _savedTrackIds.contains(trackId);
-    final nextSaved = !wasSaved;
-
-    setState(() {
-      if (nextSaved) {
-        _savedTrackIds.add(trackId);
-      } else {
-        _savedTrackIds.remove(trackId);
-      }
-    });
-
-    try {
-      await _social.setSave(
-        trackId: trackId,
-        userId: userId,
-        shouldSave: nextSaved,
-      );
-      await _refreshTrackEngagement(trackId);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        if (wasSaved) {
-          _savedTrackIds.add(trackId);
-        } else {
-          _savedTrackIds.remove(trackId);
-        }
-      });
     }
   }
 
@@ -209,8 +240,18 @@ class _HomeFeedState extends State<HomeFeed>
   }
 
   void _decide(String action) {
+    if (deck.isEmpty) return;
     final decidedTrack = deck.first;
     final userId = _authUserId;
+
+    // ANNULLAMENTO FUTURE ORFANI: invalida i requestId della carta espulsa.
+    // Se l'estrazione PaletteGenerator è ancora in corso, il Future
+    // scarterà il risultato grazie al controllo requestId != currentId.
+    _glowRequestIds.remove(decidedTrack.id);
+
+    final fallbackUrl = deck.length > 1 ? (deck[1].audioAsset ?? '') : '';
+    _musicManager.swipeCrossfadeTransition(fallbackUrl);
+
     setState(() {
       if (action == 'like') {
         likes++;
@@ -224,6 +265,12 @@ class _HomeFeedState extends State<HomeFeed>
       _topDragDx.value = 0;
     });
 
+    _maintainRollingCache();
+
+    if (deck.length > 1) {
+      _musicManager.preloadNext(deck[1].audioAsset ?? '');
+    }
+
     if (action == 'like' && userId != null) {
       unawaited(_social.setLike(
         trackId: decidedTrack.id,
@@ -232,79 +279,61 @@ class _HomeFeedState extends State<HomeFeed>
       ));
       unawaited(_refreshTrackEngagement(decidedTrack.id));
     }
-    _playTopTrackPreview();
-  }
-
-  Future<void> _openArtistProfile(Track track) async {
-    final artistId = track.artistId;
-
-    if (!mounted) return;
-    if (artistId == null || artistId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profilo artista non disponibile')),
-      );
-      return;
-    }
-
-    if (widget.onArtistTap != null) {
-      widget.onArtistTap!(artistId, track.artist);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ArtistPublicProfileScreen(
-            artistId: artistId,
-            artistName: track.artist,
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _playTopTrackPreview() async {
-    if (deck.isEmpty) return;
-    final top = deck.first;
-    if (top.audioAsset == null || !top.audioAsset!.startsWith('assets/')) {
-      await _audio.stop();
-      return;
-    }
-    await _audio.togglePreview(trackId: top.id, assetPath: top.audioAsset);
-  }
-
-  String _formatMmSs(Duration value) {
-    final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
   }
 
   @override
   void dispose() {
-    _audio.lastError.removeListener(_onAudioError);
-    _audio.stop();
-    _topDragDx.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     _deckIntroController.dispose();
+    _musicManager.dispose();
+    _topDragDx.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final nav = 86 + widget.safeBottom; // bottom nav height incl. safe area
-    if (!_deckReady || deck.isEmpty) {
+    final nav = 86 + widget.safeBottom;
+    if (!_deckReady) {
       return const Center(child: CircularProgressIndicator());
     }
-    final topTrack = deck.first;
-    final topStats = _engagementByTrack[topTrack.id] ?? const EngagementCounts();
-    final dragNorm = (_topDragDx.value.abs() / 120).clamp(0.0, 1.0);
+
+    if (deck.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.music_off_rounded, size: 48, color: Colors.white54),
+            const SizedBox(height: 16),
+            const Text(
+              'Nessun brano trovato',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loadDeckFromCloud,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: NuraBrand.pink,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Text('Ricarica', style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      );
+    }
+
     return Stack(children: [
         Positioned.fill(
-          child: CustomPaint(
-            painter: ParallaxOrganicMeshPainter(
-              scrollOffset: 0,
-              musicuraBlu: NuraBrand.deep,
-              nuraPink: NuraBrand.pink,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: ParallaxOrganicMeshPainter(
+                scrollOffset: 0,
+                musicuraBlu: NuraBrand.deep,
+                nuraPink: NuraBrand.pink,
+              ),
             ),
           ),
         ),
-        // Header
         Padding(
           padding: EdgeInsets.fromLTRB(18, widget.safeTop, 18, 8),
           child: Row(children: [
@@ -322,77 +351,99 @@ class _HomeFeedState extends State<HomeFeed>
             Mono('↳ $skips', color: Colors.black45),
           ]),
         ),
-        // While dragging, push everything else visually to the background.
-        if (dragNorm > 0)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 80),
-                color: Colors.black.withValues(alpha: 0.12 * dragNorm),
-              ),
-            ),
-          ),
-        // Card stack
-        Positioned(
-          top: widget.safeTop + 50,
-          left: 16,
-          right: 16,
-          bottom: nav + 100,
-          child: Stack(children: [
-            AnimatedBuilder(
-              animation: _deckIntroController,
-              builder: (context, _) {
-                final t = Curves.easeOutCubic.transform(_deckIntroController.value);
-                return Stack(
-                  children: [
-                    for (int i = math.min(2, deck.length - 1); i >= 0; i--)
-                      Transform.translate(
-                        offset: _introOffsetForDepth(i, t),
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final requiredHeight = constraints.maxHeight - widget.safeTop - nav;
+              final verticalPadding = requiredHeight < 500 ? 20.0 : 50.0;
+              final bottomPadding = requiredHeight < 500 ? nav + 20.0 : nav + 100.0;
+              
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: widget.safeTop + verticalPadding,
+                  bottom: bottomPadding,
+                  left: 16,
+                  right: 16,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight,
+                    maxWidth: constraints.maxWidth,
+                  ),
+                  child: Stack(
+                    children: [
+                      // CULLING N+2: Renderizza fino a 3 carte per assorbire
+                      // il cold-start VRAM della terza carta durante swipe
+                      // ad alta velocità (escape velocity > 1000px/s).
+                      for (int i = math.min(2, deck.length - 1); i >= 0; i--)
+                    if (i == 2)
+                      // Terza carta: pre-inizializzata in VRAM, nascosta sotto.
+                      // Non ha animazione di scala per risparmiare GPU.
+                      Offstage(
+                        offstage: false,
                         child: Transform.scale(
-                          scale: _introScaleForDepth(i, t),
-                          child: Opacity(
-                            opacity: _introOpacityForDepth(i, t),
-                            child: SwipeCard(
-                              key: ValueKey('${deck[i].id}-${deck.length}-$i'),
-                              track: deck[i],
-                              vibe: widget.vibe,
-                              accent: widget.accent,
-                              waveStyle: widget.waveform,
-                              depth: i,
-                              isTop: i == 0,
-                              timeLabel: deck[i].dur,
-                              playingTrackId: _audio.playingTrackId,
-                              isPlaying: _audio.isPlaying,
-                              position: _audio.position,
-                              duration: _audio.duration,
-                              formatMmSs: _formatMmSs,
-                              onTogglePreview: i == 0
-                                  ? () => _audio.togglePreview(
-                                      trackId: deck[i].id,
-                                      assetPath: deck[i].audioAsset,
-                                    )
-                                  : null,
-                              onOpenArtist: () async => _openArtistProfile(deck[i]),
-                              manualImpulse: i == 0 ? impulse : null,
-                              onDragChanged: i == 0
-                                  ? (dx) {
-                                      if (!mounted) return;
-                                      if ((dx - _topDragDx.value).abs() < 3) return;
-                                      _topDragDx.value = dx;
-                                    }
-                                  : null,
-                              onDecide: _decide,
-                            ),
+                          scale: 0.85,
+                          child: MusicCard(
+                            key: _getCardKey(deck[i].id),
+                            track: deck[i],
+                            isTopCard: false,
+                            ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
+                            onArtistTap: null,
                           ),
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ]),
+                      )
+                    else if (i == 1)
+                      ValueListenableBuilder<double>(
+                        valueListenable: _topDragDx,
+                        builder: (context, dx, child) {
+                          final progress = (dx.abs() / (MediaQuery.of(context).size.width / 2)).clamp(0.0, 1.0);
+                          final scale = 0.90 + (0.10 * progress);
+                          return Transform.translate(
+                            offset: Offset(0, 30 * (1 - progress)),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: MusicCard(
+                                key: _getCardKey(deck[i].id), 
+                                track: deck[i], 
+                                isTopCard: false,
+                                ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
+                                onArtistTap: () {
+                                  _musicManager.pause();
+                                  if (widget.onArtistTap != null) {
+                                    widget.onArtistTap!(deck[i].artistId ?? 'mock_artist_${deck[i].id}', deck[i].artist);
+                                  }
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    else if (i == 0)
+                      PhysicsSwiper(
+                        key: ValueKey(deck[i].id),
+                        impulse: impulse,
+                        onSwipe: (dir) => _decide(dir == SwipeDirection.right ? 'like' : 'skip'),
+                        onDragUpdate: (dx) => _topDragDx.value = dx,
+                        child: MusicCard(
+                          key: _getCardKey(deck[i].id), 
+                          track: deck[i], 
+                          isTopCard: true,
+                          ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
+                          onArtistTap: () {
+                            _musicManager.pause();
+                            if (widget.onArtistTap != null) {
+                              widget.onArtistTap!(deck[i].artistId ?? 'mock_artist_${deck[i].id}', deck[i].artist);
+                            }
+                          },
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-        // Action buttons
         Positioned(
           left: 0,
           right: 0,
@@ -403,31 +454,25 @@ class _HomeFeedState extends State<HomeFeed>
               valueListenable: _topDragDx,
               builder: (_, dx, __) {
                 final norm = (dx.abs() / 120).clamp(0.0, 1.0);
-                final skipBtnOpacity = dx > 0 ? (1.0 - norm) : 1.0;
-                final likeBtnOpacity = dx < 0 ? (1.0 - norm) : 1.0;
+                final skipBtnOpacity = dx > 0 ? (1.0 - norm).clamp(0.0, 1.0) : 1.0;
+                final likeBtnOpacity = dx < 0 ? (1.0 - norm).clamp(0.0, 1.0) : 1.0;
                 return Row(children: [
                   Expanded(
-                    child: Opacity(
-                      opacity: skipBtnOpacity,
-                      child: _RoundBtn(
-                        height: 52,
-                        border: Colors.black.withValues(alpha: 0.10),
-                        onTap: () => setState(() => impulse = 'skip'),
-                        child: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF1A1A1A)),
-                      ),
+                    child: _RoundBtn(
+                      height: 52,
+                      border: Colors.black.withValues(alpha: 0.10 * skipBtnOpacity),
+                      onTap: () => setState(() => impulse = 'skip_${DateTime.now().millisecondsSinceEpoch}'),
+                      child: Icon(Icons.close_rounded, size: 22, color: const Color(0xFF1A1A1A).withValues(alpha: skipBtnOpacity)),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Opacity(
-                      opacity: likeBtnOpacity,
-                      child: _RoundBtn(
-                        height: 52,
-                        fill: widget.accent,
-                        border: Colors.transparent,
-                        onTap: () => setState(() => impulse = 'like'),
-                        child: const Icon(Icons.favorite, size: 22, color: Colors.white),
-                      ),
+                    child: _RoundBtn(
+                      height: 52,
+                      fill: widget.accent.withValues(alpha: likeBtnOpacity),
+                      border: Colors.transparent,
+                      onTap: () => setState(() => impulse = 'like_${DateTime.now().millisecondsSinceEpoch}'),
+                      child: Icon(Icons.favorite, size: 22, color: Colors.white.withValues(alpha: likeBtnOpacity)),
                     ),
                   ),
                 ]);
@@ -435,29 +480,7 @@ class _HomeFeedState extends State<HomeFeed>
             ),
           ),
         ),
-        
       ]);
-  }
-
-  Offset _introOffsetForDepth(int depth, double t) {
-    const starts = <Offset>[
-      Offset(0, 46),
-      Offset(-58, 16),
-      Offset(66, -26),
-    ];
-    final start = starts[depth.clamp(0, 2)];
-    return Offset(start.dx * (1 - t), start.dy * (1 - t));
-  }
-
-  double _introScaleForDepth(int depth, double t) {
-    const starts = <double>[0.95, 0.92, 0.90];
-    final start = starts[depth.clamp(0, 2)];
-    return start + ((1.0 - start) * t);
-  }
-
-  double _introOpacityForDepth(int depth, double t) {
-    final base = depth == 0 ? 0.85 : 0.68;
-    return (base + ((1 - base) * t)).clamp(0.0, 1.0);
   }
 
   Future<void> _openCommentsSheet(Track track) async {
@@ -508,96 +531,100 @@ class _HomeFeedState extends State<HomeFeed>
                 }
               }
 
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-                  left: 16,
-                  right: 16,
-                  top: 14,
-                ),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.64,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Commenti · ${track.track}',
-                        style: const TextStyle(
-                          color: NuraBrand.mint,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: loading
-                            ? const Center(child: CircularProgressIndicator())
-                            : comments.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      'Nessun commento',
-                                      style: TextStyle(
-                                          color: NuraBrand.mintAlpha(0.55)),
-                                    ),
-                                  )
-                                : ListView.separated(
-                                    itemCount: comments.length,
-                                    separatorBuilder: (_, __) => Divider(
-                                      height: 1,
-                                      color: NuraBrand.mintAlpha(0.10),
-                                    ),
-                                    itemBuilder: (_, i) {
-                                      final c = comments[i];
-                                      return ListTile(
-                                        dense: true,
-                                        title: Text(
-                                          c.authorName ?? 'Utente',
-                                          style: const TextStyle(
-                                            color: NuraBrand.mint,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          c.body,
-                                          style: TextStyle(
-                                            color: NuraBrand.mintAlpha(0.8),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: controller,
-                        style: const TextStyle(color: NuraBrand.mint),
-                        enabled: userId != null && !posting,
-                        decoration: InputDecoration(
-                          hintText: userId == null
-                              ? 'Fai login per commentare'
-                              : 'Scrivi un commento...',
-                          hintStyle: TextStyle(color: NuraBrand.mintAlpha(0.45)),
-                          filled: true,
-                          fillColor: NuraBrand.deepMidAlpha(0.6),
-                          suffixIcon: IconButton(
-                            onPressed: (userId == null || posting) ? null : post,
-                            icon: Icon(Icons.send, color: widget.accent),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+              return DraggableScrollableSheet(
+                initialChildSize: 0.64,
+                minChildSize: 0.4,
+                maxChildSize: 0.9,
+                expand: false,
+                builder: (_, scrollController) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 16, right: 16, top: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Commenti · ${track.track}',
+                          style: const TextStyle(
+                            color: NuraBrand.mint,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: loading
+                              ? const Center(child: CircularProgressIndicator())
+                              : comments.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        'Nessun commento',
+                                        style: TextStyle(
+                                            color: NuraBrand.mintAlpha(0.55)),
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      controller: scrollController,
+                                      itemCount: comments.length,
+                                      separatorBuilder: (_, __) => Divider(
+                                        height: 1,
+                                        color: NuraBrand.mintAlpha(0.10),
+                                      ),
+                                      itemBuilder: (_, i) {
+                                        final c = comments[i];
+                                        return ListTile(
+                                          dense: true,
+                                          title: Text(
+                                            c.authorName ?? 'Utente',
+                                            style: const TextStyle(
+                                              color: NuraBrand.mint,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            c.body,
+                                            style: TextStyle(
+                                              color: NuraBrand.mintAlpha(0.8),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 12),
+                          child: TextField(
+                            controller: controller,
+                            style: const TextStyle(color: NuraBrand.mint),
+                            enabled: userId != null && !posting,
+                            decoration: InputDecoration(
+                              hintText: userId == null
+                                  ? 'Fai login per commentare'
+                                  : 'Scrivi un commento...',
+                              hintStyle: TextStyle(color: NuraBrand.mintAlpha(0.45)),
+                              filled: true,
+                              fillColor: NuraBrand.deepMidAlpha(0.6),
+                              suffixIcon: IconButton(
+                                onPressed: (userId == null || posting) ? null : post,
+                                icon: Icon(Icons.send, color: widget.accent),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           );
@@ -676,379 +703,4 @@ class _SocialStatChip extends StatelessWidget {
   }
 }
 
-class SwipeCard extends StatefulWidget {
-  final Track track;
-  final NuraVibe vibe;
-  final Color accent;
-  final String waveStyle;
-  final int depth;
-  final bool isTop;
-  final String timeLabel;
-  final ValueListenable<String?> playingTrackId;
-  final ValueListenable<bool> isPlaying;
-  final ValueListenable<Duration> position;
-  final ValueListenable<Duration?> duration;
-  final String Function(Duration) formatMmSs;
-  final VoidCallback? onTogglePreview;
-  final VoidCallback? onOpenArtist;
-  final String? manualImpulse;
-  final ValueChanged<double>? onDragChanged;
-  final ValueChanged<String> onDecide;
-  const SwipeCard(
-      {super.key,
-      required this.track,
-      required this.vibe,
-      required this.accent,
-      required this.waveStyle,
-      required this.depth,
-      required this.isTop,
-      required this.timeLabel,
-      required this.playingTrackId,
-      required this.isPlaying,
-      required this.position,
-      required this.duration,
-      required this.formatMmSs,
-      required this.onTogglePreview,
-      required this.onOpenArtist,
-      required this.manualImpulse,
-      required this.onDragChanged,
-      required this.onDecide});
-  @override
-  State<SwipeCard> createState() => _SwipeCardState();
-}
 
-class _SwipeCardState extends State<SwipeCard>
-    with SingleTickerProviderStateMixin {
-  final ValueNotifier<Offset> _drag = ValueNotifier(Offset.zero);
-  String? exit;
-
-  @override
-  void didUpdateWidget(SwipeCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isTop && widget.manualImpulse != null && exit == null) {
-      exit = widget.manualImpulse;
-      Future.delayed(const Duration(milliseconds: 280), () {
-        if (mounted) widget.onDecide(widget.manualImpulse!);
-      });
-    }
-  }
-
-  void _onPanUpdate(DragUpdateDetails d) {
-    if (!widget.isTop || exit != null) return;
-    final next = _drag.value + d.delta;
-    _drag.value = next;
-    widget.onDragChanged?.call(next.dx);
-  }
-
-  void _onPanEnd(DragEndDetails details) {
-    if (!widget.isTop || exit != null) return;
-    const threshold = 95.0;
-    const flingVelocity = 700.0;
-    final drag = _drag.value;
-    final vx = details.velocity.pixelsPerSecond.dx;
-    if (drag.dx > threshold || vx > flingVelocity) {
-      setState(() => exit = 'like');
-      Future.delayed(const Duration(milliseconds: 280), () {
-        if (mounted) widget.onDecide('like');
-      });
-    } else if (drag.dx < -threshold || vx < -flingVelocity) {
-      setState(() => exit = 'skip');
-      Future.delayed(const Duration(milliseconds: 280), () {
-        if (mounted) widget.onDecide('skip');
-      });
-    } else {
-      _drag.value = Offset.zero;
-      widget.onDragChanged?.call(0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _drag.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stackOffset = widget.depth * 12.0;
-    final stackScale = 1 - widget.depth * 0.04;
-    return ValueListenableBuilder<Offset>(
-      valueListenable: _drag,
-      builder: (context, drag, _) {
-        final tx = drag.dx;
-        final ty = drag.dy;
-        final dragRotation = drag.dx / 18 * math.pi / 180;
-        final isExiting = exit != null;
-        final exitingLike = exit == 'like';
-        final exitingSkip = exit == 'skip';
-        final slideOffset = exitingLike
-            ? const Offset(1.35, 0)
-            : exitingSkip
-                ? const Offset(-1.35, 0)
-                : Offset.zero;
-        final targetRotation = exitingLike
-            ? (24 * math.pi / 180)
-            : exitingSkip
-                ? (-24 * math.pi / 180)
-                : dragRotation;
-
-        return Padding(
-          padding: EdgeInsets.only(top: stackOffset, bottom: stackOffset),
-          child: AnimatedSlide(
-            offset: slideOffset,
-            duration: Duration(milliseconds: isExiting ? 280 : 0),
-            curve: Curves.easeOutCubic,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: targetRotation),
-              duration: Duration(milliseconds: isExiting ? 280 : 0),
-              curve: Curves.easeOutCubic,
-              builder: (context, animatedRotation, child) {
-                return Transform.rotate(
-                  angle: animatedRotation,
-                  child: Transform.translate(
-                    // Keep current drag offset while exiting to avoid snap-back bounce.
-                    offset: Offset(tx, ty),
-                    child: child,
-                  ),
-                );
-              },
-              child: Transform.scale(
-                scale: stackScale,
-                child: GestureDetector(
-                  behavior: widget.isTop
-                      ? HitTestBehavior.translucent
-                      : HitTestBehavior.deferToChild,
-                  onPanUpdate: widget.isTop ? _onPanUpdate : null,
-                  onPanEnd: widget.isTop ? _onPanEnd : null,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(widget.vibe.radius),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: widget.track.coverAsset != null
-                              ? Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.asset(
-                                      widget.track.coverAsset!,
-                                      fit: BoxFit.cover,
-                                      filterQuality: FilterQuality.low,
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            Colors.black.withValues(alpha: 0.12),
-                                            NuraBrand.deepMidAlpha(0.38),
-                                            NuraBrand.deepMidAlpha(0.62),
-                                          ],
-                                          stops: const [0.0, 0.55, 1.0],
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: RadialGradient(
-                                          center: Alignment.center,
-                                          radius: 1.15,
-                                          colors: [
-                                            Colors.transparent,
-                                            NuraBrand.deepMidAlpha(0.16),
-                                          ],
-                                          stops: const [0.72, 1.0],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : StripedPanel(
-                                  hue: widget.track.hue,
-                                  vibe: widget.vibe,
-                                ),
-                        ),
-                        Positioned(
-                          top: 14,
-                          left: 16,
-                          right: 16,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Mono(widget.track.genre,
-                                  color: NuraBrand.mintAlpha(0.85)),
-                              Mono('${widget.track.bpm} BPM',
-                                  color: NuraBrand.mintAlpha(0.85)),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 16,
-                          left: 12,
-                          right: 12,
-                          child: ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(widget.vibe.radius - 4),
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: NuraBrand.deepMidAlpha(0.62),
-                                border: Border.all(color: widget.vibe.cardBorder),
-                                borderRadius: BorderRadius.circular(
-                                  widget.vibe.radius - 4,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            GestureDetector(
-                                              onTap: widget.onOpenArtist,
-                                              child: Text(
-                                                widget.track.artist,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: NuraBrand.mintAlpha(0.65),
-                                                  letterSpacing: 0.4,
-                                                  decoration:
-                                                      widget.onOpenArtist != null
-                                                          ? TextDecoration
-                                                              .underline
-                                                          : TextDecoration.none,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              widget.track.track,
-                                              style: const TextStyle(
-                                                fontSize: 19,
-                                                fontWeight: FontWeight.w600,
-                                                color: NuraBrand.mint,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: widget.onTogglePreview,
-                                        child: AnimatedBuilder(
-                                          animation: Listenable.merge([
-                                            widget.playingTrackId,
-                                            widget.isPlaying,
-                                          ]),
-                                          builder: (context, _) {
-                                            final isCurrentTrack =
-                                                widget.playingTrackId.value ==
-                                                    widget.track.id;
-                                            final showPause = widget.isTop &&
-                                                isCurrentTrack &&
-                                                widget.isPlaying.value;
-                                            return Container(
-                                              width: 38,
-                                              height: 38,
-                                              decoration: const BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: Color(0xFF1A1A1A),
-                                              ),
-                                              child: Icon(
-                                                showPause
-                                                    ? Icons.pause
-                                                    : Icons.play_arrow,
-                                                color: Colors.white,
-                                                size: 20,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: RepaintBoundary(
-                                          child: Waveform(
-                                            style: widget.waveStyle,
-                                            color: NuraBrand.mint,
-                                            height: 22,
-                                            count: 24,
-                                            seed: widget.track.id.codeUnitAt(1),
-                                            animate:
-                                                widget.isTop && exit == null,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      if (!widget.isTop)
-                                        Mono(widget.timeLabel,
-                                            color: NuraBrand.mintAlpha(0.55))
-                                      else
-                                        AnimatedBuilder(
-                                          animation: Listenable.merge([
-                                            widget.playingTrackId,
-                                            widget.position,
-                                            widget.duration,
-                                          ]),
-                                          builder: (context, _) {
-                                            final playingId =
-                                                widget.playingTrackId.value;
-                                            if (playingId != widget.track.id) {
-                                              return Mono(widget.timeLabel,
-                                                  color:
-                                                      NuraBrand.mintAlpha(0.55));
-                                            }
-                                            return Mono(
-                                              '${widget.formatMmSs(widget.position.value)} / ${widget.formatMmSs(widget.duration.value ?? Duration.zero)}',
-                                              color: NuraBrand.mintAlpha(0.55),
-                                            );
-                                          },
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _Badge({required this.text, required this.color});
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-            border: Border.all(color: color, width: 2),
-            borderRadius: BorderRadius.circular(8)),
-        child: Text(text,
-            style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                letterSpacing: 2.5,
-                fontFamily: 'JetBrainsMono',
-                fontFamilyFallback: const ['monospace'])),
-      );
-}
