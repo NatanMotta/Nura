@@ -89,7 +89,10 @@ class _ArtistShellState extends State<ArtistShell> {
           safeTop: safeTop,
           safeBottom: safeBottom,
         ),
-        const ArtistPitchScreen(key: PageStorageKey('artist_pitch')),
+        ArtistPitchScreen(
+          key: const PageStorageKey('artist_pitch'),
+          isActive: _screen == _pitch,
+        ),
         HomeProfile(
           key: const PageStorageKey('home_profile'),
           vibe: widget.vibe,

@@ -10,7 +10,8 @@ import '../../../../shared/data/mock_nura_data.dart';
 import '../providers/pitch_providers.dart';
 
 class ArtistPitchScreen extends ConsumerStatefulWidget {
-  const ArtistPitchScreen({super.key});
+  final bool isActive;
+  const ArtistPitchScreen({super.key, this.isActive = true});
 
   @override
   ConsumerState<ArtistPitchScreen> createState() => _ArtistPitchScreenState();
@@ -45,6 +46,26 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
         AudioPreviewService.instance.stop();
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(ArtistPitchScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive && !widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        AudioPreviewService.instance.stop();
+        setState(() {
+          _selectedTrackId = null;
+          _selectedLabelId = null;
+          _messageController.clear();
+          _activeTab = 0;
+          _labelSearchQuery = '';
+          _searchController.clear();
+          _selectedLabelSizeFilter = 'all';
+        });
+      });
+    }
   }
 
   @override
