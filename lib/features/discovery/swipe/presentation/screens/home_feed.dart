@@ -196,6 +196,8 @@ class _HomeFeedState extends State<HomeFeed>
       }
     }
 
+    if (!mounted) return;
+
     setState(() {
       _sourceDeck = selected;
       deck = List.of(selected);
