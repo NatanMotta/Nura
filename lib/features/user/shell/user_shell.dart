@@ -116,7 +116,10 @@ class _UserShellState extends State<UserShell> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [widget.accent.withOpacity(0.33), Colors.transparent],
+                      colors: [
+                        widget.accent.withOpacity(0.33),
+                        Colors.transparent
+                      ],
                     ),
                   ),
                 ),
@@ -125,7 +128,8 @@ class _UserShellState extends State<UserShell> {
               child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
                   // Se stiamo "rimbalzando" in cima o in fondo, ignora l'evento
-                  if (notification.metrics.outOfRange || notification.metrics.pixels <= 0) {
+                  if (notification.metrics.outOfRange ||
+                      notification.metrics.pixels <= 0) {
                     if (!_isNavVisible) setState(() => _isNavVisible = true);
                     return false;
                   }
@@ -134,9 +138,11 @@ class _UserShellState extends State<UserShell> {
                     final direction = notification.direction;
                     if (direction == ScrollDirection.reverse && _isNavVisible) {
                       setState(() => _isNavVisible = false);
-                    } else if (direction == ScrollDirection.forward && !_isNavVisible) {
+                    } else if (direction == ScrollDirection.forward &&
+                        !_isNavVisible) {
                       setState(() => _isNavVisible = true);
-                    } else if (direction == ScrollDirection.idle && !_isNavVisible) {
+                    } else if (direction == ScrollDirection.idle &&
+                        !_isNavVisible) {
                       setState(() => _isNavVisible = true);
                     }
                   } else if (notification is ScrollEndNotification) {
@@ -158,8 +164,10 @@ class _UserShellState extends State<UserShell> {
               child: ValueListenableBuilder<String?>(
                 valueListenable: AudioPreviewService.instance.playingTrackId,
                 builder: (context, trackId, _) {
-                  if (_screen != _artistProfileRoute) return const SizedBox.shrink();
-                  if (trackId == null || trackId.isEmpty) return const SizedBox.shrink();
+                  if (_screen != _artistProfileRoute)
+                    return const SizedBox.shrink();
+                  if (trackId == null || trackId.isEmpty)
+                    return const SizedBox.shrink();
                   return GlobalMiniPlayer(vibe: widget.vibe);
                 },
               ),
@@ -172,7 +180,8 @@ class _UserShellState extends State<UserShell> {
               right: 0,
               bottom: _isNavVisible ? 0 : -120, // Calm UX Floating Nav
               child: BottomNav(
-                active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
+                active:
+                    _screen == _artistProfileRoute ? RouteNames.home : _screen,
                 onChange: (value) => setState(() {
                   _screen = value;
                   _artistId = null;

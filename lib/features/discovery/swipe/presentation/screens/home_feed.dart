@@ -119,7 +119,8 @@ class _HomeFeedState extends State<HomeFeed>
       final cover = t.coverAsset;
       if (cover != null && cover.startsWith('assets/')) {
         try {
-          unawaited(precacheImage(ResizeImage(AssetImage(cover), width: 600), context));
+          final targetWidth = (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).toInt();
+          unawaited(precacheImage(ResizeImage(AssetImage(cover), width: targetWidth), context));
         } catch (_) {}
       }
     }
@@ -172,6 +173,24 @@ class _HomeFeedState extends State<HomeFeed>
     }
 
     if (!mounted) return;
+
+    // FIX V: Sincronizzazione Rigida della VRAM.
+    // Blocchiamo il rendering del deck finché la primissima copertina non è
+    // fisicamente decodificata e presente nella memoria video (pre-cached).
+    // Questo elimina il pop-in di 0.5 sec allo start.
+    if (selected.isNotEmpty) {
+      // Estraiamo il colore dominante dello shader prima di svelare la UI
+      await _resolveGlow(selected[0]);
+      if (!mounted) return;
+
+      final cover = selected[0].coverAsset;
+      if (cover != null && cover.startsWith('assets/')) {
+        try {
+          final targetWidth = (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).toInt();
+          await precacheImage(ResizeImage(AssetImage(cover), width: targetWidth), context);
+        } catch (_) {}
+      }
+    }
 
     setState(() {
       _sourceDeck = selected;
@@ -460,6 +479,7 @@ class _HomeFeedState extends State<HomeFeed>
                   Expanded(
                     child: _RoundBtn(
                       height: 52,
+                      fill: Colors.white.withValues(alpha: 0.55 * skipBtnOpacity),
                       border: Colors.black.withValues(alpha: 0.10 * skipBtnOpacity),
                       onTap: () => setState(() => impulse = 'skip_${DateTime.now().millisecondsSinceEpoch}'),
                       child: Icon(Icons.close_rounded, size: 22, color: const Color(0xFF1A1A1A).withValues(alpha: skipBtnOpacity)),
