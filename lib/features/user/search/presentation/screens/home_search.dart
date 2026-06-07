@@ -52,7 +52,8 @@ class _HomeSearchState extends State<HomeSearch> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(children: [
+    return SizedBox.expand(
+      child: Stack(children: [
       Positioned.fill(
         child: ValueListenableBuilder<double>(
           valueListenable: _scrollNotifier,
@@ -259,6 +260,6 @@ class _HomeSearchState extends State<HomeSearch> {
           ]),
         ),
       ]),
-    )]);
+    )]));
   }
 }

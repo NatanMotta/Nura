@@ -343,7 +343,8 @@ class _HomeFeedState extends State<HomeFeed>
       );
     }
 
-    return Stack(children: [
+    return SizedBox.expand(
+      child: Stack(children: [
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
@@ -502,7 +503,8 @@ class _HomeFeedState extends State<HomeFeed>
             ),
           ),
         ),
-      ]);
+      ],
+    ));
   }
 
   Future<void> _openCommentsSheet(Track track) async {
