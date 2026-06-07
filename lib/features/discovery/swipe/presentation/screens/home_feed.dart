@@ -308,13 +308,16 @@ class _HomeFeedState extends State<HomeFeed>
   void didUpdateWidget(HomeFeed oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive) {
-      if (widget.isActive) {
-        if (deck.isNotEmpty) {
-          _musicManager.initFirstTrack(deck[0].audioAsset ?? '');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.isActive) {
+          if (deck.isNotEmpty) {
+            _musicManager.initFirstTrack(deck[0].audioAsset ?? '');
+          }
+        } else {
+          _musicManager.pause();
         }
-      } else {
-        _musicManager.pause();
-      }
+      });
     }
   }
 
