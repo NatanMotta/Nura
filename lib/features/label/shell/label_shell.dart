@@ -29,7 +29,6 @@ class LabelShell extends StatefulWidget {
 }
 
 class _LabelShellState extends State<LabelShell> {
-  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier(true);
   final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
   static const _received = 'label_pitch_received';
   String _screen = RouteNames.home;
