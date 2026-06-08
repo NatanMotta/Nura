@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:isolate';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +13,6 @@ import '../../../../../core/models/track.dart';
 import '../../../../../core/services/music_player_manager.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/nura_mark.dart';
-import '../../../../../core/widgets/waveform.dart';
 import '../../../../social/data/social_engagement_service.dart';
 import '../../../../shared/data/mock_nura_data.dart';
 import '../../data/remote_tracks_service.dart';
@@ -72,7 +70,7 @@ class HeavyComputations {
                       palette.dominantColor?.color ?? 
                       const Color(0xFF1E1E1E);
                       
-    return bestColor.value;
+    return bestColor.toARGB32();
   }
 }
 
@@ -89,7 +87,6 @@ class _HomeFeedState extends State<HomeFeed>
   final ValueNotifier<double> _topDragDx = ValueNotifier<double>(0);
   Map<String, EngagementCounts> _engagementByTrack = const {};
   Set<String> _likedTrackIds = <String>{};
-  Set<String> _savedTrackIds = <String>{};
   String? _authUserId;
   late final AnimationController _deckIntroController;
   bool _deckIntroPlayed = false;
@@ -259,17 +256,14 @@ class _HomeFeedState extends State<HomeFeed>
       final user = Supabase.instance.client.auth.currentUser;
       final userId = user?.id;
       Set<String> liked = <String>{};
-      Set<String> saved = <String>{};
       if (userId != null) {
         liked = await _social.fetchUserLikedTrackIds(userId, trackIds);
-        saved = await _social.fetchUserSavedTrackIds(userId, trackIds);
       }
 
       if (!mounted) return;
       setState(() {
         _engagementByTrack = counts;
         _likedTrackIds = liked;
-        _savedTrackIds = saved;
         _authUserId = userId;
       });
     } catch (_) {
@@ -739,46 +733,3 @@ class _RoundBtn extends StatelessWidget {
         ),
       );
 }
-
-class _SocialStatChip extends StatelessWidget {
-  final IconData icon;
-  final int value;
-  final Color color;
-
-  const _SocialStatChip({
-    required this.icon,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
-          Text(
-            '$value',
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-

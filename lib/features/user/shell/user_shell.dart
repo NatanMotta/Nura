@@ -195,10 +195,12 @@ class _UserShellState extends State<UserShell> {
                       child: ValueListenableBuilder<String?>(
                         valueListenable: AudioPreviewService.instance.playingTrackId,
                         builder: (context, trackId, _) {
-                          if (_screen != _artistProfileRoute)
+                          if (_screen != _artistProfileRoute) {
                             return const SizedBox.shrink();
-                          if (trackId == null || trackId.isEmpty)
+                          }
+                          if (trackId == null || trackId.isEmpty) {
                             return const SizedBox.shrink();
+                          }
                           return GlobalMiniPlayer(vibe: widget.vibe);
                         },
                       ),

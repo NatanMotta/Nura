@@ -9,9 +9,7 @@ ui.FragmentProgram? _globalShaderProgram;
 /// Invocare nel main() prima di runApp per vincolare lo shader 
 /// nella memoria VRAM ed eliminare lo Shader Compilation Jank.
 Future<void> preloadLiquidGlassShader() async {
-  if (_globalShaderProgram == null) {
-    _globalShaderProgram = await ui.FragmentProgram.fromAsset('shaders/liquid_glass.frag');
-  }
+  _globalShaderProgram ??= await ui.FragmentProgram.fromAsset('shaders/liquid_glass.frag');
 }
 
 class MusicCard extends StatefulWidget {

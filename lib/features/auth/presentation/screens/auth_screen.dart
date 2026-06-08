@@ -120,7 +120,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<UserRole>(
-                      value: _selectedRole,
+                      initialValue: _selectedRole,
                       dropdownColor: NuraBrand.deep,
                       style: const TextStyle(color: NuraBrand.mint),
                       decoration: const InputDecoration(
