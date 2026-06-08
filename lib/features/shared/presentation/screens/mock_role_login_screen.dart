@@ -6,12 +6,50 @@ import '../../../../core/services/supabase_bootstrap.dart';
 import '../../domain/user_role.dart';
 import '../providers/user_role_provider.dart';
 import '../../../auth/presentation/screens/auth_screen.dart';
+import '../../discovery/swipe/data/remote_tracks_service.dart';
+import '../../discovery/swipe/presentation/screens/home_feed.dart';
 
-class MockRoleLoginScreen extends ConsumerWidget {
+class MockRoleLoginScreen extends ConsumerStatefulWidget {
   const MockRoleLoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MockRoleLoginScreen> createState() => _MockRoleLoginScreenState();
+}
+
+class _MockRoleLoginScreenState extends ConsumerState<MockRoleLoginScreen> {
+  UserRole? _loadingRole;
+
+  Future<void> _handleLogin(UserRole role, MockProfileIdentity identity) async {
+    if (_loadingRole != null) return;
+    setState(() => _loadingRole = role);
+
+    try {
+      // Pre-warm the cache of tracks so HomeFeed is instantly ready (No Blue Screen)
+      final tracks = await const RemoteTracksService().fetchTracks();
+      if (tracks.isNotEmpty) {
+        final firstCover = tracks[0].coverAsset;
+        if (firstCover != null && firstCover.startsWith('assets/')) {
+          await HeavyComputations.extractDominantColorSafe(firstCover);
+          if (mounted) {
+            await precacheImage(AssetImage(firstCover), context);
+          }
+        }
+      }
+      // Small artificial delay to guarantee frame rendering
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      if (!mounted) return;
+      ref.read(userRoleProvider.notifier).setRole(role);
+      ref.read(mockProfileIdentityProvider.notifier).setIdentity(identity);
+    } finally {
+      if (mounted) {
+        setState(() => _loadingRole = null);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final supabaseReady = SupabaseBootstrap.isInitialized;
 
     return Scaffold(
@@ -43,8 +81,6 @@ class MockRoleLoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   _roleButton(
-                    context,
-                    ref,
                     role: UserRole.artist,
                     label: 'Entra come Artista',
                     icon: Icons.mic_none,
@@ -55,8 +91,6 @@ class MockRoleLoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   _roleButton(
-                    context,
-                    ref,
                     role: UserRole.user,
                     label: 'Entra come Utente',
                     icon: Icons.person_outline,
@@ -67,8 +101,6 @@ class MockRoleLoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   _roleButton(
-                    context,
-                    ref,
                     role: UserRole.label,
                     label: 'Entra come Etichetta',
                     icon: Icons.apartment_outlined,
@@ -80,7 +112,7 @@ class MockRoleLoginScreen extends ConsumerWidget {
                   if (supabaseReady) ...[
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: _loadingRole != null ? null : () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => const AuthScreen(),
@@ -100,23 +132,27 @@ class MockRoleLoginScreen extends ConsumerWidget {
     );
   }
 
-  Widget _roleButton(
-    BuildContext context,
-    WidgetRef ref, {
+  Widget _roleButton({
     required UserRole role,
     required String label,
     required IconData icon,
     required MockProfileIdentity identity,
   }) {
+    final isLoading = _loadingRole == role;
+    final isDisabled = _loadingRole != null && _loadingRole != role;
+
     return ElevatedButton.icon(
-      onPressed: () {
-        ref.read(userRoleProvider.notifier).setRole(role);
-        ref.read(mockProfileIdentityProvider.notifier).setIdentity(identity);
-      },
-      icon: Icon(icon),
+      onPressed: isDisabled || isLoading ? null : () => _handleLogin(role, identity),
+      icon: isLoading 
+          ? const SizedBox(
+              width: 18, 
+              height: 18, 
+              child: CircularProgressIndicator(strokeWidth: 2, color: NuraBrand.deepest)
+            )
+          : Icon(icon),
       label: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Text(label),
+        child: Text(isLoading ? 'Caricamento feed...' : label),
       ),
     );
   }

@@ -41,36 +41,38 @@ class HomeFeed extends StatefulWidget {
 }
 
 class HeavyComputations {
+  static final Map<String, Color> _colorCache = {};
+
+  static Color? getCachedColor(String assetPath) => _colorCache[assetPath];
+
   static Future<Color> extractDominantColorSafe(String assetPath) async {
+    if (_colorCache.containsKey(assetPath)) return _colorCache[assetPath]!;
     try {
       final ByteData data = await rootBundle.load(assetPath);
       final Uint8List bytes = data.buffer.asUint8List();
-      final colorValue = await compute(_isolateColorExtraction, bytes);
-      return Color(colorValue);
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        bytes, 
+        targetWidth: 12, 
+        targetHeight: 12, 
+      );
+      final ui.FrameInfo frameInfo = await codec.getNextFrame();
+      
+      final palette = await PaletteGenerator.fromImage(
+        frameInfo.image, 
+        maximumColorCount: 4,
+      );
+      
+      final bestColor = palette.vibrantColor?.color ?? 
+                        palette.dominantColor?.color ?? 
+                        const Color(0xFF1E1E1E);
+      
+      _colorCache[assetPath] = bestColor;
+      return bestColor;
     } catch (e) {
-      debugPrint("Errore isolato PaletteGenerator: $e");
+      debugPrint("Errore PaletteGenerator: $e");
+      _colorCache[assetPath] = const Color(0xFF1E1E1E);
       return const Color(0xFF1E1E1E);
     }
-  }
-
-  static Future<int> _isolateColorExtraction(Uint8List imageBytes) async {
-    final ui.Codec codec = await ui.instantiateImageCodec(
-      imageBytes, 
-      targetWidth: 12, 
-      targetHeight: 12, 
-    );
-    final ui.FrameInfo frameInfo = await codec.getNextFrame();
-    
-    final palette = await PaletteGenerator.fromImage(
-      frameInfo.image, 
-      maximumColorCount: 4,
-    );
-    
-    final bestColor = palette.vibrantColor?.color ?? 
-                      palette.dominantColor?.color ?? 
-                      const Color(0xFF1E1E1E);
-                      
-    return bestColor.toARGB32();
   }
 }
 
@@ -159,7 +161,31 @@ class _HomeFeedState extends State<HomeFeed>
       duration: const Duration(milliseconds: 900),
     );
     _sourceDeck = List.of(kTracks);
-    deck = const [];
+    
+    final cached = RemoteTracksService.cachedTracks;
+    if (cached != null && cached.isNotEmpty) {
+      deck = List.of(cached);
+      _sourceDeck = List.of(cached);
+      _deckReady = true;
+      final firstCover = deck[0].coverAsset;
+      if (firstCover != null) {
+        final cachedColor = HeavyComputations.getCachedColor(firstCover);
+        if (cachedColor != null) {
+          _ambientGlowCache[deck[0].id] = cachedColor;
+        } else {
+          _ambientGlowCache[deck[0].id] = deck[0].swatch;
+        }
+      } else {
+        _ambientGlowCache[deck[0].id] = deck[0].swatch;
+      }
+      // Trigger the intro animation instantly
+      _deckIntroController.forward(from: 0.0);
+      _deckIntroPlayed = true;
+    } else {
+      deck = const [];
+      _deckReady = false;
+    }
+    
     _loadDeckFromCloud();
   }
 
@@ -173,9 +199,11 @@ class _HomeFeedState extends State<HomeFeed>
   }
 
   Future<void> _loadDeckFromCloud() async {
-    setState(() {
-      _deckReady = false;
-    });
+    if (!_deckReady) {
+      setState(() {
+        _deckReady = false;
+      });
+    }
 
     List<Track> selected = List.of(kTracks);
     try {

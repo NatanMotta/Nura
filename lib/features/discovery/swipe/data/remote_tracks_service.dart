@@ -7,7 +7,11 @@ import '../../../../core/services/supabase_bootstrap.dart';
 class RemoteTracksService {
   const RemoteTracksService();
 
+  static List<Track>? _cachedTracks;
+  static List<Track>? get cachedTracks => _cachedTracks;
+
   Future<List<Track>> fetchTracks({int limit = 30}) async {
+    if (_cachedTracks != null && _cachedTracks!.isNotEmpty) return _cachedTracks!;
     if (!SupabaseBootstrap.isInitialized) return const [];
 
     final client = Supabase.instance.client;
@@ -18,7 +22,7 @@ class RemoteTracksService {
         .order('created_at', ascending: false)
         .limit(limit);
 
-    return rows
+    _cachedTracks = rows
         .whereType<Map<String, dynamic>>()
         .map(_toTrack)
         .where((track) =>
@@ -27,6 +31,8 @@ class RemoteTracksService {
             track.artist.trim().isNotEmpty &&
             track.artist != 'Unknown Artist')
         .toList(growable: false);
+        
+    return _cachedTracks!;
   }
 
   Track _toTrack(Map<String, dynamic> row) {
