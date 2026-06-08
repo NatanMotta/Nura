@@ -60,15 +60,12 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   final _audio = AudioPreviewService.instance;
   final ScrollController _scrollController = ScrollController();
 
-  bool _loading = true;
   AppAuthUser? _authUser;
   String? _displayName;
   String? _username;
-  String? _bio;
   String? _profileImageAsset;
 
   List<_ProfileTrack> _tracks = const [];
-  bool _showMiniPlayer = false;
   int? _currentTrackIndex;
   final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
 
@@ -101,12 +98,11 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       if (authUser != null && SupabaseBootstrap.isInitialized) {
         final row = await Supabase.instance.client
             .from('profiles')
-            .select('display_name,image_asset,bio')
+            .select('display_name,image_asset')
             .eq('id', authUser.id)
             .maybeSingle();
         displayName = row?['display_name'] as String?;
         _profileImageAsset = row?['image_asset'] as String?;
-        _bio = row?['bio'] as String?;
         final email = authUser.email;
         if (email != null && email.contains('@')) {
           username = email.split('@').first;
@@ -121,11 +117,10 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
         _displayName = displayName;
         _username = username;
         _tracks = tracks;
-        _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {});
     }
   }
 
@@ -210,62 +205,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     return '@guest';
   }
 
-  String get _profileBio {
-    if (_bio != null && _bio!.trim().isNotEmpty) return _bio!.trim();
-    final role = _authUser?.role ?? ref.read(userRoleProvider);
-    return switch (role) {
-      UserRole.artist => 'Artista emergente su Nura.',
-      UserRole.label => 'Label indipendente in scouting attivo.',
-      UserRole.user => 'Ascolto, salvo, supporto talenti.',
-      null => 'Profilo demo in ambiente di test.',
-    };
-  }
-
-  String get _initials {
-    final source = _name.trim();
-    if (source.isEmpty) return 'U';
-    final parts = source.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return (parts.first[0] + parts.last[0]).toUpperCase();
-  }
-
-  Widget _profileAvatar({double size = 84}) {
-    if (_profileImageAsset != null && _profileImageAsset!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
-        child: Image.asset(
-          _profileImageAsset!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallbackAvatar(size),
-        ),
-      );
-    }
-    return _fallbackAvatar(size);
-  }
-
-  Widget _fallbackAvatar(double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: widget.accent.withValues(alpha: 0.16),
-        border: Border.all(color: widget.vibe.cardBorder),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        _initials,
-        style: TextStyle(
-          color: widget.accent,
-          fontWeight: FontWeight.w700,
-          fontSize: size * 0.28,
-        ),
-      ),
-    );
-  }
-
   String _durationLabel(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
@@ -294,7 +233,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     final targetIndex = _tracks.indexWhere((t) => t.id == track.id);
     if (mounted) {
       setState(() {
-        _showMiniPlayer = true;
         _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
       });
     }
@@ -304,7 +242,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       await _audio.pause();
       if (!mounted) return;
       setState(() {
-        _showMiniPlayer = true;
         _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
       });
       return;
@@ -313,7 +250,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       await _audio.resume();
       if (!mounted) return;
       setState(() {
-        _showMiniPlayer = true;
         _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
       });
       return;
@@ -321,7 +257,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     await _audio.playTrack(trackId: track.id, assetPath: localAsset);
     if (!mounted) return;
     setState(() {
-      _showMiniPlayer = true;
       _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
     });
   }
@@ -391,11 +326,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     );
   }
 
-  Future<void> _playAtIndex(int index) async {
-    if (index < 0 || index >= _tracks.length) return;
-    await _onTapTrack(_tracks[index]);
-  }
-
   Widget _miniPlayer() {
     return ValueListenableBuilder<String?>(
       valueListenable: _audio.playingTrackId,
@@ -434,8 +364,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                       ),
                     ),
                   ),
-                  if (effectiveProfileImageAsset != null &&
-                      effectiveProfileImageAsset.isNotEmpty)
+                  if (effectiveProfileImageAsset.isNotEmpty)
                     Positioned(
                       top: -scrollOffset,
                       left: 0,
@@ -528,7 +457,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                     ],
                   ),
                 ),
-              Container(
+              SizedBox(
                 width: double.infinity,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -721,45 +650,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       );
 }
 
-class _SummaryMetric extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool center;
-
-  const _SummaryMetric({
-    required this.label,
-    required this.value,
-    this.center = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xFF1A1A1A),
-            fontWeight: FontWeight.w900,
-            fontSize: 24,
-            height: 1,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.black54,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _TrackPostCard extends StatelessWidget {
   final int rank;
   final _ProfileTrack track;
@@ -922,21 +812,6 @@ class _TrackPostCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Action extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _Action({required this.icon, required this.onTap, required this.color});
-
-  @override
-  Widget build(BuildContext context) => InkResponse(
-    onTap: onTap,
-    radius: 18,
-    child: Icon(icon, size: 19, color: const Color(0xFF617087)),
-  );
 }
 
 class _UploadTrackMockScreen extends StatelessWidget {

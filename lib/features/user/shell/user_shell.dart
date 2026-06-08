@@ -182,10 +182,7 @@ class _UserShellState extends State<UserShell> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [
-                        widget.accent.withValues(alpha: 0.33),
-                        Colors.transparent
-                      ],
+                      colors: [widget.accent.withValues(alpha: 0.33), Colors.transparent],
                     ),
                   ),
                 ),

@@ -12,7 +12,6 @@ import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/models/track.dart';
 import '../../../../../core/services/music_player_manager.dart';
 import '../../../../../core/widgets/mono.dart';
-import '../../../../../core/widgets/nura_mark.dart';
 import '../../../../social/data/social_engagement_service.dart';
 import '../../../../shared/data/mock_nura_data.dart';
 import '../../data/remote_tracks_service.dart';
@@ -623,162 +622,6 @@ class _HomeFeedState extends State<HomeFeed>
     ));
   }
 
-  Future<void> _openCommentsSheet(Track track) async {
-    final userId = _authUserId;
-    final controller = TextEditingController();
-    List<TrackComment> comments = const [];
-    bool loading = true;
-    bool posting = false;
-    bool requested = false;
-
-    if (mounted) {
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: NuraBrand.deepest,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setModalState) {
-              Future<void> load() async {
-                final fetched = await _social.fetchComments(track.id);
-                setModalState(() {
-                  comments = fetched;
-                  loading = false;
-                });
-              }
-
-              if (loading && !requested) {
-                requested = true;
-                unawaited(load());
-              }
-
-              Future<void> post() async {
-                final text = controller.text.trim();
-                if (text.isEmpty || userId == null || posting) return;
-                setModalState(() => posting = true);
-                try {
-                  await _social.addComment(
-                    trackId: track.id,
-                    userId: userId,
-                    body: text,
-                  );
-                  controller.clear();
-                  final fetched = await _social.fetchComments(track.id);
-                  setModalState(() => comments = fetched);
-                  await _refreshTrackEngagement(track.id);
-                } finally {
-                  setModalState(() => posting = false);
-                }
-              }
-
-              return DraggableScrollableSheet(
-                initialChildSize: 0.64,
-                minChildSize: 0.4,
-                maxChildSize: 0.9,
-                expand: false,
-                builder: (_, scrollController) {
-                  return Padding(
-                    padding:
-                        const EdgeInsets.only(left: 16, right: 16, top: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Commenti · ${track.track}',
-                          style: const TextStyle(
-                            color: NuraBrand.mint,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Expanded(
-                          child: loading
-                              ? const Center(child: CircularProgressIndicator())
-                              : comments.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                        'Nessun commento',
-                                        style: TextStyle(
-                                            color: NuraBrand.mintAlpha(0.55)),
-                                      ),
-                                    )
-                                  : ListView.separated(
-                                      controller: scrollController,
-                                      itemCount: comments.length,
-                                      separatorBuilder: (_, __) => Divider(
-                                        height: 1,
-                                        color: NuraBrand.mintAlpha(0.10),
-                                      ),
-                                      itemBuilder: (_, i) {
-                                        final c = comments[i];
-                                        return ListTile(
-                                          dense: true,
-                                          title: Text(
-                                            c.authorName ?? 'Utente',
-                                            style: const TextStyle(
-                                              color: NuraBrand.mint,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            c.body,
-                                            style: TextStyle(
-                                              color: NuraBrand.mintAlpha(0.8),
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                        ),
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).viewInsets.bottom +
-                                  12),
-                          child: TextField(
-                            controller: controller,
-                            style: const TextStyle(color: NuraBrand.mint),
-                            enabled: userId != null && !posting,
-                            decoration: InputDecoration(
-                              hintText: userId == null
-                                  ? 'Fai login per commentare'
-                                  : 'Scrivi un commento...',
-                              hintStyle:
-                                  TextStyle(color: NuraBrand.mintAlpha(0.45)),
-                              filled: true,
-                              fillColor: NuraBrand.deepMidAlpha(0.6),
-                              suffixIcon: IconButton(
-                                onPressed:
-                                    (userId == null || posting) ? null : post,
-                                icon: Icon(Icons.send, color: widget.accent),
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    BorderSide(color: NuraBrand.mintAlpha(0.2)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    BorderSide(color: NuraBrand.mintAlpha(0.2)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
-      );
-    }
-  }
 }
 
 class _RoundBtn extends StatelessWidget {
@@ -808,3 +651,5 @@ class _RoundBtn extends StatelessWidget {
         ),
       );
 }
+
+
