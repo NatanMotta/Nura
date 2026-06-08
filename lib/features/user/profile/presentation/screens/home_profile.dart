@@ -56,6 +56,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   static const String _defaultProfileHeroImage =
       'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg';
   static const double _bottomNavHeight = 74;
+
   final _audio = AudioPreviewService.instance;
   final ScrollController _scrollController = ScrollController();
 

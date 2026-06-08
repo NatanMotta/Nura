@@ -7,8 +7,10 @@ import '../../../core/services/audio_preview_service.dart';
 import '../../../core/widgets/global_mini_player.dart';
 import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
+import '../../events/presentation/screens/empty_events_tab.dart';
 import '../../user/profile/presentation/screens/home_profile.dart';
 import '../../user/search/presentation/screens/home_search.dart';
+import '../../user/shell/user_shell.dart' show GlobalHeader;
 
 class LabelShell extends StatefulWidget {
   final NuraVibe vibe;
@@ -27,6 +29,8 @@ class LabelShell extends StatefulWidget {
 }
 
 class _LabelShellState extends State<LabelShell> {
+  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier(true);
+  final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
   static const _received = 'label_pitch_received';
   String _screen = RouteNames.home;
 
@@ -56,18 +60,45 @@ class _LabelShellState extends State<LabelShell> {
     final inset = MediaQuery.of(context).padding;
     final safeTop = inset.top > 0 ? inset.top : 16.0;
     final safeBottom = inset.bottom > 0 ? inset.bottom : 16.0;
+    final String? headerTitle = switch (_screen) {
+      RouteNames.search => 'Cerca',
+      'events' => 'Eventi',
+      RouteNames.profile => null,
+      _artistProfileRoute => null,
+      _received => 'Pitch Ricevuti',
+      RouteNames.home => 'Discovery',
+      _ => 'Discovery',
+    };
 
-    final body = switch (_screen) {
+    final double contentSafeTop = safeTop + 56.0;
+
+    final body = NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.axis == Axis.vertical) {
+          final isScrolled = notification.metrics.pixels > 20;
+          if (_isScrolledNotifier.value != isScrolled) {
+            _isScrolledNotifier.value = isScrolled;
+          }
+        }
+        return false;
+      },
+      child: switch (_screen) {
       RouteNames.search => HomeSearch(
           vibe: widget.vibe,
           accent: widget.accent,
           waveform: widget.waveform,
-          safeTop: safeTop,
+          safeTop: contentSafeTop,
           safeBottom: safeBottom,
         ),
       _received => const _PlaceholderScreen(
           title: 'Pitch Ricevuti',
           subtitle: 'Inbox etichetta/curatore (mock shell)',
+        ),
+      'events' => EmptyEventsTab(
+          vibe: widget.vibe,
+          accent: widget.accent,
+          safeTop: contentSafeTop,
+          safeBottom: safeBottom,
         ),
       RouteNames.profile => HomeProfile(
           vibe: widget.vibe,
@@ -88,7 +119,8 @@ class _LabelShellState extends State<LabelShell> {
           safeBottom: safeBottom,
           onArtistTap: _onArtistTap,
         ),
-    };
+      },
+    );
 
     return Scaffold(
       body: Container(
@@ -96,6 +128,39 @@ class _LabelShellState extends State<LabelShell> {
         child: Stack(
           children: [
             Positioned.fill(child: body),
+            // Global Header
+            Positioned(
+              top: safeTop,
+              left: 16,
+              right: 16,
+              child: IgnorePointer(
+                ignoring: _screen == _artistProfileRoute,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: _screen == _artistProfileRoute ? 0.0 : 1.0,
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _isScrolledNotifier,
+                        builder: (context, isScrolled, child) {
+                          return GlobalHeader(
+                            vibe: widget.vibe,
+                            accent: widget.accent,
+                            safeTop: safeTop,
+                            safeBottom: safeBottom,
+                            title: headerTitle,
+                            isScrolled: isScrolled,
+                            onAvatarTap: () {
+                              setState(() {
+                                _screen = RouteNames.profile;
+                                _artistId = null;
+                                _artistName = null;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                ),
+              ),
+            ),
             // Mini player — solo nel profilo artista, sopra la nav bar
             Positioned(
               left: 0,
@@ -127,8 +192,8 @@ class _LabelShellState extends State<LabelShell> {
                 items: const [
                   BottomNavItem(RouteNames.home, 'Home', Icons.home_outlined),
                   BottomNavItem(RouteNames.search, 'Cerca', Icons.search),
-                  BottomNavItem(_received, 'Pitch Ricevuti', Icons.inbox_outlined),
-                  BottomNavItem(RouteNames.profile, 'Profilo', Icons.person_outline),
+                  BottomNavItem(_received, 'Ricevuti', Icons.inbox_outlined),
+                  BottomNavItem('events', 'Eventi', Icons.event_rounded),
                 ],
               ),
             ),

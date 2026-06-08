@@ -40,7 +40,7 @@ class BottomNav extends StatelessWidget {
           BottomNavItem(RouteNames.home, 'Home', Icons.home_rounded),
           BottomNavItem(RouteNames.search, 'Cerca', Icons.search_rounded),
           BottomNavItem('artist_pitch', 'Pitch', Icons.music_note_rounded),
-          BottomNavItem(RouteNames.profile, 'Profilo', Icons.person_rounded),
+          BottomNavItem('events', 'Eventi', Icons.event_rounded),
         ];
 
     // Background gradient fluido ed elegante (più trasparente come richiesto)

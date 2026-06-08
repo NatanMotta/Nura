@@ -8,6 +8,10 @@ import '../../../core/widgets/global_mini_player.dart';
 import '../../../core/services/audio_preview_service.dart';
 import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../events/presentation/screens/empty_events_tab.dart';
+import '../../shared/presentation/providers/user_role_provider.dart';
 import '../profile/presentation/screens/home_profile.dart';
 import '../search/presentation/screens/home_search.dart';
 
@@ -28,12 +32,13 @@ class UserShell extends StatefulWidget {
 }
 
 class _UserShellState extends State<UserShell> {
+  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier(true);
+  final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
   String _screen = RouteNames.home;
 
   // Artist profile navigation state
   String? _artistId;
   String? _artistName;
-  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier<bool>(true);
   static const _artistProfileRoute = 'artist_profile';
 
   void _onArtistTap(String artistId, String artistName) {
@@ -60,14 +65,36 @@ class _UserShellState extends State<UserShell> {
 
     final int currentIndex = switch (_screen) {
       RouteNames.search => 1,
-      RouteNames.profile => 2,
+      'events' => 2,
       _artistProfileRoute => 3,
+      RouteNames.profile => 4,
       _ => 0,
     };
 
-    final body = IndexedStack(
-      index: currentIndex,
-      children: [
+    final String? headerTitle = switch (_screen) {
+      RouteNames.search => 'Cerca',
+      'events' => 'Eventi',
+      RouteNames.profile => null,
+      _artistProfileRoute => null,
+      RouteNames.home => 'Discovery',
+      _ => 'Discovery',
+    };
+
+    final double contentSafeTop = safeTop + 56.0;
+
+    final body = NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.axis == Axis.vertical) {
+          final isScrolled = notification.metrics.pixels > 20;
+          if (_isScrolledNotifier.value != isScrolled) {
+            _isScrolledNotifier.value = isScrolled;
+          }
+        }
+        return false;
+      },
+      child: IndexedStack(
+        index: currentIndex,
+        children: [
         TickerMode(
           enabled: currentIndex == 0 || currentIndex == 3,
           child: IgnorePointer(
@@ -93,7 +120,7 @@ class _UserShellState extends State<UserShell> {
               vibe: widget.vibe,
               accent: widget.accent,
               waveform: widget.waveform,
-              safeTop: safeTop,
+              safeTop: contentSafeTop,
               safeBottom: safeBottom,
             ),
           ),
@@ -102,11 +129,11 @@ class _UserShellState extends State<UserShell> {
           enabled: currentIndex == 2,
           child: IgnorePointer(
             ignoring: currentIndex != 2,
-            child: HomeProfile(
-              key: const PageStorageKey('home_profile'),
+            child: EmptyEventsTab(
+              key: const PageStorageKey('events_tab'),
               vibe: widget.vibe,
               accent: widget.accent,
-              safeTop: safeTop,
+              safeTop: contentSafeTop,
               safeBottom: safeBottom,
             ),
           ),
@@ -123,7 +150,21 @@ class _UserShellState extends State<UserShell> {
             ),
           ),
         ),
+        TickerMode(
+          enabled: currentIndex == 4,
+          child: IgnorePointer(
+            ignoring: currentIndex != 4,
+            child: HomeProfile(
+              key: const PageStorageKey('home_profile'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
+        ),
       ],
+    ),
     );
 
     return Scaffold(
@@ -177,6 +218,44 @@ class _UserShellState extends State<UserShell> {
                   return false;
                 },
                 child: body,
+              ),
+            ),
+            // Global Header
+            Positioned(
+              top: safeTop,
+              left: 16,
+              right: 16,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _navVisibilityNotifier,
+                builder: (context, isVisible, child) {
+                  return AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: isVisible && _screen != _artistProfileRoute ? 1.0 : 0.0,
+                    child: IgnorePointer(
+                      ignoring: !(isVisible && _screen != _artistProfileRoute),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _isScrolledNotifier,
+                        builder: (context, isScrolled, child) {
+                          return GlobalHeader(
+                            vibe: widget.vibe,
+                            accent: widget.accent,
+                            safeTop: safeTop,
+                            safeBottom: safeBottom,
+                            title: headerTitle,
+                            isScrolled: isScrolled,
+                            onAvatarTap: () {
+                              setState(() {
+                                _screen = RouteNames.profile;
+                                _artistId = null;
+                                _artistName = null;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             // Mini player e Bottom Nav avvolti in ValueListenableBuilder
@@ -233,6 +312,88 @@ class _UserShellState extends State<UserShell> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class GlobalHeader extends ConsumerWidget {
+  final NuraVibe vibe;
+  final Color accent;
+  final double safeTop;
+  final double safeBottom;
+  final String? title;
+  final bool isScrolled;
+  final VoidCallback onAvatarTap;
+
+  const GlobalHeader({
+    super.key,
+    required this.vibe,
+    required this.accent,
+    required this.safeTop,
+    required this.safeBottom,
+    this.title,
+    this.isScrolled = false,
+    required this.onAvatarTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final identity = ref.watch(mockProfileIdentityProvider);
+    final avatarAsset = ref.watch(mockProfileImageAssetProvider);
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        GestureDetector(
+          onTap: onAvatarTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: avatarAsset != null
+                  ? DecorationImage(
+                      image: AssetImage(avatarAsset),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+              color: avatarAsset == null ? Colors.white12 : null,
+              border: avatarAsset == null ? Border.all(color: Colors.white24, width: 1.5) : null,
+            ),
+            alignment: Alignment.center,
+            child: avatarAsset == null
+                ? Text(
+                    identity != null && identity.displayName.isNotEmpty
+                        ? identity.displayName[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                    ),
+                  )
+                : null,
+          ),
+        ),
+        if (title != null) ...[
+          const SizedBox(width: 14),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: isScrolled ? 0.0 : 1.0,
+            child: Text(
+              title!,
+              style: const TextStyle(
+                color: Color(0xFF1A1A1A),
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.8,
+                height: 1.1,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

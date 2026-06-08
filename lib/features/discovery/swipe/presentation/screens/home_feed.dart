@@ -51,21 +51,21 @@ class HeavyComputations {
       final ByteData data = await rootBundle.load(assetPath);
       final Uint8List bytes = data.buffer.asUint8List();
       final ui.Codec codec = await ui.instantiateImageCodec(
-        bytes, 
-        targetWidth: 12, 
-        targetHeight: 12, 
+        bytes,
+        targetWidth: 12,
+        targetHeight: 12,
       );
       final ui.FrameInfo frameInfo = await codec.getNextFrame();
-      
+
       final palette = await PaletteGenerator.fromImage(
-        frameInfo.image, 
+        frameInfo.image,
         maximumColorCount: 4,
       );
-      
-      final bestColor = palette.vibrantColor?.color ?? 
-                        palette.dominantColor?.color ?? 
-                        const Color(0xFF1E1E1E);
-      
+
+      final bestColor = palette.vibrantColor?.color ??
+          palette.dominantColor?.color ??
+          const Color(0xFF1E1E1E);
+
       _colorCache[assetPath] = bestColor;
       return bestColor;
     } catch (e) {
@@ -114,7 +114,8 @@ class _HomeFeedState extends State<HomeFeed>
 
     if (track.coverAsset != null && track.coverAsset!.startsWith('assets/')) {
       try {
-        final extractedColor = await HeavyComputations.extractDominantColorSafe(track.coverAsset!);
+        final extractedColor =
+            await HeavyComputations.extractDominantColorSafe(track.coverAsset!);
         // ANNULLAMENTO IMPLICITO: se il requestId è cambiato, questa
         // estrazione è obsoleta (la carta è stata espulsa). Scarta.
         if (!mounted || _glowRequestIds[track.id] != requestId) return;
@@ -137,16 +138,19 @@ class _HomeFeedState extends State<HomeFeed>
 
   void _maintainRollingCache() {
     if (!mounted) return;
-    
+
     for (int i = 0; i < math.min(4, deck.length); i++) {
       final t = deck[i];
       unawaited(_resolveGlow(t));
-      
+
       final cover = t.coverAsset;
       if (cover != null && cover.startsWith('assets/')) {
         try {
-          final targetWidth = (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).toInt();
-          unawaited(precacheImage(ResizeImage(AssetImage(cover), width: targetWidth), context));
+          final targetWidth = (MediaQuery.of(context).size.width *
+                  MediaQuery.of(context).devicePixelRatio)
+              .toInt();
+          unawaited(precacheImage(
+              ResizeImage(AssetImage(cover), width: targetWidth), context));
         } catch (_) {}
       }
     }
@@ -161,7 +165,7 @@ class _HomeFeedState extends State<HomeFeed>
       duration: const Duration(milliseconds: 900),
     );
     _sourceDeck = List.of(kTracks);
-    
+
     final cached = RemoteTracksService.cachedTracks;
     if (cached != null && cached.isNotEmpty) {
       deck = List.of(cached);
@@ -185,13 +189,14 @@ class _HomeFeedState extends State<HomeFeed>
       deck = const [];
       _deckReady = false;
     }
-    
+
     _loadDeckFromCloud();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       _musicManager.pause();
     } else if (state == AppLifecycleState.resumed) {
       _musicManager.resume();
@@ -207,7 +212,8 @@ class _HomeFeedState extends State<HomeFeed>
 
     List<Track> selected = List.of(kTracks);
     try {
-      final remote = await _remoteTracks.fetchTracks().timeout(const Duration(seconds: 5));
+      final remote =
+          await _remoteTracks.fetchTracks().timeout(const Duration(seconds: 5));
       if (remote.isNotEmpty) {
         selected = List.of(remote);
       } else {
@@ -221,8 +227,7 @@ class _HomeFeedState extends State<HomeFeed>
           );
         }
       }
-    } catch (_) {
-    }
+    } catch (_) {}
 
     if (!mounted) return;
 
@@ -238,8 +243,11 @@ class _HomeFeedState extends State<HomeFeed>
       final cover = selected[0].coverAsset;
       if (cover != null && cover.startsWith('assets/')) {
         try {
-          final targetWidth = (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).toInt();
-          await precacheImage(ResizeImage(AssetImage(cover), width: targetWidth), context);
+          final targetWidth = (MediaQuery.of(context).size.width *
+                  MediaQuery.of(context).devicePixelRatio)
+              .toInt();
+          await precacheImage(
+              ResizeImage(AssetImage(cover), width: targetWidth), context);
         } catch (_) {}
       }
     }
@@ -294,8 +302,7 @@ class _HomeFeedState extends State<HomeFeed>
         _likedTrackIds = liked;
         _authUserId = userId;
       });
-    } catch (_) {
-    }
+    } catch (_) {}
   }
 
   Future<void> _refreshTrackEngagement(String trackId) async {
@@ -393,7 +400,8 @@ class _HomeFeedState extends State<HomeFeed>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.music_off_rounded, size: 48, color: Colors.white54),
+            const Icon(Icons.music_off_rounded,
+                size: 48, color: Colors.white54),
             const SizedBox(height: 16),
             const Text(
               'Nessun brano trovato',
@@ -404,9 +412,11 @@ class _HomeFeedState extends State<HomeFeed>
               onPressed: _loadDeckFromCloud,
               style: ElevatedButton.styleFrom(
                 backgroundColor: NuraBrand.pink,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text('Ricarica', style: TextStyle(color: Colors.white)),
+              child:
+                  const Text('Ricarica', style: TextStyle(color: Colors.white)),
             )
           ],
         ),
@@ -414,7 +424,8 @@ class _HomeFeedState extends State<HomeFeed>
     }
 
     return SizedBox.expand(
-      child: Stack(children: [
+        child: Stack(
+      children: [
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
@@ -428,28 +439,32 @@ class _HomeFeedState extends State<HomeFeed>
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(18, widget.safeTop, 18, 8),
-          child: Row(children: [
-            NuraMark(size: 26, color: widget.accent, dropShadow: true),
-            const SizedBox(width: 8),
-            const Text('nura',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                    letterSpacing: 0.4)),
-            const Spacer(),
-            Mono('♥ $likes', color: Color(0xFF1A1A1A)),
-            const SizedBox(width: 8),
-            Mono('↳ $skips', color: Colors.black45),
-          ]),
+          child: SizedBox(
+            height: 40,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Spacer(),
+                const Icon(Icons.favorite, size: 14, color: Color(0xFFE53935)),
+                const SizedBox(width: 4),
+                Mono('$likes', color: const Color(0xFF1A1A1A)),
+                const SizedBox(width: 12),
+                const Icon(Icons.turn_left, size: 14, color: Colors.black45),
+                const SizedBox(width: 4),
+                Mono('$skips', color: Colors.black45),
+              ],
+            ),
+          ),
         ),
         Positioned.fill(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final requiredHeight = constraints.maxHeight - widget.safeTop - nav;
-              final verticalPadding = requiredHeight < 500 ? 20.0 : 50.0;
-              final bottomPadding = requiredHeight < 500 ? nav + 20.0 : nav + 100.0;
-              
+              final requiredHeight =
+                  constraints.maxHeight - widget.safeTop - nav;
+              final verticalPadding = requiredHeight < 500 ? 56.0 : 76.0;
+              final bottomPadding =
+                  requiredHeight < 500 ? nav + 20.0 : nav + 100.0;
+
               return Padding(
                 padding: EdgeInsets.only(
                   top: widget.safeTop + verticalPadding,
@@ -468,73 +483,86 @@ class _HomeFeedState extends State<HomeFeed>
                       // il cold-start VRAM della terza carta durante swipe
                       // ad alta velocità (escape velocity > 1000px/s).
                       for (int i = math.min(2, deck.length - 1); i >= 0; i--)
-                    if (i == 2)
-                      // Terza carta: pre-inizializzata in VRAM, nascosta sotto.
-                      // Non ha animazione di scala per risparmiare GPU.
-                      Offstage(
-                        offstage: false,
-                        child: Transform.scale(
-                          scale: 0.85,
-                          child: MusicCard(
-                            key: _getCardKey(deck[i].id),
-                            track: deck[i],
-                            isTopCard: false,
-                            ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
-                            onArtistTap: null,
-                          ),
-                        ),
-                      )
-                    else if (i == 1)
-                      ValueListenableBuilder<double>(
-                        valueListenable: _topDragDx,
-                        builder: (context, dx, child) {
-                          final progress = (dx.abs() / (MediaQuery.of(context).size.width / 2)).clamp(0.0, 1.0);
-                          final scale = 0.90 + (0.10 * progress);
-                          return Transform.translate(
-                            offset: Offset(0, 30 * (1 - progress)),
+                        if (i == 2)
+                          // Terza carta: pre-inizializzata in VRAM, nascosta sotto.
+                          // Non ha animazione di scala per risparmiare GPU.
+                          Offstage(
+                            offstage: false,
                             child: Transform.scale(
-                              scale: scale,
+                              scale: 0.85,
                               child: MusicCard(
-                                key: _getCardKey(deck[i].id), 
-                                track: deck[i], 
+                                key: _getCardKey(deck[i].id),
+                                track: deck[i],
                                 isTopCard: false,
-                                ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
-                                onArtistTap: () {
-                                  _musicManager.pause();
-                                  if (widget.onArtistTap != null) {
-                                    widget.onArtistTap!(deck[i].artistId ?? 'mock_artist_${deck[i].id}', deck[i].artist);
-                                  }
-                                },
+                                ambientGlow: _ambientGlowCache[deck[i].id] ??
+                                    Colors.transparent,
+                                onArtistTap: null,
                               ),
                             ),
-                          );
-                        },
-                      )
-                    else if (i == 0)
-                      PhysicsSwiper(
-                        key: ValueKey(deck[i].id),
-                        impulse: impulse,
-                        onSwipe: (dir) => _decide(dir == SwipeDirection.right ? 'like' : 'skip'),
-                        onDragUpdate: (dx) => _topDragDx.value = dx,
-                        child: ValueListenableBuilder<double>(
-                          valueListenable: _topDragDx,
-                          builder: (context, dx, child) {
-                            return MusicCard(
-                              key: _getCardKey(deck[i].id), 
-                              track: deck[i], 
-                              isTopCard: true,
-                              isDragging: dx.abs() > 0.0,
-                              ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
-                              onArtistTap: () {
-                                _musicManager.pause();
-                                if (widget.onArtistTap != null) {
-                                  widget.onArtistTap!(deck[i].artistId ?? 'mock_artist_${deck[i].id}', deck[i].artist);
-                                }
+                          )
+                        else if (i == 1)
+                          ValueListenableBuilder<double>(
+                            valueListenable: _topDragDx,
+                            builder: (context, dx, child) {
+                              final progress = (dx.abs() /
+                                      (MediaQuery.of(context).size.width / 2))
+                                  .clamp(0.0, 1.0);
+                              final scale = 0.90 + (0.10 * progress);
+                              return Transform.translate(
+                                offset: Offset(0, 30 * (1 - progress)),
+                                child: Transform.scale(
+                                  scale: scale,
+                                  child: MusicCard(
+                                    key: _getCardKey(deck[i].id),
+                                    track: deck[i],
+                                    isTopCard: false,
+                                    ambientGlow:
+                                        _ambientGlowCache[deck[i].id] ??
+                                            Colors.transparent,
+                                    onArtistTap: () {
+                                      _musicManager.pause();
+                                      if (widget.onArtistTap != null) {
+                                        widget.onArtistTap!(
+                                            deck[i].artistId ??
+                                                'mock_artist_${deck[i].id}',
+                                            deck[i].artist);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        else if (i == 0)
+                          PhysicsSwiper(
+                            key: ValueKey(deck[i].id),
+                            impulse: impulse,
+                            onSwipe: (dir) => _decide(
+                                dir == SwipeDirection.right ? 'like' : 'skip'),
+                            onDragUpdate: (dx) => _topDragDx.value = dx,
+                            child: ValueListenableBuilder<double>(
+                              valueListenable: _topDragDx,
+                              builder: (context, dx, child) {
+                                return MusicCard(
+                                  key: _getCardKey(deck[i].id),
+                                  track: deck[i],
+                                  isTopCard: true,
+                                  isDragging: dx.abs() > 0.0,
+                                  ambientGlow: _ambientGlowCache[deck[i].id] ??
+                                      Colors.transparent,
+                                  onArtistTap: () {
+                                    _musicManager.pause();
+                                    if (widget.onArtistTap != null) {
+                                      widget.onArtistTap!(
+                                          deck[i].artistId ??
+                                              'mock_artist_${deck[i].id}',
+                                          deck[i].artist);
+                                    }
+                                  },
+                                );
                               },
-                            );
-                          },
-                        ),
-                      )
+                            ),
+                          )
                     ],
                   ),
                 ),
@@ -552,16 +580,24 @@ class _HomeFeedState extends State<HomeFeed>
               valueListenable: _topDragDx,
               builder: (_, dx, __) {
                 final norm = (dx.abs() / 120).clamp(0.0, 1.0);
-                final skipBtnOpacity = dx > 0 ? (1.0 - norm).clamp(0.0, 1.0) : 1.0;
-                final likeBtnOpacity = dx < 0 ? (1.0 - norm).clamp(0.0, 1.0) : 1.0;
+                final skipBtnOpacity =
+                    dx > 0 ? (1.0 - norm).clamp(0.0, 1.0) : 1.0;
+                final likeBtnOpacity =
+                    dx < 0 ? (1.0 - norm).clamp(0.0, 1.0) : 1.0;
                 return Row(children: [
                   Expanded(
                     child: _RoundBtn(
                       height: 52,
-                      fill: Colors.white.withValues(alpha: 0.55 * skipBtnOpacity),
-                      border: Colors.black.withValues(alpha: 0.10 * skipBtnOpacity),
-                      onTap: () => setState(() => impulse = 'skip_${DateTime.now().millisecondsSinceEpoch}'),
-                      child: Icon(Icons.close_rounded, size: 22, color: const Color(0xFF1A1A1A).withValues(alpha: skipBtnOpacity)),
+                      fill:
+                          Colors.white.withValues(alpha: 0.55 * skipBtnOpacity),
+                      border:
+                          Colors.black.withValues(alpha: 0.10 * skipBtnOpacity),
+                      onTap: () => setState(() => impulse =
+                          'skip_${DateTime.now().millisecondsSinceEpoch}'),
+                      child: Icon(Icons.close_rounded,
+                          size: 22,
+                          color: const Color(0xFF1A1A1A)
+                              .withValues(alpha: skipBtnOpacity)),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -570,8 +606,12 @@ class _HomeFeedState extends State<HomeFeed>
                       height: 52,
                       fill: widget.accent.withValues(alpha: likeBtnOpacity),
                       border: Colors.transparent,
-                      onTap: () => setState(() => impulse = 'like_${DateTime.now().millisecondsSinceEpoch}'),
-                      child: Icon(Icons.favorite, size: 22, color: Colors.white.withValues(alpha: likeBtnOpacity)),
+                      onTap: () => setState(() => impulse =
+                          'like_${DateTime.now().millisecondsSinceEpoch}'),
+                      child: Icon(Icons.favorite,
+                          size: 22,
+                          color:
+                              Colors.white.withValues(alpha: likeBtnOpacity)),
                     ),
                   ),
                 ]);
@@ -638,7 +678,8 @@ class _HomeFeedState extends State<HomeFeed>
                 expand: false,
                 builder: (_, scrollController) {
                   return Padding(
-                    padding: const EdgeInsets.only(left: 16, right: 16, top: 14),
+                    padding:
+                        const EdgeInsets.only(left: 16, right: 16, top: 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -694,7 +735,9 @@ class _HomeFeedState extends State<HomeFeed>
                         ),
                         const SizedBox(height: 8),
                         Padding(
-                          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 12),
+                          padding: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).viewInsets.bottom +
+                                  12),
                           child: TextField(
                             controller: controller,
                             style: const TextStyle(color: NuraBrand.mint),
@@ -703,20 +746,24 @@ class _HomeFeedState extends State<HomeFeed>
                               hintText: userId == null
                                   ? 'Fai login per commentare'
                                   : 'Scrivi un commento...',
-                              hintStyle: TextStyle(color: NuraBrand.mintAlpha(0.45)),
+                              hintStyle:
+                                  TextStyle(color: NuraBrand.mintAlpha(0.45)),
                               filled: true,
                               fillColor: NuraBrand.deepMidAlpha(0.6),
                               suffixIcon: IconButton(
-                                onPressed: (userId == null || posting) ? null : post,
+                                onPressed:
+                                    (userId == null || posting) ? null : post,
                                 icon: Icon(Icons.send, color: widget.accent),
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+                                borderSide:
+                                    BorderSide(color: NuraBrand.mintAlpha(0.2)),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: NuraBrand.mintAlpha(0.2)),
+                                borderSide:
+                                    BorderSide(color: NuraBrand.mintAlpha(0.2)),
                               ),
                             ),
                           ),

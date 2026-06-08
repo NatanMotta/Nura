@@ -8,8 +8,10 @@ import '../../../core/widgets/bottom_nav.dart';
 import '../../../core/widgets/global_mini_player.dart';
 import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
+import '../../events/presentation/screens/empty_events_tab.dart';
 import '../../user/profile/presentation/screens/home_profile.dart';
 import '../../user/search/presentation/screens/home_search.dart';
+import '../../user/shell/user_shell.dart' show GlobalHeader;
 import '../submissions/presentation/screens/artist_pitch_screen.dart';
 
 class ArtistShell extends StatefulWidget {
@@ -31,11 +33,12 @@ class ArtistShell extends StatefulWidget {
 class _ArtistShellState extends State<ArtistShell> {
   static const _pitch = 'artist_pitch';
   static const _artistProfileRoute = 'artist_profile';
+  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier(true);
+  final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
   String _screen = RouteNames.home;
 
   String? _artistId;
   String? _artistName;
-  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier<bool>(true);
 
   void _onArtistTap(String artistId, String artistName) {
     setState(() {
@@ -63,14 +66,37 @@ class _ArtistShellState extends State<ArtistShell> {
     final int currentIndex = switch (_screen) {
       RouteNames.search => 1,
       _pitch => 2,
-      RouteNames.profile => 3,
-      _artistProfileRoute => 4,
+      'events' => 3,
+      RouteNames.profile => 4,
+      _artistProfileRoute => 5,
       _ => 0,
     };
 
-    final body = IndexedStack(
-      index: currentIndex,
-      children: [
+    final String? headerTitle = switch (_screen) {
+      RouteNames.search => 'Cerca',
+      _pitch => 'Invio Pitch',
+      'events' => 'Eventi',
+      RouteNames.profile => null,
+      _artistProfileRoute => null,
+      RouteNames.home => 'Discovery',
+      _ => 'Discovery',
+    };
+
+    final double contentSafeTop = safeTop + 56.0;
+
+    final body = NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.axis == Axis.vertical) {
+          final isScrolled = notification.metrics.pixels > 20;
+          if (_isScrolledNotifier.value != isScrolled) {
+            _isScrolledNotifier.value = isScrolled;
+          }
+        }
+        return false;
+      },
+      child: IndexedStack(
+        index: currentIndex,
+        children: [
         TickerMode(
           enabled: currentIndex == 0 || currentIndex == 4,
           child: IgnorePointer(
@@ -96,7 +122,7 @@ class _ArtistShellState extends State<ArtistShell> {
               vibe: widget.vibe,
               accent: widget.accent,
               waveform: widget.waveform,
-              safeTop: safeTop,
+              safeTop: contentSafeTop,
               safeBottom: safeBottom,
             ),
           ),
@@ -108,6 +134,8 @@ class _ArtistShellState extends State<ArtistShell> {
             child: ArtistPitchScreen(
               key: const PageStorageKey('artist_pitch'),
               isActive: _screen == _pitch,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
             ),
           ),
         ),
@@ -115,6 +143,18 @@ class _ArtistShellState extends State<ArtistShell> {
           enabled: currentIndex == 3,
           child: IgnorePointer(
             ignoring: currentIndex != 3,
+            child: EmptyEventsTab(
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: contentSafeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
+        ),
+        TickerMode(
+          enabled: currentIndex == 4,
+          child: IgnorePointer(
+            ignoring: currentIndex != 4,
             child: HomeProfile(
               key: const PageStorageKey('home_profile'),
               vibe: widget.vibe,
@@ -125,9 +165,9 @@ class _ArtistShellState extends State<ArtistShell> {
           ),
         ),
         TickerMode(
-          enabled: currentIndex == 4,
+          enabled: currentIndex == 5,
           child: IgnorePointer(
-            ignoring: currentIndex != 4,
+            ignoring: currentIndex != 5,
             child: ArtistPublicProfileScreen(
               key: const PageStorageKey('artist_profile'),
               artistId: _artistId ?? 'mock',
@@ -137,6 +177,7 @@ class _ArtistShellState extends State<ArtistShell> {
           ),
         ),
       ],
+    ),
     );
 
     return Scaffold(
@@ -172,7 +213,44 @@ class _ArtistShellState extends State<ArtistShell> {
                 child: body,
               ),
             ),
-            
+            // Global Header
+            Positioned(
+              top: safeTop,
+              left: 16,
+              right: 16,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _navVisibilityNotifier,
+                builder: (context, isVisible, child) {
+                  return AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: isVisible && _screen != _artistProfileRoute ? 1.0 : 0.0,
+                    child: IgnorePointer(
+                      ignoring: !(isVisible && _screen != _artistProfileRoute),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _isScrolledNotifier,
+                        builder: (context, isScrolled, child) {
+                          return GlobalHeader(
+                            vibe: widget.vibe,
+                            accent: widget.accent,
+                            safeTop: safeTop,
+                            safeBottom: safeBottom,
+                            title: headerTitle,
+                            isScrolled: isScrolled,
+                            onAvatarTap: () {
+                              setState(() {
+                                _screen = RouteNames.profile;
+                                _artistId = null;
+                                _artistName = null;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
             // Mini player e Bottom Nav avvolti in ValueListenableBuilder
             ValueListenableBuilder<bool>(
               valueListenable: _navVisibilityNotifier,

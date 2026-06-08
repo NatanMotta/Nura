@@ -12,7 +12,9 @@ import '../providers/pitch_providers.dart';
 
 class ArtistPitchScreen extends ConsumerStatefulWidget {
   final bool isActive;
-  const ArtistPitchScreen({super.key, this.isActive = true});
+  final double safeTop;
+  final double safeBottom;
+  const ArtistPitchScreen({super.key, this.isActive = true, this.safeTop = 16.0, this.safeBottom = 16.0});
 
   @override
   ConsumerState<ArtistPitchScreen> createState() => _ArtistPitchScreenState();
@@ -319,20 +321,10 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                 // Top Header Section
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 70, 24, 24),
+                    padding: EdgeInsets.fromLTRB(24, widget.safeTop + 56.0, 24, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Invio Pitch',
-                          style: TextStyle(
-                            color: Color(0xFF1A1A1A),
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
                         const Text(
                           'Proponi i tuoi brani direttamente alle etichette discografiche di Nura.',
                           style: TextStyle(

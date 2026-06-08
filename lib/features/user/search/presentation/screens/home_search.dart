@@ -79,12 +79,6 @@ class _HomeSearchState extends State<HomeSearch> {
           padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Cerca',
-                style: TextStyle(
-                    color: Color(0xFF1A1A1A),
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.0)),
             Mono('scopri · suoni · scene', color: Colors.black45),
           ]),
         ),
