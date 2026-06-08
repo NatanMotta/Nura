@@ -363,7 +363,7 @@ class _HomeFeedState extends State<HomeFeed>
   Widget build(BuildContext context) {
     final nav = 86 + widget.safeBottom;
     if (!_deckReady) {
-      return const Center(child: CircularProgressIndicator());
+      return const SizedBox.shrink();
     }
 
     if (deck.isEmpty) {
