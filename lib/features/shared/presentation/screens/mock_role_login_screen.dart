@@ -6,8 +6,8 @@ import '../../../../core/services/supabase_bootstrap.dart';
 import '../../domain/user_role.dart';
 import '../providers/user_role_provider.dart';
 import '../../../auth/presentation/screens/auth_screen.dart';
-import '../../discovery/swipe/data/remote_tracks_service.dart';
-import '../../discovery/swipe/presentation/screens/home_feed.dart';
+import '../../../discovery/swipe/data/remote_tracks_service.dart';
+import '../../../discovery/swipe/presentation/screens/home_feed.dart';
 
 class MockRoleLoginScreen extends ConsumerStatefulWidget {
   const MockRoleLoginScreen({super.key});
