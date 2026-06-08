@@ -61,9 +61,9 @@ class RoleGate extends ConsumerWidget {
           ),
         ),
       ),
-      loading: () => const Scaffold(
-        backgroundColor: NuraBrand.deepest,
-        body: SizedBox.shrink(),
+      loading: () => Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const SizedBox.shrink(),
       ),
     );
   }
