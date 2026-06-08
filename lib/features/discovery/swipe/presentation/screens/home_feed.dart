@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:isolate';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,16 +42,37 @@ class HomeFeed extends StatefulWidget {
   State<HomeFeed> createState() => _HomeFeedState();
 }
 
-Future<Color> _extractDominantColorFast(String assetPath) async {
-  try {
-    final imageProvider = ResizeImage(AssetImage(assetPath), width: 10, height: 10);
-    final palette = await PaletteGenerator.fromImageProvider(
-      imageProvider,
-      maximumColorCount: 3,
+class HeavyComputations {
+  static Future<Color> extractDominantColorSafe(String assetPath) async {
+    try {
+      final ByteData data = await rootBundle.load(assetPath);
+      final Uint8List bytes = data.buffer.asUint8List();
+      final colorValue = await compute(_isolateColorExtraction, bytes);
+      return Color(colorValue);
+    } catch (e) {
+      debugPrint("Errore isolato PaletteGenerator: $e");
+      return const Color(0xFF1E1E1E);
+    }
+  }
+
+  static Future<int> _isolateColorExtraction(Uint8List imageBytes) async {
+    final ui.Codec codec = await ui.instantiateImageCodec(
+      imageBytes, 
+      targetWidth: 12, 
+      targetHeight: 12, 
     );
-    return palette.vibrantColor?.color ?? palette.dominantColor?.color ?? const Color(0xFF1E1E1E);
-  } catch (_) {
-    return const Color(0xFF1E1E1E);
+    final ui.FrameInfo frameInfo = await codec.getNextFrame();
+    
+    final palette = await PaletteGenerator.fromImage(
+      frameInfo.image, 
+      maximumColorCount: 4,
+    );
+    
+    final bestColor = palette.vibrantColor?.color ?? 
+                      palette.dominantColor?.color ?? 
+                      const Color(0xFF1E1E1E);
+                      
+    return bestColor.value;
   }
 }
 
@@ -90,7 +115,7 @@ class _HomeFeedState extends State<HomeFeed>
 
     if (track.coverAsset != null && track.coverAsset!.startsWith('assets/')) {
       try {
-        final extractedColor = await _extractDominantColorFast(track.coverAsset!);
+        final extractedColor = await HeavyComputations.extractDominantColorSafe(track.coverAsset!);
         // ANNULLAMENTO IMPLICITO: se il requestId è cambiato, questa
         // estrazione è obsoleta (la carta è stata espulsa). Scarta.
         if (!mounted || _glowRequestIds[track.id] != requestId) return;
@@ -304,11 +329,14 @@ class _HomeFeedState extends State<HomeFeed>
     }
   }
 
+  Timer? _lifecycleDebouncer;
+
   @override
   void didUpdateWidget(HomeFeed oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lifecycleDebouncer?.cancel();
+      _lifecycleDebouncer = Timer(const Duration(milliseconds: 50), () {
         if (!mounted) return;
         if (widget.isActive) {
           if (deck.isNotEmpty) {
@@ -323,6 +351,7 @@ class _HomeFeedState extends State<HomeFeed>
 
   @override
   void dispose() {
+    _lifecycleDebouncer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _deckIntroController.dispose();
     _musicManager.dispose();
@@ -465,16 +494,22 @@ class _HomeFeedState extends State<HomeFeed>
                         impulse: impulse,
                         onSwipe: (dir) => _decide(dir == SwipeDirection.right ? 'like' : 'skip'),
                         onDragUpdate: (dx) => _topDragDx.value = dx,
-                        child: MusicCard(
-                          key: _getCardKey(deck[i].id), 
-                          track: deck[i], 
-                          isTopCard: true,
-                          ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
-                          onArtistTap: () {
-                            _musicManager.pause();
-                            if (widget.onArtistTap != null) {
-                              widget.onArtistTap!(deck[i].artistId ?? 'mock_artist_${deck[i].id}', deck[i].artist);
-                            }
+                        child: ValueListenableBuilder<double>(
+                          valueListenable: _topDragDx,
+                          builder: (context, dx, child) {
+                            return MusicCard(
+                              key: _getCardKey(deck[i].id), 
+                              track: deck[i], 
+                              isTopCard: true,
+                              isDragging: dx.abs() > 0.0,
+                              ambientGlow: _ambientGlowCache[deck[i].id] ?? Colors.transparent,
+                              onArtistTap: () {
+                                _musicManager.pause();
+                                if (widget.onArtistTap != null) {
+                                  widget.onArtistTap!(deck[i].artistId ?? 'mock_artist_${deck[i].id}', deck[i].artist);
+                                }
+                              },
+                            );
                           },
                         ),
                       )

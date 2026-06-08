@@ -17,6 +17,7 @@ Future<void> preloadLiquidGlassShader() async {
 class MusicCard extends StatefulWidget {
   final Track track;
   final bool isTopCard;
+  final bool isDragging;
   final Color ambientGlow;
   final VoidCallback? onArtistTap;
 
@@ -24,6 +25,7 @@ class MusicCard extends StatefulWidget {
     super.key,
     required this.track,
     this.isTopCard = true,
+    this.isDragging = false,
     required this.ambientGlow,
     this.onArtistTap,
   });
@@ -37,6 +39,16 @@ class _MusicCardState extends State<MusicCard>
   ui.FragmentShader? _cardShader;
   late Ticker _ticker;
   final ValueNotifier<double> _timeNotifier = ValueNotifier<double>(0.0);
+  int? _targetCacheWidth;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_targetCacheWidth == null) {
+      final mq = MediaQuery.of(context);
+      _targetCacheWidth = (mq.size.width * mq.devicePixelRatio).toInt();
+    }
+  }
 
   @override
   void initState() {
@@ -44,7 +56,6 @@ class _MusicCardState extends State<MusicCard>
     if (_globalShaderProgram != null) {
       _cardShader = _globalShaderProgram!.fragmentShader();
     } else {
-      // Fallback sincrono d'emergenza se il preload globale ha fallito
       ui.FragmentProgram.fromAsset('shaders/liquid_glass.frag').then((shader) {
         _globalShaderProgram = shader;
         if (mounted) {
@@ -56,8 +67,6 @@ class _MusicCardState extends State<MusicCard>
     }
 
     _ticker = createTicker((elapsed) {
-      // FIX III: Il modulo 10000 restringe l'uptime a un anello di 10 secondi esatti.
-      // Nessun crollo di frammentazione IEEE 754 occorrerà mai, garantendo uptime infinito.
       _timeNotifier.value = (elapsed.inMilliseconds % 10000) / 1000.0;
     });
     
@@ -92,20 +101,18 @@ class _MusicCardState extends State<MusicCard>
         child: Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(38),
-        color: widget.track.swatch,
+        color: widget.track.swatch.withValues(alpha: 1.0),
         image: widget.track.coverAsset != null
             ? DecorationImage(
                 image: ResizeImage(
                   AssetImage(widget.track.coverAsset!), 
-                  // FIX IV: Forza la risoluzione esatta al buffer bitmap calcolando il DPR
-                  width: (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).toInt()
+                  width: _targetCacheWidth
                 ),
                 fit: BoxFit.cover,
               )
             : null,
-        boxShadow: widget.isTopCard
+        boxShadow: (widget.isTopCard && !widget.isDragging)
             ? [
-                // Ombra neutra per separare la carta dallo sfondo senza alterare la cromia globale
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.35),
                   blurRadius: 40,
@@ -113,7 +120,7 @@ class _MusicCardState extends State<MusicCard>
                   offset: const Offset(0, 10),
                 )
               ]
-            : [],
+            : null,
       ),
       child: Stack(
         fit: StackFit.expand,

@@ -35,7 +35,7 @@ class _ArtistShellState extends State<ArtistShell> {
 
   String? _artistId;
   String? _artistName;
-  bool _isNavVisible = true;
+  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier<bool>(true);
 
   void _onArtistTap(String artistId, String artistName) {
     setState(() {
@@ -71,40 +71,70 @@ class _ArtistShellState extends State<ArtistShell> {
     final body = IndexedStack(
       index: currentIndex,
       children: [
-        HomeFeed(
-          key: const PageStorageKey('home_feed'),
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
-          isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
-          onArtistTap: _onArtistTap,
+        TickerMode(
+          enabled: currentIndex == 0 || currentIndex == 4,
+          child: IgnorePointer(
+            ignoring: !(currentIndex == 0 || currentIndex == 4),
+            child: HomeFeed(
+              key: const PageStorageKey('home_feed'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              waveform: widget.waveform,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+              isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
+              onArtistTap: _onArtistTap,
+            ),
+          ),
         ),
-        HomeSearch(
-          key: const PageStorageKey('home_search'),
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 1,
+          child: IgnorePointer(
+            ignoring: currentIndex != 1,
+            child: HomeSearch(
+              key: const PageStorageKey('home_search'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              waveform: widget.waveform,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-        ArtistPitchScreen(
-          key: const PageStorageKey('artist_pitch'),
-          isActive: _screen == _pitch,
+        TickerMode(
+          enabled: currentIndex == 2,
+          child: IgnorePointer(
+            ignoring: currentIndex != 2,
+            child: ArtistPitchScreen(
+              key: const PageStorageKey('artist_pitch'),
+              isActive: _screen == _pitch,
+            ),
+          ),
         ),
-        HomeProfile(
-          key: const PageStorageKey('home_profile'),
-          vibe: widget.vibe,
-          accent: widget.accent,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 3,
+          child: IgnorePointer(
+            ignoring: currentIndex != 3,
+            child: HomeProfile(
+              key: const PageStorageKey('home_profile'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-        ArtistPublicProfileScreen(
-          key: const PageStorageKey('artist_profile'),
-          artistId: _artistId ?? 'mock',
-          artistName: _artistName ?? 'Artist',
-          onBack: _onArtistBack,
+        TickerMode(
+          enabled: currentIndex == 4,
+          child: IgnorePointer(
+            ignoring: currentIndex != 4,
+            child: ArtistPublicProfileScreen(
+              key: const PageStorageKey('artist_profile'),
+              artistId: _artistId ?? 'mock',
+              artistName: _artistName ?? 'Artist',
+              onBack: _onArtistBack,
+            ),
+          ),
         ),
       ],
     );
@@ -120,21 +150,21 @@ class _ArtistShellState extends State<ArtistShell> {
                 onNotification: (notification) {
                   // Se stiamo "rimbalzando" in cima o in fondo, mantieni visibile e ignora
                   if (notification.metrics.outOfRange || notification.metrics.pixels <= 0) {
-                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                    if (!_navVisibilityNotifier.value) _navVisibilityNotifier.value = true;
                     return false;
                   }
 
                   if (notification is UserScrollNotification) {
                     final direction = notification.direction;
-                    if (direction == ScrollDirection.reverse && _isNavVisible) {
-                      setState(() => _isNavVisible = false);
-                    } else if (direction == ScrollDirection.forward && !_isNavVisible) {
-                      setState(() => _isNavVisible = true);
-                    } else if (direction == ScrollDirection.idle && !_isNavVisible) {
-                      setState(() => _isNavVisible = true);
+                    if (direction == ScrollDirection.reverse && _navVisibilityNotifier.value) {
+                      _navVisibilityNotifier.value = false;
+                    } else if (direction == ScrollDirection.forward && !_navVisibilityNotifier.value) {
+                      _navVisibilityNotifier.value = true;
+                    } else if (direction == ScrollDirection.idle && !_navVisibilityNotifier.value) {
+                      _navVisibilityNotifier.value = true;
                     }
                   } else if (notification is ScrollEndNotification) {
-                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                    if (!_navVisibilityNotifier.value) _navVisibilityNotifier.value = true;
                   }
 
                   return false;
@@ -143,43 +173,53 @@ class _ArtistShellState extends State<ArtistShell> {
               ),
             ),
             
-            // 2. MINI PLAYER PRO (Stile Spotify)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              left: 0,
-              right: 0,
-              bottom: _isNavVisible ? 84 + safeBottom : -100, // Calm UX
-              child: ValueListenableBuilder<String?>(
-                valueListenable: audio.playingTrackId,
-                builder: (context, trackId, _) {
-                  // Show player ONLY on Artist Profile screen
-                  if (_screen != _artistProfileRoute) return const SizedBox.shrink();
-                  if (trackId == null || trackId.isEmpty) return const SizedBox.shrink();
-                  return GlobalMiniPlayer(vibe: widget.vibe);
-                },
-              ),
-            ),
+            // Mini player e Bottom Nav avvolti in ValueListenableBuilder
+            ValueListenableBuilder<bool>(
+              valueListenable: _navVisibilityNotifier,
+              builder: (context, isVisible, child) {
+                return Stack(
+                  children: [
+                    // 2. MINI PLAYER PRO (Stile Spotify)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      left: 0,
+                      right: 0,
+                      bottom: isVisible ? 84 + safeBottom : -100, // Calm UX
+                      child: ValueListenableBuilder<String?>(
+                        valueListenable: audio.playingTrackId,
+                        builder: (context, trackId, _) {
+                          // Show player ONLY on Artist Profile screen
+                          if (_screen != _artistProfileRoute) return const SizedBox.shrink();
+                          if (trackId == null || trackId.isEmpty) return const SizedBox.shrink();
+                          return GlobalMiniPlayer(vibe: widget.vibe);
+                        },
+                      ),
+                    ),
 
-            // 3. BOTTOM NAV (Sempre visibile)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              left: 0,
-              right: 0,
-              bottom: _isNavVisible ? 0 : -120, // Calm UX Floating Nav
-              child: BottomNav(
-                active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
-                onChange: (value) => setState(() {
-                  _screen = value;
-                  _artistId = null;
-                  _artistName = null;
-                  _isNavVisible = true; // reset
-                }),
-                vibe: widget.vibe,
-                accent: widget.accent,
-                safeBottom: safeBottom,
-              ),
+                    // 3. BOTTOM NAV (Sempre visibile)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      left: 0,
+                      right: 0,
+                      bottom: isVisible ? 0 : -120, // Calm UX Floating Nav
+                      child: BottomNav(
+                        active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
+                        onChange: (value) => setState(() {
+                          _screen = value;
+                          _artistId = null;
+                          _artistName = null;
+                          _navVisibilityNotifier.value = true; // reset
+                        }),
+                        vibe: widget.vibe,
+                        accent: widget.accent,
+                        safeBottom: safeBottom,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

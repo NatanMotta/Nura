@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,11 +49,14 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
     });
   }
 
+  Timer? _lifecycleDebouncer;
+
   @override
   void didUpdateWidget(ArtistPitchScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive && !widget.isActive) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lifecycleDebouncer?.cancel();
+      _lifecycleDebouncer = Timer(const Duration(milliseconds: 50), () {
         if (!mounted) return;
         AudioPreviewService.instance.stop();
         setState(() {
@@ -70,6 +74,7 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
 
   @override
   void dispose() {
+    _lifecycleDebouncer?.cancel();
     _scrollController.dispose();
     _scrollNotifier.dispose();
     _messageController.dispose();
@@ -692,6 +697,8 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                               child: Image.asset(
                                 label.logoAsset,
                                 fit: BoxFit.cover,
+                                gaplessPlayback: true,
+                                cacheWidth: 200,
                                 errorBuilder: (_, __, ___) => const Icon(Icons.domain, color: Colors.black26),
                               ),
                             ),
@@ -1117,6 +1124,8 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                           child: Image.asset(
                             logoAsset ?? 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
                             fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                            cacheWidth: 200,
                             errorBuilder: (_, __, ___) => const Icon(Icons.domain, color: Colors.black26),
                           ),
                         ),
@@ -1315,6 +1324,8 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                                       ? Image.asset(
                                           fullTrack.coverAsset!,
                                           fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                          cacheWidth: 200,
                                         )
                                       : Container(
                                           decoration: BoxDecoration(
@@ -1944,6 +1955,8 @@ class _VinylTrackCardState extends State<VinylTrackCard> with SingleTickerProvid
                                     width: 96,
                                     height: 96,
                                     fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                    cacheWidth: 300,
                                     errorBuilder: (_, __, ___) => _buildPlaceholderCover(track),
                                   )
                                 : _buildPlaceholderCover(track),

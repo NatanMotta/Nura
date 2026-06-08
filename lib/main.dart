@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/nura_app.dart';
 import 'core/services/supabase_bootstrap.dart';
+import 'core/services/hardware_audio_context_manager.dart';
 import 'features/discovery/swipe/presentation/widgets/music_card.dart';
 
 Future<void> main() async {
@@ -17,6 +18,7 @@ Future<void> main() async {
 
   await SupabaseBootstrap.initialize();
   await preloadLiquidGlassShader();
+  await HardwareAudioContextManager.initializeAndObserve();
 
   runApp(const ProviderScope(child: NuraApp()));
 }

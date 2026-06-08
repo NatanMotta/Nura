@@ -33,7 +33,7 @@ class _UserShellState extends State<UserShell> {
   // Artist profile navigation state
   String? _artistId;
   String? _artistName;
-  bool _isNavVisible = true;
+  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier<bool>(true);
   static const _artistProfileRoute = 'artist_profile';
 
   void _onArtistTap(String artistId, String artistName) {
@@ -68,36 +68,60 @@ class _UserShellState extends State<UserShell> {
     final body = IndexedStack(
       index: currentIndex,
       children: [
-        HomeFeed(
-          key: const PageStorageKey('home_feed'),
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
-          isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
-          onArtistTap: _onArtistTap,
+        TickerMode(
+          enabled: currentIndex == 0 || currentIndex == 3,
+          child: IgnorePointer(
+            ignoring: !(currentIndex == 0 || currentIndex == 3),
+            child: HomeFeed(
+              key: const PageStorageKey('home_feed'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              waveform: widget.waveform,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+              isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
+              onArtistTap: _onArtistTap,
+            ),
+          ),
         ),
-        HomeSearch(
-          key: const PageStorageKey('home_search'),
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 1,
+          child: IgnorePointer(
+            ignoring: currentIndex != 1,
+            child: HomeSearch(
+              key: const PageStorageKey('home_search'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              waveform: widget.waveform,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-        HomeProfile(
-          key: const PageStorageKey('home_profile'),
-          vibe: widget.vibe,
-          accent: widget.accent,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 2,
+          child: IgnorePointer(
+            ignoring: currentIndex != 2,
+            child: HomeProfile(
+              key: const PageStorageKey('home_profile'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-        ArtistPublicProfileScreen(
-          key: const PageStorageKey('artist_profile'),
-          artistId: _artistId ?? 'mock',
-          artistName: _artistName ?? 'Artist',
-          onBack: _onArtistBack,
+        TickerMode(
+          enabled: currentIndex == 3,
+          child: IgnorePointer(
+            ignoring: currentIndex != 3,
+            child: ArtistPublicProfileScreen(
+              key: const PageStorageKey('artist_profile'),
+              artistId: _artistId ?? 'mock',
+              artistName: _artistName ?? 'Artist',
+              onBack: _onArtistBack,
+            ),
+          ),
         ),
       ],
     );
@@ -131,23 +155,23 @@ class _UserShellState extends State<UserShell> {
                   // Se stiamo "rimbalzando" in cima o in fondo, ignora l'evento
                   if (notification.metrics.outOfRange ||
                       notification.metrics.pixels <= 0) {
-                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                    if (!_navVisibilityNotifier.value) _navVisibilityNotifier.value = true;
                     return false;
                   }
 
                   if (notification is UserScrollNotification) {
                     final direction = notification.direction;
-                    if (direction == ScrollDirection.reverse && _isNavVisible) {
-                      setState(() => _isNavVisible = false);
+                    if (direction == ScrollDirection.reverse && _navVisibilityNotifier.value) {
+                      _navVisibilityNotifier.value = false;
                     } else if (direction == ScrollDirection.forward &&
-                        !_isNavVisible) {
-                      setState(() => _isNavVisible = true);
+                        !_navVisibilityNotifier.value) {
+                      _navVisibilityNotifier.value = true;
                     } else if (direction == ScrollDirection.idle &&
-                        !_isNavVisible) {
-                      setState(() => _isNavVisible = true);
+                        !_navVisibilityNotifier.value) {
+                      _navVisibilityNotifier.value = true;
                     }
                   } else if (notification is ScrollEndNotification) {
-                    if (!_isNavVisible) setState(() => _isNavVisible = true);
+                    if (!_navVisibilityNotifier.value) _navVisibilityNotifier.value = true;
                   }
 
                   return false;
@@ -155,44 +179,54 @@ class _UserShellState extends State<UserShell> {
                 child: body,
               ),
             ),
-            // Mini player — solo nel profilo artista, sopra la nav bar
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              left: 0,
-              right: 0,
-              bottom: _isNavVisible ? 84 + safeBottom : -100, // Calm UX
-              child: ValueListenableBuilder<String?>(
-                valueListenable: AudioPreviewService.instance.playingTrackId,
-                builder: (context, trackId, _) {
-                  if (_screen != _artistProfileRoute)
-                    return const SizedBox.shrink();
-                  if (trackId == null || trackId.isEmpty)
-                    return const SizedBox.shrink();
-                  return GlobalMiniPlayer(vibe: widget.vibe);
-                },
-              ),
-            ),
-            // Bottom Nav — always visible
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              left: 0,
-              right: 0,
-              bottom: _isNavVisible ? 0 : -120, // Calm UX Floating Nav
-              child: BottomNav(
-                active:
-                    _screen == _artistProfileRoute ? RouteNames.home : _screen,
-                onChange: (value) => setState(() {
-                  _screen = value;
-                  _artistId = null;
-                  _artistName = null;
-                  _isNavVisible = true; // reset
-                }),
-                vibe: widget.vibe,
-                accent: widget.accent,
-                safeBottom: safeBottom,
-              ),
+            // Mini player e Bottom Nav avvolti in ValueListenableBuilder
+            ValueListenableBuilder<bool>(
+              valueListenable: _navVisibilityNotifier,
+              builder: (context, isVisible, child) {
+                return Stack(
+                  children: [
+                    // Mini player — solo nel profilo artista, sopra la nav bar
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      left: 0,
+                      right: 0,
+                      bottom: isVisible ? 84 + safeBottom : -100, // Calm UX
+                      child: ValueListenableBuilder<String?>(
+                        valueListenable: AudioPreviewService.instance.playingTrackId,
+                        builder: (context, trackId, _) {
+                          if (_screen != _artistProfileRoute)
+                            return const SizedBox.shrink();
+                          if (trackId == null || trackId.isEmpty)
+                            return const SizedBox.shrink();
+                          return GlobalMiniPlayer(vibe: widget.vibe);
+                        },
+                      ),
+                    ),
+                    // Bottom Nav — always visible
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      left: 0,
+                      right: 0,
+                      bottom: isVisible ? 0 : -120, // Calm UX Floating Nav
+                      child: BottomNav(
+                        active:
+                            _screen == _artistProfileRoute ? RouteNames.home : _screen,
+                        onChange: (value) => setState(() {
+                          _screen = value;
+                          _artistId = null;
+                          _artistName = null;
+                          _navVisibilityNotifier.value = true; // reset
+                        }),
+                        vibe: widget.vibe,
+                        accent: widget.accent,
+                        safeBottom: safeBottom,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
