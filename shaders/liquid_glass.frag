@@ -20,7 +20,11 @@ void main() {
     
     // Calcolo iridescenza sui bordi (Ambient Glow) usando uGlowColor
     float edgeGlow = smoothstep(0.8, 1.0, distortedUV.y) + smoothstep(0.0, 0.2, 1.0 - distortedUV.x);
-    vec4 highlight = vec4(uGlowColor * edgeGlow * 0.3, edgeGlow * 0.1);
+    
+    // Flutter richiede alpha pre-moltiplicata: i canali RGB non devono MAI superare l'Alpha.
+    float highlightAlpha = edgeGlow * 0.35;
+    vec3 highlightRGB = uGlowColor * highlightAlpha; // Pre-moltiplicazione matematica corretta
+    vec4 highlight = vec4(highlightRGB, highlightAlpha);
     
     fragColor = baseColor + highlight;
 }
