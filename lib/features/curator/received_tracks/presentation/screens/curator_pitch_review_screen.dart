@@ -71,6 +71,7 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _ReviewBottomSheet(
         pitch: pitch,
@@ -104,35 +105,40 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
             ),
           ),
           
-          // Header Overlay
-          Positioned(
-            top: widget.safeTop + 16,
-            left: 24,
-            right: 24,
-            child: const Text(
-              'Discovery Curator',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-
-          // Content List
+          // Scrollable Content
           Positioned.fill(
-            child: ListView.builder(
+            child: CustomScrollView(
               controller: _scrollController,
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(
-                top: widget.safeTop + 80,
-                bottom: widget.safeBottom + 120, // Account for miniplayer & nav
-                left: 20,
-                right: 20,
-              ),
-              itemCount: _mockPitches.length,
-              itemBuilder: (context, index) {
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: widget.safeTop + 32,
+                      left: 24,
+                      right: 24,
+                      bottom: 32,
+                    ),
+                    child: const Text(
+                      'Discovery Curator',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.only(
+                    bottom: widget.safeBottom + 120, // Account for miniplayer & nav
+                    left: 20,
+                    right: 20,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                 final pitch = _mockPitches[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -221,8 +227,13 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                   ),
                 );
               },
+              childCount: _mockPitches.length,
             ),
           ),
+        ),
+      ],
+    ),
+  ),
         ],
       ),
     );
@@ -263,7 +274,7 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      borderRadius: BorderRadius.zero,
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
