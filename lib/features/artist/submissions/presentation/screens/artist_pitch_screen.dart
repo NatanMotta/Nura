@@ -1238,59 +1238,49 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
   // IMMERSIVE GLASS BOTTOM SHEET WITH A&R FEEDBACK & COMPACT PLAYER
   // ============================================================================
   void _showPitchDetailsBottomSheet(BuildContext context, Map<String, dynamic> pitch) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      barrierColor: Colors.black54,
-      builder: (context) {
-        final trackData = pitch['track'] as Map<String, dynamic>? ?? {};
-        final trackTitle = trackData['title'] as String? ?? '';
-        final fullTrack = kTracks.firstWhere((t) => t.track == trackTitle, orElse: () => kTracks[0]);
-        final labelData = pitch['label'] as Map<String, dynamic>? ?? {};
-        final labelName = labelData['name'] as String? ?? 'Label';
-        final status = pitch['status'] as String? ?? 'sent';
-        final message = pitch['message'] as String?;
-        final createdAt = DateTime.tryParse(pitch['created_at'] as String? ?? '') ?? DateTime.now();
-        final dateStr = '${createdAt.day} ${_getMonthName(createdAt.month)} ${createdAt.year}';
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) {
+          final trackData = pitch['track'] as Map<String, dynamic>? ?? {};
+          final trackTitle = trackData['title'] as String? ?? '';
+          final fullTrack = kTracks.firstWhere((t) => t.track == trackTitle, orElse: () => kTracks[0]);
+          final labelData = pitch['label'] as Map<String, dynamic>? ?? {};
+          final labelName = labelData['name'] as String? ?? 'Label';
+          final status = pitch['status'] as String? ?? 'sent';
+          final message = pitch['message'] as String?;
+          final createdAt = DateTime.tryParse(pitch['created_at'] as String? ?? '') ?? DateTime.now();
+          final dateStr = '${createdAt.day} ${_getMonthName(createdAt.month)} ${createdAt.year}';
 
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            border: Border(
-              top: BorderSide(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: SingleChildScrollView(
-
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Top drag handle
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(2.5),
-                        ),
+          return Scaffold(
+            backgroundColor: const Color(0xFFF8F9FA),
+            body: Stack(
+              children: [
+                // 1. HIGH-END PARALLAX ORGANIC MESH BACKGROUND
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: ParallaxOrganicMeshPainter(
+                        scrollOffset: 0,
+                        musicuraBlu: NuraBrand.deep,
+                        nuraPink: NuraBrand.pink,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                  ),
+                ),
+                
+                // 2. CONTENT
+                SafeArea(
+                  child: Stack(
+                    children: [
+                      // Scrollable Content
+                      Positioned.fill(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(24, 80, 24, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
 
                     // Immersive track player card
                     Container(
@@ -1505,9 +1495,26 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
                 ),
               ),
             ),
-          ),
-        );
-      },
+                      // Floating Close Button
+                      Positioned(
+                        top: 16,
+                        right: 24,
+                        child: IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF1A1A1A), size: 28),
+                          onPressed: () => Navigator.pop(context),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A1A1A).withValues(alpha: 0.1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
