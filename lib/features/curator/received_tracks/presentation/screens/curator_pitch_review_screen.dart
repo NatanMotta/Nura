@@ -27,25 +27,24 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollNotifier = ValueNotifier(0.0);
 
-  // Mock data for pitches
   final List<Map<String, String>> _mockPitches = [
     {
       'id': '1',
       'title': 'Neon Dreams',
       'artist': 'SynthWave Duo',
-      'cover': 'https://images.unsplash.com/photo-1614113489855-66422ad300a4?w=500&q=80',
+      'cover': 'assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg',
     },
     {
       'id': '2',
       'title': 'Acoustic Sunrise',
       'artist': 'Emma Woods',
-      'cover': 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=500&q=80',
+      'cover': 'assets/images/artists/christopher-campbell-rDEOVtE7vOs-unsplash.jpg',
     },
     {
       'id': '3',
       'title': 'Urban Flow',
       'artist': 'MC Matrix',
-      'cover': 'https://images.unsplash.com/photo-1516280440508-10756bb01777?w=500&q=80',
+      'cover': 'assets/images/artists/elevate-nYgy58eb9aw-unsplash.jpg',
     },
   ];
 
@@ -160,11 +159,18 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
-                                child: Image.network(
+                                child: Image.asset(
                                   pitch['cover']!,
                                   width: 72,
                                   height: 72,
                                   fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                    width: 72,
+                                    height: 72,
+                                    color: Colors.grey.withValues(alpha: 0.2),
+                                    child: const Icon(Icons.music_note, color: Colors.grey),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -286,11 +292,17 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
+                  child: Image.asset(
                     widget.pitch['cover']!,
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.grey.withValues(alpha: 0.2),
+                      child: const Icon(Icons.music_note, color: Colors.grey),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
