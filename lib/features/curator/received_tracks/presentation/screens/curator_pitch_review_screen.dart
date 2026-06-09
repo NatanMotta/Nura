@@ -299,10 +299,10 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF1A1A1A), size: 28),
                         onPressed: () => Navigator.pop(context),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          backgroundColor: const Color(0xFF1A1A1A).withValues(alpha: 0.1),
                         ),
                       ),
                     ],
@@ -345,16 +345,16 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                       Text(
                         widget.pitch['title']!,
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
+                          color: Color(0xFF1A1A1A),
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         widget.pitch['artist']!,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 16,
+                          color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -370,7 +370,7 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                   Text(
                     'NURA SCORE',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
@@ -400,16 +400,16 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Scrivi un feedback dettagliato...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                hintStyle: TextStyle(color: const Color(0xFF1A1A1A).withValues(alpha: 0.4)),
                 filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.3),
+                fillColor: Colors.white.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                  borderSide: BorderSide(color: const Color(0xFF1A1A1A).withValues(alpha: 0.1), width: 1),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                  borderSide: BorderSide(color: const Color(0xFF1A1A1A).withValues(alpha: 0.1), width: 1),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -417,7 +417,7 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                 ),
                 contentPadding: const EdgeInsets.all(16),
               ),
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Color(0xFF1A1A1A)),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -470,7 +470,7 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
               Text(
                 label,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF1A1A1A),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -486,8 +486,8 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
           SliderTheme(
             data: SliderThemeData(
               activeTrackColor: widget.accent,
-              inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
-              thumbColor: Colors.white,
+              inactiveTrackColor: const Color(0xFF1A1A1A).withValues(alpha: 0.1),
+              thumbColor: const Color(0xFF1A1A1A),
               overlayColor: widget.accent.withValues(alpha: 0.15),
               trackHeight: 6,
             ),
