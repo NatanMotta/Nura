@@ -372,8 +372,6 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                             Flexible(
                               child: Text(
                                 'Destinazione: ${widget.pitch['targetLabel'] ?? 'Sconosciuta'}',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
                                 style: TextStyle(
                                   color: const Color(0xFF1A1A1A).withValues(alpha: 0.8),
                                   fontSize: 14,
