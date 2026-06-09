@@ -1,4 +1,3 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 
@@ -68,15 +67,13 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
   }
 
   void _openReviewSheet(Map<String, String> pitch) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _ReviewBottomSheet(
-        pitch: pitch,
-        vibe: widget.vibe,
-        accent: widget.accent,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CuratorPitchReviewDetailScreen(
+          pitch: pitch,
+          vibe: widget.vibe,
+          accent: widget.accent,
+        ),
       ),
     );
   }
@@ -240,22 +237,23 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
   }
 }
 
-class _ReviewBottomSheet extends StatefulWidget {
+class CuratorPitchReviewDetailScreen extends StatefulWidget {
   final Map<String, String> pitch;
   final NuraVibe vibe;
   final Color accent;
 
-  const _ReviewBottomSheet({
+  const CuratorPitchReviewDetailScreen({
+    super.key,
     required this.pitch,
     required this.vibe,
     required this.accent,
   });
 
   @override
-  State<_ReviewBottomSheet> createState() => _ReviewBottomSheetState();
+  State<CuratorPitchReviewDetailScreen> createState() => _CuratorPitchReviewDetailScreenState();
 }
 
-class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
+class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetailScreen> {
   final _feedbackController = TextEditingController();
   double _par1 = 50.0;
   double _par2 = 50.0;
@@ -273,61 +271,55 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.zero,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          decoration: BoxDecoration(
-            color: NuraBrand.deepest.withValues(alpha: 0.75),
-            border: Border(
-              top: BorderSide(
-                color: Colors.white.withValues(alpha: 0.15),
-                width: 1,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: Stack(
+        children: [
+          // Background
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: ParallaxOrganicMeshPainter(
+                  scrollOffset: 0,
+                  musicuraBlu: NuraBrand.deep,
+                  nuraPink: NuraBrand.pink,
+                ),
               ),
             ),
           ),
-          padding: EdgeInsets.only(
-            top: 16,
-            left: 24,
-            right: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+          
+          // Content
+          SafeArea(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Top Handle and Close Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(width: 48), // Balance for close button
-                    Expanded(
-                      child: Center(
-                        child: Container(
-                          width: 48,
-                          height: 4,
-                          margin: const EdgeInsets.only(top: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                        onPressed: () => Navigator.pop(context),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.only(
+                      left: 24,
+                      right: 24,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
             Row(
               children: [
                 ClipRRect(
@@ -454,12 +446,16 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-          ],
-        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _buildSlider(String label, double value, ValueChanged<double> onChanged) {

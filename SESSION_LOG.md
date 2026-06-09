@@ -812,7 +812,7 @@ Rispetto al branch precedente, l'esperienza visiva e interattiva è stata altera
 - **Cosa abbiamo fatto**: Cuore del nuovo swipe. Creato da zero.
 - **Perché e Come**: 
   1. **Zero-Allocation e SIMD**: Invece di creare oggetti Dart (innescando il Garbage Collector), gestiamo vettori e matrici (Matrix4) scambiando puntatori in memoria (Double Buffering) e usando un `KineticSimdEngine` per operazioni massive in un singolo clock.
-  2. **Fix VRR/LTPO (Fix Your Timestep)**: Gli schermi moderni variano tra 10Hz e 120Hz. Usare il `dt` normale faceva "esplodere" la fisica. Abbiamo creato un Accumulatore a Passo Fisso (`_timeAccumulator`), blindando l'aggiornamento vettoriale a step inviolabili di 16.6ms. Determinismo assoluto.
+  2. **Fix VRR/LTPO (Fix Your Timestep)**: Glii schermi moderni variano tra 10Hz e 120Hz. Usare il `dt` normale faceva "esplodere" la fisica. Abbiamo creato un Accumulatore a Passo Fisso (`_timeAccumulator`), blindando l'aggiornamento vettoriale a step inviolabili di 16.6ms. Determinismo assoluto.
   3. **Anti-Soft Brick**: Gestito il lifecycle (pause/resume). Se una notifica OS interrompe il touch, l'app salva lo stato e riattiva la molla al ritorno in foreground, impedendo che la card resti congelata a mezz'aria.
 
 #### `lib/features/discovery/swipe/presentation/widgets/music_card.dart` (NUOVO)
