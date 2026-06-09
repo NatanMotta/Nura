@@ -108,27 +108,9 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
               controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: widget.safeTop + 32,
-                      left: 24,
-                      right: 24,
-                      bottom: 32,
-                    ),
-                    child: const Text(
-                      'Discovery Curator',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                ),
                 SliverPadding(
                   padding: EdgeInsets.only(
+                    top: widget.safeTop + 32,
                     bottom: widget.safeBottom + 120, // Account for miniplayer & nav
                     left: 20,
                     right: 20,
