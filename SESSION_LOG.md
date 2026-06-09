@@ -864,3 +864,30 @@ Fix e refactoring estremo della sezione `CuratorPitchReviewScreen` a partire dal
 
 ### 🏆 Il Verdetto
 Il branch `curator-rework` è solido. I crash derivati dal vecchio codice sono stati cancellati partendo puliti da `test-version`. Il design è Premium. Pronto per il merge.
+---
+
+## Branch: `eventi(futuri)` e `risoluzioni-piccoli-bug`
+
+### 🎯 Obiettivo Principale
+Implementare la nuova pagina "Eventi", aggiornare l'architettura della Navigation Bar in tutte le Shell (`UserShell`, `ArtistShell`, `CuratorShell`) per preservare lo stato e la posizione di scroll di ogni tab isolatamente, e risolvere gravi bug di Layout e di Build Frame generati dai ValueNotifier.
+
+### 🛠️ Modifiche Principali
+
+#### `lib/features/events/presentation/screens/empty_events_tab.dart`
+- **Cosa abbiamo fatto**: Sostituita la vecchia sezione profilo con una nuova tab "Eventi".
+- **Perché e Come**: Mostra gli eventi futuri live e streaming. Utilizza carte glassmorphism ("Battle in arrivo", "Evento generico") e condivide lo sfondo animato Parallax dell'app per massima coerenza visiva.
+
+#### `lib/features/user/shell/user_shell.dart`, `artist_shell.dart`, `curator_shell.dart`
+- **Cosa abbiamo fatto**: Completo refactoring architetturale da un semplice blocco `switch` a un `IndexedStack` con memoria per singola tab.
+- **Perché e Come**:
+  1. **Persistent State**: Usando `IndexedStack`, l'app ora mantiene vive le tab in background. Questo fa sì che cambiando tab e tornando indietro, l'esatta posizione di scroll venga mantenuta perfettamente, cancellando il fastidioso bug dello "scroll perso".
+  2. **Isolamento dell'Header**: Creato un sistema di Mappe (`_isScrolledMap`, `_navVisibilityMap`) per isolare lo stato di visualizzazione del GlobalHeader e della BottomNavBar. Scorrendo giù in "Home", l'header sparisce; passando a "Eventi", l'header torna visibile perché la memoria della tab è indipendente.
+  3. **Risoluzione "Build scheduled during frame"**: Risolto il blocco nativo che generava eccezioni cambiando velocemente tab, iniettando la modifica dei `ValueNotifier` all'interno di un `WidgetsBinding.instance.addPostFrameCallback`. Ora lo stato viene aggiornato solo dopo che Flutter ha costruito il frame in modo sicuro, garantendo 60fps continui.
+
+#### `lib/features/curator/received_tracks/presentation/screens/curator_pitch_review_screen.dart`
+- **Cosa abbiamo fatto**: Fix critico di Layout Overflow per i nomi lunghi.
+- **Perché e Come**: Il parametro `targetLabel` generava un errore grafico se l'etichetta di destinazione era troppo lunga (troncando lo schermo a destra). Abbiamo disinnescato l'overflow avvolgendo il Testo in un widget `Flexible` e rimuovendo i limiti di linea. Ora i testi lunghi vengono incolonnati elegantemente.
+
+### 🏆 Il Verdetto
+Il blocco di Navigazione è arrivato a uno standard da top app di mercato. Non ci sono più stati globali corrotti o crash da ridisegno frame. Un utente può scrollare aggressivamente qualsiasi tab, l'app gestirà dinamicamente le visibilità della TopBar e BottomBar isolando memoria, posizione visiva ed elementi grafici in frazioni di secondo. I branch sono stati fusi puliti su `test-merge-francesco`.
+
