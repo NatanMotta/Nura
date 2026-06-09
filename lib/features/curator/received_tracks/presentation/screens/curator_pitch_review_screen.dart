@@ -369,12 +369,16 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                           children: [
                             Icon(Icons.business, color: const Color(0xFF1A1A1A).withValues(alpha: 0.7), size: 16),
                             const SizedBox(width: 6),
-                            Text(
-                              'Destinazione: ${widget.pitch['targetLabel'] ?? 'Sconosciuta'}',
-                              style: TextStyle(
-                                color: const Color(0xFF1A1A1A).withValues(alpha: 0.8),
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                'Destinazione: ${widget.pitch['targetLabel'] ?? 'Sconosciuta'}',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: const Color(0xFF1A1A1A).withValues(alpha: 0.8),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
