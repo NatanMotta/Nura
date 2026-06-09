@@ -33,8 +33,15 @@ class ArtistShell extends StatefulWidget {
 class _ArtistShellState extends State<ArtistShell> {
   static const _pitch = 'artist_pitch';
   static const _artistProfileRoute = 'artist_profile';
-  final ValueNotifier<bool> _navVisibilityNotifier = ValueNotifier(true);
-  final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
+
+  // State maps per tab
+  final Map<String, bool> _navVisibilityMap = {};
+  final Map<String, bool> _isScrolledMap = {};
+  
+  // Listeners to drive UI
+  final ValueNotifier<bool> _currentNavVisibility = ValueNotifier(true);
+  final ValueNotifier<bool> _currentIsScrolled = ValueNotifier(false);
+  
   String _screen = RouteNames.home;
 
   String? _artistId;
@@ -45,6 +52,7 @@ class _ArtistShellState extends State<ArtistShell> {
       _artistId = artistId;
       _artistName = artistName;
       _screen = _artistProfileRoute;
+      _updateCurrentState();
     });
   }
 
@@ -53,7 +61,33 @@ class _ArtistShellState extends State<ArtistShell> {
       _screen = RouteNames.home;
       _artistId = null;
       _artistName = null;
+      _updateCurrentState();
     });
+  }
+
+  void _updateCurrentState() {
+    _currentNavVisibility.value = _navVisibilityMap[_screen] ?? true;
+    _currentIsScrolled.value = _isScrolledMap[_screen] ?? false;
+  }
+
+  void _handleTabTap(String value) {
+    if (_screen == value) {
+      _navVisibilityMap[value] = true;
+      _isScrolledMap[value] = false;
+    } else {
+      _screen = value;
+      _artistId = null;
+      _artistName = null;
+    }
+    setState(() {
+      _updateCurrentState();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _updateCurrentState();
   }
 
   @override
@@ -88,8 +122,11 @@ class _ArtistShellState extends State<ArtistShell> {
       onNotification: (notification) {
         if (notification.metrics.axis == Axis.vertical) {
           final isScrolled = notification.metrics.pixels > 20;
-          if (_isScrolledNotifier.value != isScrolled) {
-            _isScrolledNotifier.value = isScrolled;
+          if (_currentIsScrolled.value != isScrolled) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _currentIsScrolled.value = isScrolled;
+              _isScrolledMap[_screen] = isScrolled;
+            });
           }
         }
         return false;
@@ -190,22 +227,42 @@ class _ArtistShellState extends State<ArtistShell> {
               child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
                   // Se stiamo "rimbalzando" in cima o in fondo, mantieni visibile e ignora
-                  if (notification.metrics.outOfRange || notification.metrics.pixels <= 0) {
-                    if (!_navVisibilityNotifier.value) _navVisibilityNotifier.value = true;
+                  if (notification.metrics.outOfRange ||
+                      notification.metrics.pixels <= 0) {
+                    if (!_currentNavVisibility.value) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
+                    }
                     return false;
                   }
 
                   if (notification is UserScrollNotification) {
                     final direction = notification.direction;
-                    if (direction == ScrollDirection.reverse && _navVisibilityNotifier.value) {
-                      _navVisibilityNotifier.value = false;
-                    } else if (direction == ScrollDirection.forward && !_navVisibilityNotifier.value) {
-                      _navVisibilityNotifier.value = true;
-                    } else if (direction == ScrollDirection.idle && !_navVisibilityNotifier.value) {
-                      _navVisibilityNotifier.value = true;
+                    if (direction == ScrollDirection.reverse && _currentNavVisibility.value) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = false;
+                        _navVisibilityMap[_screen] = false;
+                      });
+                    } else if (direction == ScrollDirection.forward && !_currentNavVisibility.value) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
+                    } else if (direction == ScrollDirection.idle && !_currentNavVisibility.value) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
                     }
                   } else if (notification is ScrollEndNotification) {
-                    if (!_navVisibilityNotifier.value) _navVisibilityNotifier.value = true;
+                    if (!_currentNavVisibility.value) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
+                    }
                   }
 
                   return false;
@@ -219,7 +276,7 @@ class _ArtistShellState extends State<ArtistShell> {
               left: 16,
               right: 16,
               child: ValueListenableBuilder<bool>(
-                valueListenable: _navVisibilityNotifier,
+                valueListenable: _currentNavVisibility,
                 builder: (context, isVisible, child) {
                   return AnimatedOpacity(
                     duration: const Duration(milliseconds: 300),
@@ -227,7 +284,7 @@ class _ArtistShellState extends State<ArtistShell> {
                     child: IgnorePointer(
                       ignoring: !(isVisible && _screen != _artistProfileRoute),
                       child: ValueListenableBuilder<bool>(
-                        valueListenable: _isScrolledNotifier,
+                        valueListenable: _currentIsScrolled,
                         builder: (context, isScrolled, child) {
                           return GlobalHeader(
                             vibe: widget.vibe,
@@ -253,7 +310,7 @@ class _ArtistShellState extends State<ArtistShell> {
             ),
             // Mini player e Bottom Nav avvolti in ValueListenableBuilder
             ValueListenableBuilder<bool>(
-              valueListenable: _navVisibilityNotifier,
+              valueListenable: _currentNavVisibility,
               builder: (context, isVisible, child) {
                 return Stack(
                   children: [
@@ -284,12 +341,7 @@ class _ArtistShellState extends State<ArtistShell> {
                       bottom: isVisible ? 0 : -120, // Calm UX Floating Nav
                       child: BottomNav(
                         active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
-                        onChange: (value) => setState(() {
-                          _screen = value;
-                          _artistId = null;
-                          _artistName = null;
-                          _navVisibilityNotifier.value = true; // reset
-                        }),
+                        onChange: _handleTabTap,
                         vibe: widget.vibe,
                         accent: widget.accent,
                         safeBottom: safeBottom,
