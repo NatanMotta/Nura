@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 
@@ -108,10 +109,10 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
             top: widget.safeTop + 16,
             left: 24,
             right: 24,
-            child: Text(
+            child: const Text(
               'Discovery Curator',
               style: TextStyle(
-                color: const Color(0xFF1A1A1A),
+                color: Colors.white,
                 fontSize: 32,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -137,12 +138,12 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.8), // Semi-transparent for glass effect
+                      color: Colors.black.withValues(alpha: 0.3), // Dark glass effect
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white, width: 1.5),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -181,7 +182,7 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                                     Text(
                                       pitch['title']!,
                                       style: const TextStyle(
-                                        color: Color(0xFF1A1A1A),
+                                        color: Colors.white,
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -190,7 +191,7 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                                     Text(
                                       pitch['artist']!,
                                       style: TextStyle(
-                                        color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
+                                        color: Colors.white.withValues(alpha: 0.6),
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -202,12 +203,13 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                                 width: 48,
                                 height: 48,
                                 decoration: BoxDecoration(
-                                  color: widget.accent.withValues(alpha: 0.1),
+                                  color: widget.accent.withValues(alpha: 0.15),
                                   shape: BoxShape.circle,
+                                  border: Border.all(color: widget.accent.withValues(alpha: 0.3)),
                                 ),
                                 child: Icon(
                                   Icons.play_arrow_rounded,
-                                  color: widget.accent,
+                                  color: Colors.white,
                                   size: 28,
                                 ),
                               ),
@@ -260,34 +262,61 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      padding: EdgeInsets.only(
-        top: 24,
-        left: 24,
-        right: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: NuraBrand.deepest.withValues(alpha: 0.75),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1,
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+          padding: EdgeInsets.only(
+            top: 16,
+            left: 24,
+            right: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Handle and Close Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 48), // Balance for close button
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          width: 48,
+                          height: 4,
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
             Row(
               children: [
                 ClipRRect(
@@ -313,7 +342,7 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
                       Text(
                         widget.pitch['title']!,
                         style: const TextStyle(
-                          color: Color(0xFF1A1A1A),
+                          color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -321,7 +350,7 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
                       Text(
                         widget.pitch['artist']!,
                         style: TextStyle(
-                          color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -338,7 +367,7 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
                   Text(
                     'NURA SCORE',
                     style: TextStyle(
-                      color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
@@ -368,16 +397,24 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Scrivi un feedback dettagliato...',
-                hintStyle: TextStyle(color: const Color(0xFF1A1A1A).withValues(alpha: 0.4)),
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Colors.black.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: widget.accent, width: 2),
                 ),
                 contentPadding: const EdgeInsets.all(16),
               ),
-              style: const TextStyle(color: Color(0xFF1A1A1A)),
+              style: const TextStyle(color: Colors.white),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -409,7 +446,9 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildSlider(String label, double value, ValueChanged<double> onChanged) {
@@ -424,7 +463,7 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
               Text(
                 label,
                 style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -440,10 +479,10 @@ class _ReviewBottomSheetState extends State<_ReviewBottomSheet> {
           SliderTheme(
             data: SliderThemeData(
               activeTrackColor: widget.accent,
-              inactiveTrackColor: widget.accent.withValues(alpha: 0.1),
-              thumbColor: widget.accent,
-              overlayColor: widget.accent.withValues(alpha: 0.1),
-              trackHeight: 4,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+              thumbColor: Colors.white,
+              overlayColor: widget.accent.withValues(alpha: 0.15),
+              trackHeight: 6,
             ),
             child: Slider(
               value: value,
