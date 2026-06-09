@@ -123,8 +123,10 @@ class _UserShellState extends State<UserShell> {
         if (notification.metrics.axis == Axis.vertical) {
           final isScrolled = notification.metrics.pixels > 20;
           if (_currentIsScrolled.value != isScrolled) {
-            _currentIsScrolled.value = isScrolled;
-            _isScrolledMap[_screen] = isScrolled;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _currentIsScrolled.value = isScrolled;
+              _isScrolledMap[_screen] = isScrolled;
+            });
           }
         }
         return false;
@@ -230,8 +232,10 @@ class _UserShellState extends State<UserShell> {
                   if (notification.metrics.outOfRange ||
                       notification.metrics.pixels <= 0) {
                     if (!_currentNavVisibility.value) {
-                      _currentNavVisibility.value = true;
-                      _navVisibilityMap[_screen] = true;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
                     }
                     return false;
                   }
@@ -239,21 +243,29 @@ class _UserShellState extends State<UserShell> {
                   if (notification is UserScrollNotification) {
                     final direction = notification.direction;
                     if (direction == ScrollDirection.reverse && _currentNavVisibility.value) {
-                      _currentNavVisibility.value = false;
-                      _navVisibilityMap[_screen] = false;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = false;
+                        _navVisibilityMap[_screen] = false;
+                      });
                     } else if (direction == ScrollDirection.forward &&
                         !_currentNavVisibility.value) {
-                      _currentNavVisibility.value = true;
-                      _navVisibilityMap[_screen] = true;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
                     } else if (direction == ScrollDirection.idle &&
                         !_currentNavVisibility.value) {
-                      _currentNavVisibility.value = true;
-                      _navVisibilityMap[_screen] = true;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
                     }
                   } else if (notification is ScrollEndNotification) {
                     if (!_currentNavVisibility.value) {
-                      _currentNavVisibility.value = true;
-                      _navVisibilityMap[_screen] = true;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _currentNavVisibility.value = true;
+                        _navVisibilityMap[_screen] = true;
+                      });
                     }
                   }
 

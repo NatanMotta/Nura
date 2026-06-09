@@ -117,8 +117,10 @@ class _CuratorShellState extends State<CuratorShell> {
         if (notification.metrics.axis == Axis.vertical) {
           final isScrolled = notification.metrics.pixels > 20;
           if (_currentIsScrolled.value != isScrolled) {
-            _currentIsScrolled.value = isScrolled;
-            _isScrolledMap[_screen] = isScrolled;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _currentIsScrolled.value = isScrolled;
+              _isScrolledMap[_screen] = isScrolled;
+            });
           }
         }
         return false;
