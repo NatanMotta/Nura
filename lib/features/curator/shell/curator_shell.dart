@@ -30,8 +30,14 @@ class CuratorShell extends StatefulWidget {
 }
 
 class _CuratorShellState extends State<CuratorShell> {
-  final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
   static const _received = 'label_pitch_received';
+  
+  // State maps per tab
+  final Map<String, bool> _isScrolledMap = {};
+  
+  // Listeners to drive UI
+  final ValueNotifier<bool> _currentIsScrolled = ValueNotifier(false);
+  
   String _screen = RouteNames.home;
 
   // Artist profile navigation state
@@ -44,6 +50,7 @@ class _CuratorShellState extends State<CuratorShell> {
       _artistId = artistId;
       _artistName = artistName;
       _screen = _artistProfileRoute;
+      _updateCurrentState();
     });
   }
 
@@ -52,7 +59,31 @@ class _CuratorShellState extends State<CuratorShell> {
       _screen = RouteNames.home;
       _artistId = null;
       _artistName = null;
+      _updateCurrentState();
     });
+  }
+
+  void _updateCurrentState() {
+    _currentIsScrolled.value = _isScrolledMap[_screen] ?? false;
+  }
+
+  void _handleTabTap(String value) {
+    if (_screen == value) {
+      _isScrolledMap[value] = false;
+    } else {
+      _screen = value;
+      _artistId = null;
+      _artistName = null;
+    }
+    setState(() {
+      _updateCurrentState();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _updateCurrentState();
   }
 
   @override
@@ -72,56 +103,112 @@ class _CuratorShellState extends State<CuratorShell> {
 
     final double contentSafeTop = safeTop + 56.0;
 
+    final int currentIndex = switch (_screen) {
+      RouteNames.search => 1,
+      _received => 2,
+      'events' => 3,
+      RouteNames.profile => 4,
+      _artistProfileRoute => 5,
+      _ => 0,
+    };
+
     final body = NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification.metrics.axis == Axis.vertical) {
           final isScrolled = notification.metrics.pixels > 20;
-          if (_isScrolledNotifier.value != isScrolled) {
-            _isScrolledNotifier.value = isScrolled;
+          if (_currentIsScrolled.value != isScrolled) {
+            _currentIsScrolled.value = isScrolled;
+            _isScrolledMap[_screen] = isScrolled;
           }
         }
         return false;
       },
-      child: switch (_screen) {
-      RouteNames.search => HomeSearch(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: contentSafeTop,
-          safeBottom: safeBottom,
+      child: IndexedStack(
+        index: currentIndex,
+        children: [
+        TickerMode(
+          enabled: currentIndex == 0 || currentIndex == 5,
+          child: IgnorePointer(
+            ignoring: !(currentIndex == 0 || currentIndex == 5),
+            child: HomeFeed(
+              key: const PageStorageKey('home_feed'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              waveform: widget.waveform,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+              isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
+              onArtistTap: _onArtistTap,
+            ),
+          ),
         ),
-      _received => CuratorPitchReviewScreen(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          safeTop: contentSafeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 1,
+          child: IgnorePointer(
+            ignoring: currentIndex != 1,
+            child: HomeSearch(
+              key: const PageStorageKey('home_search'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              waveform: widget.waveform,
+              safeTop: contentSafeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-      'events' => EmptyEventsTab(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          safeTop: contentSafeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 2,
+          child: IgnorePointer(
+            ignoring: currentIndex != 2,
+            child: CuratorPitchReviewScreen(
+              key: const PageStorageKey('curator_pitch'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: contentSafeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-      RouteNames.profile => HomeProfile(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
+        TickerMode(
+          enabled: currentIndex == 3,
+          child: IgnorePointer(
+            ignoring: currentIndex != 3,
+            child: EmptyEventsTab(
+              key: const PageStorageKey('events_tab'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: contentSafeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-      _artistProfileRoute => ArtistPublicProfileScreen(
-          artistId: _artistId!,
-          artistName: _artistName!,
-          onBack: _onArtistBack,
+        TickerMode(
+          enabled: currentIndex == 4,
+          child: IgnorePointer(
+            ignoring: currentIndex != 4,
+            child: HomeProfile(
+              key: const PageStorageKey('home_profile'),
+              vibe: widget.vibe,
+              accent: widget.accent,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
         ),
-      _ => HomeFeed(
-          vibe: widget.vibe,
-          accent: widget.accent,
-          waveform: widget.waveform,
-          safeTop: safeTop,
-          safeBottom: safeBottom,
-          onArtistTap: _onArtistTap,
+        TickerMode(
+          enabled: currentIndex == 5,
+          child: IgnorePointer(
+            ignoring: currentIndex != 5,
+            child: ArtistPublicProfileScreen(
+              key: const PageStorageKey('artist_profile'),
+              artistId: _artistId ?? 'mock',
+              artistName: _artistName ?? 'Artist',
+              onBack: _onArtistBack,
+            ),
+          ),
         ),
-      },
+        ],
+      ),
     );
 
     return Scaffold(
@@ -141,7 +228,7 @@ class _CuratorShellState extends State<CuratorShell> {
                   duration: const Duration(milliseconds: 300),
                   opacity: _screen == _artistProfileRoute ? 0.0 : 1.0,
                       child: ValueListenableBuilder<bool>(
-                        valueListenable: _isScrolledNotifier,
+                        valueListenable: _currentIsScrolled,
                         builder: (context, isScrolled, child) {
                           return GlobalHeader(
                             vibe: widget.vibe,
@@ -163,7 +250,7 @@ class _CuratorShellState extends State<CuratorShell> {
                 ),
               ),
             ),
-            // Mini player — solo nel profilo artista, sopra la nav bar
+            // Mini player ?" solo nel profilo artista, sopra la nav bar
             Positioned(
               left: 0,
               right: 0,
@@ -183,11 +270,7 @@ class _CuratorShellState extends State<CuratorShell> {
               bottom: 0,
               child: BottomNav(
                 active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
-                onChange: (value) => setState(() {
-                  _screen = value;
-                  _artistId = null;
-                  _artistName = null;
-                }),
+                onChange: _handleTabTap,
                 vibe: widget.vibe,
                 accent: widget.accent,
                 safeBottom: safeBottom,
@@ -205,4 +288,3 @@ class _CuratorShellState extends State<CuratorShell> {
     );
   }
 }
-
