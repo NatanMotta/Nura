@@ -32,18 +32,21 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
       'id': '1',
       'title': 'Neon Dreams',
       'artist': 'SynthWave Duo',
+      'targetLabel': 'Sony Music Italy',
       'cover': 'assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg',
     },
     {
       'id': '2',
       'title': 'Acoustic Sunrise',
       'artist': 'Emma Woods',
+      'targetLabel': 'Island Records',
       'cover': 'assets/images/artists/christopher-campbell-rDEOVtE7vOs-unsplash.jpg',
     },
     {
       'id': '3',
       'title': 'Urban Flow',
       'artist': 'MC Matrix',
+      'targetLabel': 'Universal Music Group',
       'cover': 'assets/images/artists/elevate-nYgy58eb9aw-unsplash.jpg',
     },
   ];
@@ -179,6 +182,29 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                                         color: Colors.white.withValues(alpha: 0.6),
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.business, color: Colors.white70, size: 12),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            pitch['targetLabel'] ?? 'Etichetta',
+                                            style: TextStyle(
+                                              color: Colors.white.withValues(alpha: 0.7),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -324,6 +350,30 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                           color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A1A).withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF1A1A1A).withValues(alpha: 0.1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.business, color: const Color(0xFF1A1A1A).withValues(alpha: 0.7), size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Destinazione: ${widget.pitch['targetLabel'] ?? 'Sconosciuta'}',
+                              style: TextStyle(
+                                color: const Color(0xFF1A1A1A).withValues(alpha: 0.8),
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
