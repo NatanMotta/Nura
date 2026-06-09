@@ -11,13 +11,14 @@ import '../../events/presentation/screens/empty_events_tab.dart';
 import '../../user/profile/presentation/screens/home_profile.dart';
 import '../../user/search/presentation/screens/home_search.dart';
 import '../../user/shell/user_shell.dart' show GlobalHeader;
+import '../received_tracks/presentation/screens/curator_pitch_review_screen.dart';
 
-class LabelShell extends StatefulWidget {
+class CuratorShell extends StatefulWidget {
   final NuraVibe vibe;
   final Color accent;
   final String waveform;
 
-  const LabelShell({
+  const CuratorShell({
     super.key,
     required this.vibe,
     required this.accent,
@@ -25,10 +26,10 @@ class LabelShell extends StatefulWidget {
   });
 
   @override
-  State<LabelShell> createState() => _LabelShellState();
+  State<CuratorShell> createState() => _CuratorShellState();
 }
 
-class _LabelShellState extends State<LabelShell> {
+class _CuratorShellState extends State<CuratorShell> {
   final ValueNotifier<bool> _isScrolledNotifier = ValueNotifier(false);
   static const _received = 'label_pitch_received';
   String _screen = RouteNames.home;
@@ -89,9 +90,11 @@ class _LabelShellState extends State<LabelShell> {
           safeTop: contentSafeTop,
           safeBottom: safeBottom,
         ),
-      _received => const _PlaceholderScreen(
-          title: 'Pitch Ricevuti',
-          subtitle: 'Inbox etichetta/curatore (mock shell)',
+      _received => CuratorPitchReviewScreen(
+          vibe: widget.vibe,
+          accent: widget.accent,
+          safeTop: contentSafeTop,
+          safeBottom: safeBottom,
         ),
       'events' => EmptyEventsTab(
           vibe: widget.vibe,
@@ -203,30 +206,3 @@ class _LabelShellState extends State<LabelShell> {
   }
 }
 
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _PlaceholderScreen({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

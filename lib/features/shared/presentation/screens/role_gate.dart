@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../artist/shell/artist_shell.dart';
 import '../../../auth/presentation/auth_providers.dart';
-import '../../../label/shell/label_shell.dart';
+import '../../../curator/shell/curator_shell.dart';
 import '../../../user/shell/user_shell.dart';
 import '../../domain/user_role.dart';
 import '../providers/user_role_provider.dart';
@@ -38,7 +38,7 @@ class RoleGate extends ConsumerWidget {
               accent: accent,
               waveform: waveform,
             ),
-          UserRole.label => LabelShell(
+          UserRole.curator => CuratorShell(
               vibe: vibe,
               accent: accent,
               waveform: waveform,

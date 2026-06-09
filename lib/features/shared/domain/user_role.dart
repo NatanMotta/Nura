@@ -1,5 +1,5 @@
 enum UserRole {
   user,
   artist,
-  label,
+  curator,
 }
