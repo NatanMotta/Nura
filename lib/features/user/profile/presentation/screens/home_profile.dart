@@ -169,7 +169,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   String _roleLabel(UserRole? role) {
     return switch (role) {
       UserRole.artist => 'Artist',
-      UserRole.label => 'Label',
+      UserRole.curator => 'Curator',
       UserRole.user => 'User',
       null => 'Guest',
     };

@@ -137,7 +137,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           child: Text('Artist'),
                         ),
                         DropdownMenuItem(
-                          value: UserRole.label,
+                          value: UserRole.curator,
                           child: Text('Label / Curatore'),
                         ),
                       ],

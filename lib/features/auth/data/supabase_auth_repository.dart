@@ -75,7 +75,7 @@ class SupabaseAuthRepository implements AuthRepository {
     final client = _requireClient();
     final roleValue = switch (role) {
       UserRole.artist => 'artist',
-      UserRole.label => 'label',
+      UserRole.curator => 'curator',
       UserRole.user => 'user',
     };
 
@@ -165,7 +165,7 @@ class SupabaseAuthRepository implements AuthRepository {
         'id': user.id,
         'role': switch (resolvedRole) {
           UserRole.artist => 'artist',
-          UserRole.label => 'label',
+          UserRole.curator => 'curator',
           UserRole.user => 'user',
         },
         'display_name': metadataDisplayName ??
@@ -180,7 +180,7 @@ class SupabaseAuthRepository implements AuthRepository {
   UserRole _toRole(String? raw) {
     return switch (raw) {
       'artist' => UserRole.artist,
-      'label' => UserRole.label,
+      'curator' => UserRole.curator,
       _ => UserRole.user,
     };
   }

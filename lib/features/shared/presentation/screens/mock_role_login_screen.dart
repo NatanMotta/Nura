@@ -101,8 +101,8 @@ class _MockRoleLoginScreenState extends ConsumerState<MockRoleLoginScreen> {
                   ),
                   const SizedBox(height: 10),
                   _roleButton(
-                    role: UserRole.label,
-                    label: 'Entra come Etichetta',
+                    role: UserRole.curator,
+                    label: 'Entra come Curatore',
                     icon: Icons.apartment_outlined,
                     identity: const MockProfileIdentity(
                       displayName: 'Marta A&R',

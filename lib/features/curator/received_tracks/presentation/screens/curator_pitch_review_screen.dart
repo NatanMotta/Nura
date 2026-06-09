@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../app/theme/app_theme.dart';
-import '../../../../app/theme/nura_brand.dart';
-import '../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart' show ParallaxOrganicMeshPainter;
+
+import '../../../../../app/theme/app_theme.dart';
+import '../../../../../app/theme/app_colors.dart';
+import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart' show ParallaxOrganicMeshPainter;
 
 class CuratorPitchReviewScreen extends StatefulWidget {
   final NuraVibe vibe;
