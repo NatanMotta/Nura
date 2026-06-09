@@ -290,28 +290,14 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
           
           // Content
           SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                // Top Handle and Close Button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Color(0xFF1A1A1A), size: 28),
-                        onPressed: () => Navigator.pop(context),
-                        style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A1A1A).withValues(alpha: 0.1),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
+                // Scrollable Content
+                Positioned.fill(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     padding: EdgeInsets.only(
+                      top: 80, // Space for the close button
                       left: 24,
                       right: 24,
                       bottom: MediaQuery.of(context).viewInsets.bottom + 24,
@@ -447,6 +433,19 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
               ),
             ),
                       ],
+                    ),
+                  ),
+                ),
+
+                // Floating Close Button
+                Positioned(
+                  top: 16,
+                  right: 24,
+                  child: IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF1A1A1A), size: 28),
+                    onPressed: () => Navigator.pop(context),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A1A1A).withValues(alpha: 0.1),
                     ),
                   ),
                 ),
