@@ -840,3 +840,27 @@ Rispetto al branch precedente, l'esperienza visiva e interattiva è stata altera
 
 ### 🏆 Il Verdetto
 Da una semplice richiesta UX ("facciamolo più carino e fluido") abbiamo partorito un'architettura che dialoga direttamente con la fisica del dispositivo. Le falle hardware e kernel (Thermal Throttling, OOM, SIGSEGV, VRR Physics bug) sono state tutte eradicate. Il branch `rework-home-swipe` è ora uno Standard enterprise a prestazioni definitive.
+
+---
+
+## Branch: `curator-rework`
+
+### 🎯 Obiettivo Principale
+Fix e refactoring estremo della sezione `CuratorPitchReviewScreen` a partire dalla versione stabile `test-version`. Abbiamo risolto i crash legati alla navigazione, standardizzato il ruolo `curator` nel database e creato una UI "Glassmorphism" moderna e completamente a tutto schermo.
+
+### 🛠️ Modifiche Principali
+
+#### `lib/features/auth/`
+- **Cosa abbiamo fatto**: Migrazione dal ruolo DB `label` al ruolo universale `curator`.
+- **Perché e Come**: Il database usa `curator` per designare i Curatori, ma il codice frontend aveva un mismatch con l'enum `label`. Abbiamo riscritto `UserRole` in `supabase_auth_repository.dart`, `auth_screen.dart` e mock login, allineando definitivamente il framework a Supabase.
+
+#### `lib/features/curator/received_tracks/presentation/screens/curator_pitch_review_screen.dart`
+- **Cosa abbiamo fatto**: Total refactoring UI/UX, eliminazione dei fastidiosi tagli visivi e risoluzione conflitti di gesture.
+- **Perché e Come**:
+  1. **Disinnesco Conflitti di Scorrimento**: Un `SingleChildScrollView` annidato in un `showModalBottomSheet` assorbiva i gesti "pull-to-dismiss". Lo abbiamo trasformato in un full-screen `Scaffold` (`Navigator.push`) con una "X" fluttuante, garantendo una UX immersiva.
+  2. **Immersive Parallax Mesh**: Eliminato lo sfondo grigio piatto; ora abbraccia l'intero `ParallaxOrganicMeshPainter` (sfondo animato).
+  3. **High-Contrast Typography**: Bilanciato il contrasto convertendo i testi al Dark (`Color(0xFF1A1A1A)`) per massima visibilità sugli sfondi luminosi.
+  4. **Data Injection - "Etichetta Destinazione"**: Aggiunto il parametro `targetLabel` per mostrare esplicitamente la Record Label di destinazione del pitch in ogni singola card e nella dashboard di review.
+
+### 🏆 Il Verdetto
+Il branch `curator-rework` è solido. I crash derivati dal vecchio codice sono stati cancellati partendo puliti da `test-version`. Il design è Premium. Pronto per il merge.
