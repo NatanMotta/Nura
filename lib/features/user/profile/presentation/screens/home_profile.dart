@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:ui' as ui show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
@@ -35,6 +39,16 @@ class _ProfileTrack {
   });
 }
 
+class _NuraScoreMetric {
+  final String label;
+  final int value;
+
+  const _NuraScoreMetric({
+    required this.label,
+    required this.value,
+  });
+}
+
 class HomeProfile extends ConsumerStatefulWidget {
   final NuraVibe vibe;
   final Color accent;
@@ -56,6 +70,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   static const String _defaultProfileHeroImage =
       'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg';
   static const double _bottomNavHeight = 74;
+  static final Map<String, Color> _profileColorCache = {};
 
   final _audio = AudioPreviewService.instance;
   final ScrollController _scrollController = ScrollController();
@@ -64,6 +79,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   String? _displayName;
   String? _username;
   String? _profileImageAsset;
+  String? _resolvedProfileSwatchAsset;
+  Color _profileSwatch = NuraBrand.deep;
 
   List<_ProfileTrack> _tracks = const [];
   int? _currentTrackIndex;
@@ -166,15 +183,6 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     }).toList(growable: false);
   }
 
-  String _roleLabel(UserRole? role) {
-    return switch (role) {
-      UserRole.artist => 'Artist',
-      UserRole.curator => 'Curator',
-      UserRole.user => 'User',
-      null => 'Guest',
-    };
-  }
-
   String get _name {
     if (_displayName != null && _displayName!.trim().isNotEmpty) {
       return _displayName!.trim();
@@ -203,6 +211,123 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       return '@${email.split('@').first}';
     }
     return '@guest';
+  }
+
+  UserRole? get _effectiveRole => _authUser?.role ?? ref.read(userRoleProvider);
+
+  bool get _showMockNuraScore => _effectiveRole == UserRole.artist;
+
+  ImageProvider? _imageProviderForSource(String imageSource) {
+    if (imageSource.isEmpty) return null;
+    if (imageSource.startsWith('assets/')) {
+      return AssetImage(imageSource);
+    }
+    if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+      return NetworkImage(imageSource);
+    }
+    return null;
+  }
+
+  Color _normalizeProfileSwatch(Color color) {
+    final hsl = HSLColor.fromColor(color);
+    final normalizedSaturation = hsl.saturation.clamp(0.22, 0.72).toDouble();
+    final normalizedLightness = hsl.lightness.clamp(0.34, 0.62).toDouble();
+    return hsl
+        .withSaturation(normalizedSaturation)
+        .withLightness(normalizedLightness)
+        .toColor();
+  }
+
+  Future<void> _resolveProfileSwatch(String imageSource) async {
+    final provider = _imageProviderForSource(imageSource);
+    if (provider == null) {
+      _resolvedProfileSwatchAsset = imageSource;
+      if (mounted) {
+        setState(() => _profileSwatch = NuraBrand.deep);
+      } else {
+        _profileSwatch = NuraBrand.deep;
+      }
+      return;
+    }
+
+    if (_profileColorCache.containsKey(imageSource)) {
+      _resolvedProfileSwatchAsset = imageSource;
+      final cached = _profileColorCache[imageSource]!;
+      if (mounted) {
+        setState(() => _profileSwatch = cached);
+      } else {
+        _profileSwatch = cached;
+      }
+      return;
+    }
+
+    try {
+      final palette = await PaletteGenerator.fromImageProvider(
+        provider,
+        size: const Size(24, 24),
+        maximumColorCount: 6,
+      );
+      final resolved = _normalizeProfileSwatch(
+        palette.vibrantColor?.color ??
+          palette.dominantColor?.color ??
+          NuraBrand.deep,
+      );
+      _profileColorCache[imageSource] = resolved;
+      if (!mounted) {
+        _resolvedProfileSwatchAsset = imageSource;
+        _profileSwatch = resolved;
+        return;
+      }
+      setState(() {
+        _resolvedProfileSwatchAsset = imageSource;
+        _profileSwatch = resolved;
+      });
+    } catch (_) {
+      _profileColorCache[imageSource] = NuraBrand.deep;
+      if (!mounted) {
+        _resolvedProfileSwatchAsset = imageSource;
+        _profileSwatch = NuraBrand.deep;
+        return;
+      }
+      setState(() {
+        _resolvedProfileSwatchAsset = imageSource;
+        _profileSwatch = NuraBrand.deep;
+      });
+    }
+  }
+
+  Color get _scoreGlassColor => _profileSwatch.withValues(alpha: 0.24);
+
+  String get _nuraScoreStableKey {
+    final mockIdentity = ref.read(mockProfileIdentityProvider);
+    return _authUser?.id ??
+        mockIdentity?.username.trim() ??
+        _handle.replaceFirst('@', '').trim();
+  }
+
+  int _stableScoreValue(String salt) {
+    final stableKey = '$_nuraScoreStableKey:$salt';
+    if (stableKey.trim().isEmpty) return 0;
+    final hash = stableKey.codeUnits.fold<int>(
+      0,
+      (value, codeUnit) => ((value * 31) + codeUnit) & 0x7fffffff,
+    );
+    return hash % 101;
+  }
+
+  List<_NuraScoreMetric> get _mockNuraScoreMetrics => [
+        _NuraScoreMetric(label: 'Parametro 1', value: _stableScoreValue('par1')),
+        _NuraScoreMetric(label: 'Parametro 2', value: _stableScoreValue('par2')),
+        _NuraScoreMetric(label: 'Parametro 3', value: _stableScoreValue('par3')),
+        _NuraScoreMetric(label: 'Parametro 4', value: _stableScoreValue('par4')),
+        _NuraScoreMetric(label: 'Parametro 5', value: _stableScoreValue('par5')),
+      ];
+
+  int get _mockNuraScore {
+    final metrics = _mockNuraScoreMetrics;
+    return (metrics.fold<int>(0, (sum, metric) => sum + metric.value) /
+            metrics.length)
+        .round();
   }
 
   String _durationLabel(int seconds) {
@@ -280,6 +405,22 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     }
   }
 
+  void _openNuraScoreDetail(String imageSource) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _NuraScoreDetailScreen(
+          artistName: _name,
+          artistHandle: _handle,
+          imageSource: imageSource,
+          totalScore: _mockNuraScore,
+          metrics: _mockNuraScoreMetrics,
+          scoreColor: _scoreGlassColor,
+          accent: widget.accent,
+        ),
+      ),
+    );
+  }
+
   Future<void> _deleteTrack(String trackId) async {
     final userId = _authUser?.id;
     if (userId == null) return _showLoginRequired();
@@ -342,6 +483,10 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     final mockImageAsset = ref.watch(mockProfileImageAssetProvider);
     final effectiveProfileImageAsset =
         mockImageAsset ?? _profileImageAsset ?? _defaultProfileHeroImage;
+    if (_resolvedProfileSwatchAsset != effectiveProfileImageAsset) {
+      _resolvedProfileSwatchAsset = effectiveProfileImageAsset;
+      unawaited(_resolveProfileSwatch(effectiveProfileImageAsset));
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -350,6 +495,11 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
           ValueListenableBuilder<double>(
             valueListenable: _scrollNotifier,
             builder: (context, scrollOffset, _) {
+              final overscroll = scrollOffset < 0 ? -scrollOffset : 0.0;
+              final collapsedOffset = scrollOffset > 0 ? scrollOffset : 0.0;
+              final heroTop = scrollOffset < 0 ? -(overscroll * 0.32) : -collapsedOffset;
+              final heroHeight = 380.0 + overscroll;
+              final heroOpacity = (1.0 - (collapsedOffset / 260)).clamp(0.0, 1.0);
               return Stack(
                 fit: StackFit.passthrough,
                 children: [
@@ -366,13 +516,13 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                   ),
                   if (effectiveProfileImageAsset.isNotEmpty)
                     Positioned(
-                      top: -scrollOffset,
+                      top: heroTop,
                       left: 0,
                       right: 0,
-                      height: 380,
+                      height: heroHeight,
                       child: RepaintBoundary(
                         child: Opacity(
-                          opacity: (1.0 - (scrollOffset / 260)).clamp(0.0, 1.0),
+                          opacity: heroOpacity,
                           child: ShaderMask(
                             shaderCallback: (rect) => const LinearGradient(
                               begin: Alignment.topCenter,
@@ -381,7 +531,11 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                               stops: [0.0, 0.45, 0.95],
                             ).createShader(rect),
                             blendMode: BlendMode.dstIn,
-                            child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover),
+                            child: Image.asset(
+                              effectiveProfileImageAsset,
+                              fit: BoxFit.cover,
+                              alignment: Alignment.topCenter,
+                            ),
                           ),
                         ),
                       ),
@@ -416,7 +570,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '$_handle · ${_roleLabel(_authUser?.role)}',
+                        _handle,
                         style: const TextStyle(
                           color: Colors.black45,
                           fontSize: 14,
@@ -424,33 +578,32 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                         ),
                       ),
                       const SizedBox(height: 32),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(
-                            child: _mainBtn(
-                              label: 'Impostazioni',
-                              isSolid: false,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const ProfileSettingsScreen(),
-                                  ),
-                                );
-                              },
-                            ),
+                          _buildStatSlot(
+                            _statItem(_tracks.length.toString(), 'POST'),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 40),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _statItem(_tracks.length.toString(), 'POST'),
                           _vDivider(),
-                          _statItem(_mockFollowers.toString(), 'FOLLOWERS'),
+                          _buildStatSlot(
+                            _statItem(_mockFollowers.toString(), 'FOLLOWERS'),
+                          ),
                           _vDivider(),
-                          _statItem(_mockFollowing.toString(), 'SEGUITI'),
+                          _buildStatSlot(
+                            _statItem(_mockFollowing.toString(), 'SEGUITI'),
+                          ),
+                          if (_showMockNuraScore) ...[
+                            _vDivider(),
+                            _buildStatSlot(
+                              _nuraScoreStatItem(
+                                '$_mockNuraScore',
+                                onTap: () => _openNuraScoreDetail(
+                                  effectiveProfileImageAsset,
+                                ),
+                              ),
+                              flex: 2,
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 56),
@@ -568,10 +721,10 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                 return Opacity(
                   opacity: (1.0 - (scrollOffset / 260)).clamp(0.0, 1.0),
                   child: IconButton(
-                    tooltip: 'Modifica immagine',
+                    tooltip: 'Impostazioni profilo',
                     visualDensity: VisualDensity.compact,
                     iconSize: 20,
-                    icon: const Icon(Icons.image_outlined),
+                    icon: const Icon(Icons.settings_outlined),
                     color: Colors.white.withValues(alpha: 0.92),
                     onPressed: () {
                       Navigator.of(context).push(
@@ -590,39 +743,17 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     );
   }
 
-  Widget _mainBtn({
-    required String label,
-    required bool isSolid,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: isSolid ? NuraBrand.pink : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(26),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSolid ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-          ),
-        ),
-      ),
-    );
+  Widget _buildStatSlot(Widget child, {int flex = 1}) {
+    return Expanded(flex: flex, child: Center(child: child));
   }
 
-  Widget _statItem(String value, String label) {
+  Widget _statItem(String value, String label, {Color? valueColor}) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF1A1A1A),
+          style: TextStyle(
+            color: valueColor ?? const Color(0xFF1A1A1A),
             fontSize: 20,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.5,
@@ -640,6 +771,75 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _nuraScoreStatItem(String value, {required VoidCallback onTap}) {
+    return Semantics(
+      button: true,
+      label: 'Apri dettaglio Nura Score',
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+            child: Material(
+              color: _scoreGlassColor,
+              child: InkWell(
+                onTap: onTap,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        value,
+                        style: TextStyle(
+                          color: Color.lerp(
+                            NuraBrand.pink,
+                            Colors.white,
+                            0.18,
+                          ),
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.9,
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'NURA SCORE',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.75,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -809,6 +1009,271 @@ class _TrackPostCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NuraScoreDetailScreen extends StatelessWidget {
+  final String artistName;
+  final String artistHandle;
+  final String imageSource;
+  final int totalScore;
+  final List<_NuraScoreMetric> metrics;
+  final Color scoreColor;
+  final Color accent;
+
+  const _NuraScoreDetailScreen({
+    required this.artistName,
+    required this.artistHandle,
+    required this.imageSource,
+    required this.totalScore,
+    required this.metrics,
+    required this.scoreColor,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mutedPink = Color.lerp(NuraBrand.pink, Colors.white, 0.18)!;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: ParallaxOrganicMeshPainter(
+                  scrollOffset: 0,
+                  musicuraBlu: NuraBrand.deep,
+                  nuraPink: NuraBrand.pink,
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(24, 72, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: _profileImage(),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              artistName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              artistHandle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: const Color(0xFF1A1A1A)
+                                    .withValues(alpha: 0.48),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 34),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 26,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scoreColor,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 24,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '$totalScore',
+                          style: TextStyle(
+                            color: mutedPink,
+                            fontSize: 56,
+                            fontWeight: FontWeight.w900,
+                            height: 0.96,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'NURA SCORE',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Text(
+                    'MEDIE CURATOR',
+                    style: TextStyle(
+                      color: const Color(0xFF1A1A1A).withValues(alpha: 0.82),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  for (final metric in metrics) ...[
+                    _ScoreMetricRow(
+                      label: metric.label,
+                      value: metric.value,
+                      accent: mutedPink,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16, right: 18),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.62),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileImage() {
+    if (imageSource.startsWith('http://') ||
+        imageSource.startsWith('https://')) {
+      return Image.network(
+        imageSource,
+        width: 68,
+        height: 68,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imageFallback(),
+      );
+    }
+
+    return Image.asset(
+      imageSource,
+      width: 68,
+      height: 68,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _imageFallback(),
+    );
+  }
+
+  Widget _imageFallback() {
+    return Container(
+      width: 68,
+      height: 68,
+      color: Colors.black.withValues(alpha: 0.08),
+      child: Icon(
+        Icons.person_rounded,
+        color: Colors.black.withValues(alpha: 0.32),
+      ),
+    );
+  }
+}
+
+class _ScoreMetricRow extends StatelessWidget {
+  final String label;
+  final int value;
+  final Color accent;
+
+  const _ScoreMetricRow({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (value / 100).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                '$value',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: Colors.black.withValues(alpha: 0.08),
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+            ),
+          ),
+        ],
       ),
     );
   }
