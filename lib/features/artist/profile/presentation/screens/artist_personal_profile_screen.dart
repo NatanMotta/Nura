@@ -372,59 +372,76 @@ class _ArtistPersonalProfileScreenState
   }
 
   Widget _buildScoreCol() {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => NuraScoreAnalyticsScreen(
-                vibe: widget.vibe,
-                globalScore: _nuuraScore,
-                tracks: _mockTracks,
-              ),
-            ));
-          },
-          child: Container(
-            width: 54,
-            height: 54,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: SweepGradient(
-                colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
-                stops: [0.0, 0.33, 0.66, 1.0],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(2.5),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => NuraScoreAnalyticsScreen(
+            vibe: widget.vibe,
+            globalScore: _nuuraScore,
+            tracks: _mockTracks,
+          ),
+        ));
+      },
+      child: Container(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: SweepGradient(
+                  colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
+                  stops: [0.0, 0.33, 0.66, 1.0],
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${_nuuraScore.totalScore}',
-                  style: const TextStyle(
-                    color: NuraBrand.pink,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2.5),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${_nuuraScore.totalScore}',
+                    style: const TextStyle(
+                      color: NuraBrand.pink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'NURA SCORE',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios, size: 8, color: Colors.black87),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        const Text(
-          'NURA SCORE',
-          style: TextStyle(
-            color: Colors.black54,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.0,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
