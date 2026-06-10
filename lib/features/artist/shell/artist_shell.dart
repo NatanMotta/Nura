@@ -37,11 +37,11 @@ class _ArtistShellState extends State<ArtistShell> {
   // State maps per tab
   final Map<String, bool> _navVisibilityMap = {};
   final Map<String, bool> _isScrolledMap = {};
-  
+
   // Listeners to drive UI
   final ValueNotifier<bool> _currentNavVisibility = ValueNotifier(true);
   final ValueNotifier<bool> _currentIsScrolled = ValueNotifier(false);
-  
+
   String _screen = RouteNames.home;
 
   String? _artistId;
@@ -134,87 +134,88 @@ class _ArtistShellState extends State<ArtistShell> {
       child: IndexedStack(
         index: currentIndex,
         children: [
-        TickerMode(
-          enabled: currentIndex == 0 || currentIndex == 4,
-          child: IgnorePointer(
-            ignoring: !(currentIndex == 0 || currentIndex == 4),
-            child: HomeFeed(
-              key: const PageStorageKey('home_feed'),
-              vibe: widget.vibe,
-              accent: widget.accent,
-              waveform: widget.waveform,
-              safeTop: safeTop,
-              safeBottom: safeBottom,
-              isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
-              onArtistTap: _onArtistTap,
+          TickerMode(
+            enabled: currentIndex == 0 || currentIndex == 4,
+            child: IgnorePointer(
+              ignoring: !(currentIndex == 0 || currentIndex == 4),
+              child: HomeFeed(
+                key: const PageStorageKey('home_feed'),
+                vibe: widget.vibe,
+                accent: widget.accent,
+                waveform: widget.waveform,
+                safeTop: safeTop,
+                safeBottom: safeBottom,
+                isActive: _screen == RouteNames.home ||
+                    _screen == _artistProfileRoute,
+                onArtistTap: _onArtistTap,
+              ),
             ),
           ),
-        ),
-        TickerMode(
-          enabled: currentIndex == 1,
-          child: IgnorePointer(
-            ignoring: currentIndex != 1,
-            child: HomeSearch(
-              key: const PageStorageKey('home_search'),
-              vibe: widget.vibe,
-              accent: widget.accent,
-              waveform: widget.waveform,
-              safeTop: contentSafeTop,
-              safeBottom: safeBottom,
+          TickerMode(
+            enabled: currentIndex == 1,
+            child: IgnorePointer(
+              ignoring: currentIndex != 1,
+              child: HomeSearch(
+                key: const PageStorageKey('home_search'),
+                vibe: widget.vibe,
+                accent: widget.accent,
+                waveform: widget.waveform,
+                safeTop: contentSafeTop,
+                safeBottom: safeBottom,
+              ),
             ),
           ),
-        ),
-        TickerMode(
-          enabled: currentIndex == 2,
-          child: IgnorePointer(
-            ignoring: currentIndex != 2,
-            child: ArtistPitchScreen(
-              key: const PageStorageKey('artist_pitch'),
-              isActive: _screen == _pitch,
-              safeTop: safeTop,
-              safeBottom: safeBottom,
+          TickerMode(
+            enabled: currentIndex == 2,
+            child: IgnorePointer(
+              ignoring: currentIndex != 2,
+              child: ArtistPitchScreen(
+                key: const PageStorageKey('artist_pitch'),
+                isActive: _screen == _pitch,
+                safeTop: safeTop,
+                safeBottom: safeBottom,
+              ),
             ),
           ),
-        ),
-        TickerMode(
-          enabled: currentIndex == 3,
-          child: IgnorePointer(
-            ignoring: currentIndex != 3,
-            child: EmptyEventsTab(
-              vibe: widget.vibe,
-              accent: widget.accent,
-              safeTop: contentSafeTop,
-              safeBottom: safeBottom,
+          TickerMode(
+            enabled: currentIndex == 3,
+            child: IgnorePointer(
+              ignoring: currentIndex != 3,
+              child: EmptyEventsTab(
+                vibe: widget.vibe,
+                accent: widget.accent,
+                safeTop: contentSafeTop,
+                safeBottom: safeBottom,
+              ),
             ),
           ),
-        ),
-        TickerMode(
-          enabled: currentIndex == 4,
-          child: IgnorePointer(
-            ignoring: currentIndex != 4,
-            child: ArtistPersonalProfileScreen(
-              key: const PageStorageKey('artist_personal_profile'),
-              vibe: widget.vibe,
-              accent: widget.accent,
-              safeTop: safeTop,
-              safeBottom: safeBottom,
+          TickerMode(
+            enabled: currentIndex == 4,
+            child: IgnorePointer(
+              ignoring: currentIndex != 4,
+              child: ArtistPersonalProfileScreen(
+                key: const PageStorageKey('artist_personal_profile'),
+                vibe: widget.vibe,
+                accent: widget.accent,
+                safeTop: safeTop,
+                safeBottom: safeBottom,
+              ),
             ),
           ),
-        ),
-        TickerMode(
-          enabled: currentIndex == 5,
-          child: IgnorePointer(
-            ignoring: currentIndex != 5,
-            child: ArtistPublicProfileScreen(
-              key: const PageStorageKey('artist_profile'),
-              artistId: _artistId ?? 'mock',
-              artistName: _artistName ?? 'Artist',
-              onBack: _onArtistBack,
+          TickerMode(
+            enabled: currentIndex == 5,
+            child: IgnorePointer(
+              ignoring: currentIndex != 5,
+              child: ArtistPublicProfileScreen(
+                key: const PageStorageKey('artist_profile'),
+                artistId: _artistId ?? 'mock',
+                artistName: _artistName ?? 'Artist',
+                onBack: _onArtistBack,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
 
     return Scaffold(
@@ -240,17 +241,20 @@ class _ArtistShellState extends State<ArtistShell> {
 
                   if (notification is UserScrollNotification) {
                     final direction = notification.direction;
-                    if (direction == ScrollDirection.reverse && _currentNavVisibility.value) {
+                    if (direction == ScrollDirection.reverse &&
+                        _currentNavVisibility.value) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         _currentNavVisibility.value = false;
                         _navVisibilityMap[_screen] = false;
                       });
-                    } else if (direction == ScrollDirection.forward && !_currentNavVisibility.value) {
+                    } else if (direction == ScrollDirection.forward &&
+                        !_currentNavVisibility.value) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         _currentNavVisibility.value = true;
                         _navVisibilityMap[_screen] = true;
                       });
-                    } else if (direction == ScrollDirection.idle && !_currentNavVisibility.value) {
+                    } else if (direction == ScrollDirection.idle &&
+                        !_currentNavVisibility.value) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         _currentNavVisibility.value = true;
                         _navVisibilityMap[_screen] = true;
@@ -280,7 +284,8 @@ class _ArtistShellState extends State<ArtistShell> {
                 builder: (context, isVisible, child) {
                   return AnimatedOpacity(
                     duration: const Duration(milliseconds: 300),
-                    opacity: isVisible && _screen != _artistProfileRoute ? 1.0 : 0.0,
+                    opacity:
+                        isVisible && _screen != _artistProfileRoute ? 1.0 : 0.0,
                     child: IgnorePointer(
                       ignoring: !(isVisible && _screen != _artistProfileRoute),
                       child: ValueListenableBuilder<bool>(
@@ -325,8 +330,10 @@ class _ArtistShellState extends State<ArtistShell> {
                         valueListenable: audio.playingTrackId,
                         builder: (context, trackId, _) {
                           // Show player ONLY on Artist Profile screen
-                          if (_screen != _artistProfileRoute) return const SizedBox.shrink();
-                          if (trackId == null || trackId.isEmpty) return const SizedBox.shrink();
+                          if (_screen != _artistProfileRoute)
+                            return const SizedBox.shrink();
+                          if (trackId == null || trackId.isEmpty)
+                            return const SizedBox.shrink();
                           return GlobalMiniPlayer(vibe: widget.vibe);
                         },
                       ),
@@ -340,7 +347,9 @@ class _ArtistShellState extends State<ArtistShell> {
                       right: 0,
                       bottom: isVisible ? 0 : -120, // Calm UX Floating Nav
                       child: BottomNav(
-                        active: _screen == _artistProfileRoute ? RouteNames.home : _screen,
+                        active: _screen == _artistProfileRoute
+                            ? RouteNames.home
+                            : _screen,
                         onChange: _handleTabTap,
                         vibe: widget.vibe,
                         accent: widget.accent,
