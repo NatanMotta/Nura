@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
-import '../../profile/data/artist_stats_service.dart';
+import '../../data/artist_stats_service.dart';
 
 class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
   final NuraVibe vibe;
