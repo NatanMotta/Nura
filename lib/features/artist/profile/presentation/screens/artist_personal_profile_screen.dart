@@ -156,64 +156,6 @@ class _ArtistPersonalProfileScreenState
               ),
             ],
           ),
-
-          // TOP FLOATING BUTTONS
-          _buildFloatingTopBar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFloatingTopBar() {
-    return Positioned(
-      top: widget.safeTop + 8,
-      left: 16,
-      right: 16,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Left Button (Initials)
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: const Text(
-              'L',
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          // Right Button (Settings)
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
-          ),
         ],
       ),
     );
@@ -520,12 +462,16 @@ class _ArtistPersonalProfileScreenState
                     ),
                     if (track['trend'] != null) ...[
                       const SizedBox(width: 8),
-                      Text(
-                        track['trend'],
-                        style: const TextStyle(
-                          color: Color(0xFF00BFA5), // Vibrant Green for positive trend
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: Text(
+                          track['trend'],
+                          style: const TextStyle(
+                            color: Color(0xFF00BFA5), // Vibrant Green for positive trend
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
