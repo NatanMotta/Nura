@@ -180,13 +180,16 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
                 padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 0.0),
                 sliver: _isLoadingTracks 
                   ? const SliverToBoxAdapter(
-                      child: Center(child: CircularProgressIndicator(color: NuraBrand.mint)),
+                      child: SizedBox(
+                        height: 100,
+                        child: Center(child: CircularProgressIndicator(color: NuraBrand.mint)),
+                      ),
                     )
                   : _realTracks.isEmpty
                       ? const SliverToBoxAdapter(
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32.0),
+                          child: SizedBox(
+                            height: 150,
+                            child: Center(
                               child: Text('Nessuna traccia caricata.', style: TextStyle(color: Colors.white54)),
                             ),
                           ),
