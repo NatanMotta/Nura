@@ -285,9 +285,9 @@ class _ArtistShellState extends State<ArtistShell> {
                   return AnimatedOpacity(
                     duration: const Duration(milliseconds: 300),
                     opacity:
-                        isVisible && _screen != _artistProfileRoute ? 1.0 : 0.0,
+                        isVisible && _screen != _artistProfileRoute && _screen != RouteNames.profile ? 1.0 : 0.0,
                     child: IgnorePointer(
-                      ignoring: !(isVisible && _screen != _artistProfileRoute),
+                      ignoring: !(isVisible && _screen != _artistProfileRoute && _screen != RouteNames.profile),
                       child: ValueListenableBuilder<bool>(
                         valueListenable: _currentIsScrolled,
                         builder: (context, isScrolled, child) {
