@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../data/artist_stats_service.dart';
+import 'artist_personal_profile_screen.dart' show ParallaxOrganicMeshPainter;
 
 class NuraScoreAnalyticsScreen extends StatelessWidget {
   final NuraVibe vibe;
@@ -18,7 +19,8 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NuraBrand.deepest,
+      backgroundColor: Colors.transparent, // Background handled by Stack
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -26,49 +28,68 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
         title: const Text(
           'Analisi Nura Score',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.black87,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: _buildGlobalScoreHero(),
+      body: Stack(
+        children: [
+          // Sfondo Parallax
+          Positioned.fill(
+            child: CustomPaint(
+              painter: ParallaxOrganicMeshPainter(
+                scrollOffset: 0.0,
+                musicuraBlu: NuraBrand.deepMid,
+                nuraPink: NuraBrand.pink,
+              ),
+            ),
           ),
-          SliverToBoxAdapter(
-            child: _buildGlobalBreakdown(),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: const Text(
-                'Punteggi per Canzone',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+          
+          // Contenuto
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
+              ),
+              SliverToBoxAdapter(
+                child: _buildGlobalScoreHero(),
+              ),
+              SliverToBoxAdapter(
+                child: _buildGlobalBreakdown(),
+              ),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  child: Text(
+                    'Punteggi per Canzone',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildTrackScoreDetail(tracks[index]),
-                childCount: tracks.length,
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildTrackScoreDetail(tracks[index]),
+                    childCount: tracks.length,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 100),
+              ),
+            ],
           ),
         ],
       ),
@@ -91,23 +112,23 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                 spreadRadius: 10,
               ),
             ],
-            gradient: SweepGradient(
-              colors: const [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
-              stops: const [0.0, 0.33, 0.66, 1.0],
+            gradient: const SweepGradient(
+              colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
+              stops: [0.0, 0.33, 0.66, 1.0],
             ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(4.0),
             child: Container(
               decoration: const BoxDecoration(
-                color: NuraBrand.deepest,
+                color: Colors.white,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
               child: Text(
                 '${globalScore.totalScore}',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: NuraBrand.pink,
                   fontSize: 54,
                   fontWeight: FontWeight.w900,
                 ),
@@ -119,7 +140,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
         const Text(
           'NURA SCORE GLOBALE',
           style: TextStyle(
-            color: Colors.white54,
+            color: Colors.black54,
             fontSize: 14,
             fontWeight: FontWeight.bold,
             letterSpacing: 2.0,
@@ -132,7 +153,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
             'Calcolato elaborando ${globalScore.totalFeedbacks} feedback ufficiali lasciati dai Curator di Nura sui tuoi brani.',
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white70,
+              color: Colors.black87,
               fontSize: 14,
               height: 1.4,
             ),
@@ -148,9 +169,16 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: NuraBrand.deep.withValues(alpha: 0.5),
+        color: Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +186,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
           const Text(
             'MEDIA DEI PARAMETRI',
             style: TextStyle(
-              color: Colors.white54,
+              color: Colors.black54,
               fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.5,
@@ -169,7 +197,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _buildProgressBar('Produzione', globalScore.productionScore, const Color(0xFF9D00FF)),
           const SizedBox(height: 16),
-          _buildProgressBar('Testo (Lyrics)', globalScore.lyricsScore, NuraBrand.mint),
+          _buildProgressBar('Testo (Lyrics)', globalScore.lyricsScore, NuraBrand.deep),
           const SizedBox(height: 16),
           _buildProgressBar('Potenziale di Mercato', globalScore.marketPotentialScore, const Color(0xFF00BFA5)),
         ],
@@ -187,7 +215,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
+                color: Colors.black87,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -209,7 +237,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
               height: 8,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -222,7 +250,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.4),
+                      color: color.withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 0),
                     ),
@@ -247,17 +275,24 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Theme(
-        data: ThemeData.dark().copyWith(
+        data: ThemeData.light().copyWith(
           dividerColor: Colors.transparent,
         ),
         child: ExpansionTile(
-          iconColor: Colors.white54,
-          collapsedIconColor: Colors.white54,
+          iconColor: Colors.black54,
+          collapsedIconColor: Colors.black54,
           tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           title: Row(
             children: [
@@ -280,7 +315,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                     Text(
                       track['title'],
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.black87,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -289,7 +324,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                     Text(
                       '${track['feedback']} Feedback',
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: Colors.black54,
                         fontSize: 12,
                       ),
                     ),
@@ -301,7 +336,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.5), width: 1.5),
+                  border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -325,7 +360,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildProgressBar('Produzione', prod, const Color(0xFF9D00FF)),
                   const SizedBox(height: 12),
-                  _buildProgressBar('Testo (Lyrics)', lyrics, NuraBrand.mint),
+                  _buildProgressBar('Testo (Lyrics)', lyrics, NuraBrand.deep),
                   const SizedBox(height: 12),
                   _buildProgressBar('Potenziale di Mercato', market, const Color(0xFF00BFA5)),
                 ],

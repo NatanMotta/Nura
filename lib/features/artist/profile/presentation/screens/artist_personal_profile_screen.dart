@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
@@ -374,6 +375,7 @@ class _ArtistPersonalProfileScreenState
   Widget _buildScoreCol() {
     return GestureDetector(
       onTap: () {
+        HapticFeedback.mediumImpact();
         Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => NuraScoreAnalyticsScreen(
             vibe: widget.vibe,
@@ -539,6 +541,7 @@ class _ArtistPersonalProfileScreenState
           // Score
           GestureDetector(
             onTap: () {
+              HapticFeedback.mediumImpact();
               Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => NuraScoreAnalyticsScreen(
                   vibe: widget.vibe,
