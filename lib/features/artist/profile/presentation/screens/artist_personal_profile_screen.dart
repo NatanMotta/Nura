@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../data/artist_stats_service.dart';
+import 'nura_score_analytics_screen.dart';
 
 class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
   final NuraVibe vibe;
@@ -373,30 +374,41 @@ class _ArtistPersonalProfileScreenState
   Widget _buildScoreCol() {
     return Column(
       children: [
-        Container(
-          width: 54,
-          height: 54,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: SweepGradient(
-              colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
-              stops: [0.0, 0.33, 0.66, 1.0],
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(2.5),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+        GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => NuraScoreAnalyticsScreen(
+                vibe: widget.vibe,
+                globalScore: _nuuraScore,
+                tracks: _mockTracks,
               ),
-              alignment: Alignment.center,
-              child: Text(
-                '${_nuuraScore.totalScore}',
-                style: const TextStyle(
-                  color: NuraBrand.pink,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+            ));
+          },
+          child: Container(
+            width: 54,
+            height: 54,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
+                stops: [0.0, 0.33, 0.66, 1.0],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(2.5),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${_nuuraScore.totalScore}',
+                  style: const TextStyle(
+                    color: NuraBrand.pink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
@@ -508,20 +520,31 @@ class _ArtistPersonalProfileScreenState
             ),
           ),
           // Score
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '${track['score']}',
-              style: const TextStyle(
-                color: NuraBrand.pink,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => NuraScoreAnalyticsScreen(
+                  vibe: widget.vibe,
+                  globalScore: _nuuraScore,
+                  tracks: _mockTracks,
+                ),
+              ));
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${track['score']}',
+                style: const TextStyle(
+                  color: NuraBrand.pink,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
