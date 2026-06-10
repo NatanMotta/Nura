@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,8 +25,7 @@ class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtistPersonalProfileScreenState
-    extends ConsumerState<ArtistPersonalProfileScreen>
-    with TickerProviderStateMixin {
+    extends ConsumerState<ArtistPersonalProfileScreen> {
   // Dati Mock
   final List<Map<String, dynamic>> _mockTracks = [
     {'title': 'Passerà', 'genre': 'Pop Indie', 'feedback': 12, 'trend': null, 'score': 63},
@@ -37,9 +34,6 @@ class _ArtistPersonalProfileScreenState
   ];
 
   late NuuraScore _nuuraScore;
-
-  final ScrollController _scrollController = ScrollController();
-  final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier(0.0);
 
   @override
   void initState() {
@@ -52,35 +46,23 @@ class _ArtistPersonalProfileScreenState
       marketPotentialScore: 86,
       totalFeedbacks: 14,
     );
-
-    _scrollController.addListener(() {
-      _scrollOffsetNotifier.value = _scrollController.offset;
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    _scrollOffsetNotifier.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent, // Background handle globally or in shell
+      backgroundColor: const Color(0xFFF8F9FA), // Sfondo ufficiale delle schermate Nura
       body: Stack(
         children: [
           // SCROLL CONTENT
           CustomScrollView(
-            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: SizedBox(height: widget.safeTop + 16),
               ),
               
-              // 1. HERO IDENTITY (Avatar, Name, Bio)
+              // 1. HERO IDENTITY (Avatar, Name, Bio pulita)
               SliverToBoxAdapter(
                 child: _buildHeroIdentity(),
               ),
@@ -90,17 +72,17 @@ class _ArtistPersonalProfileScreenState
                 child: _buildStatsRow(),
               ),
 
-              // 4. HEADER "I tuoi brani"
+              // 3. HEADER "I tuoi brani"
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'I tuoi brani',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Colors.black87,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -108,9 +90,9 @@ class _ArtistPersonalProfileScreenState
                       Text(
                         'Vedi tutti >',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.black54,
                           fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -118,18 +100,18 @@ class _ArtistPersonalProfileScreenState
                 ),
               ),
 
-              // 5. LISTA BRANI
+              // 4. LISTA BRANI
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => _buildTrackTile(_mockTracks[i], i),
+                    (ctx, i) => _buildTrackTile(_mockTracks[i]),
                     childCount: _mockTracks.length,
                   ),
                 ),
               ),
 
-              // 6. PRO BANNER
+              // 5. PRO BANNER
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -164,14 +146,21 @@ class _ArtistPersonalProfileScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             alignment: Alignment.center,
             child: const Text(
               'L',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black87,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -182,10 +171,17 @@ class _ArtistPersonalProfileScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
+            child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
           ),
         ],
       ),
@@ -196,29 +192,30 @@ class _ArtistPersonalProfileScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Avatar con Glow
+        const SizedBox(height: 16),
+        // Avatar con Glow leggero
         Stack(
           alignment: Alignment.center,
           children: [
             // Ambient Glow
             Container(
-              width: 160,
-              height: 160,
+              width: 150,
+              height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: NuraBrand.pink.withOpacity(0.3),
-                    blurRadius: 40,
-                    spreadRadius: 10,
+                    color: NuraBrand.pink.withValues(alpha: 0.15),
+                    blurRadius: 30,
+                    spreadRadius: 8,
                   ),
                 ],
               ),
             ),
             // Avatar
             Container(
-              width: 130,
-              height: 130,
+              width: 120,
+              height: 120,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 image: DecorationImage(
@@ -230,41 +227,41 @@ class _ArtistPersonalProfileScreenState
             // Edit Button
             Positioned(
               bottom: 0,
-              right: 10,
+              right: 8,
               child: Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.edit, color: Colors.black, size: 18),
+                child: const Icon(Icons.edit, color: Colors.black87, size: 16),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        // Name & Username
+        const SizedBox(height: 20),
+        // Name & Status
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
               'giovami____',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black87,
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Container(
               width: 8,
               height: 8,
@@ -276,10 +273,21 @@ class _ArtistPersonalProfileScreenState
           ],
         ),
         const SizedBox(height: 4),
-        Text(
+        const Text(
           '@giovami___',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.black54,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Bio essenziale Nura (senza riferimenti IG)
+        const Text(
+          'KOcco, fuori ora ovunque!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.black87,
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
@@ -289,12 +297,12 @@ class _ArtistPersonalProfileScreenState
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.link, color: Colors.white.withOpacity(0.8), size: 18),
-            const SizedBox(width: 4),
+            const Icon(Icons.link, color: Colors.black54, size: 18),
+            const SizedBox(width: 6),
             Text(
               'https://ada.lnk.to/KOcco',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+              style: const TextStyle(
+                color: Colors.black87,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -326,7 +334,7 @@ class _ArtistPersonalProfileScreenState
     return Container(
       width: 1,
       height: 40,
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.black.withValues(alpha: 0.05),
     );
   }
 
@@ -343,7 +351,7 @@ class _ArtistPersonalProfileScreenState
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white,
+            color: Colors.black87,
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
@@ -351,11 +359,11 @@ class _ArtistPersonalProfileScreenState
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+          style: const TextStyle(
+            color: Colors.black54,
             fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.0,
           ),
         ),
       ],
@@ -366,8 +374,8 @@ class _ArtistPersonalProfileScreenState
     return Column(
       children: [
         Container(
-          width: 50,
-          height: 50,
+          width: 54,
+          height: 54,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: SweepGradient(
@@ -379,7 +387,7 @@ class _ArtistPersonalProfileScreenState
             padding: const EdgeInsets.all(2.5),
             child: Container(
               decoration: const BoxDecoration(
-                color: NuraBrand.deep,
+                color: Colors.white,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
@@ -387,34 +395,41 @@ class _ArtistPersonalProfileScreenState
                 '${_nuuraScore.totalScore}',
                 style: const TextStyle(
                   color: NuraBrand.pink,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
+        const SizedBox(height: 10),
+        const Text(
           'NURA SCORE',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.black54,
             fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.0,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTrackTile(Map<String, dynamic> track, int index) {
+  Widget _buildTrackTile(Map<String, dynamic> track) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05), // Dark Theme adaptation of white card
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -439,7 +454,7 @@ class _ArtistPersonalProfileScreenState
                 Text(
                   track['title'],
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -447,8 +462,8 @@ class _ArtistPersonalProfileScreenState
                 const SizedBox(height: 4),
                 Text(
                   track['genre'],
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                  style: const TextStyle(
+                    color: Colors.black54,
                     fontSize: 13,
                   ),
                 ),
@@ -466,10 +481,10 @@ class _ArtistPersonalProfileScreenState
                     const SizedBox(width: 6),
                     Text(
                       '${track['feedback']} feedback',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                      style: const TextStyle(
+                        color: Colors.black54,
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (track['trend'] != null) ...[
@@ -477,9 +492,9 @@ class _ArtistPersonalProfileScreenState
                       Text(
                         track['trend'],
                         style: const TextStyle(
-                          color: NuraBrand.mint,
+                          color: Color(0xFF00BFA5), // Vibrant Green for positive trend
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -494,7 +509,7 @@ class _ArtistPersonalProfileScreenState
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: NuraBrand.pink.withOpacity(0.5), width: 1.5), // Simplified border gradient
+              border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -512,11 +527,11 @@ class _ArtistPersonalProfileScreenState
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.black87, size: 20),
           ),
         ],
       ),
@@ -530,8 +545,8 @@ class _ArtistPersonalProfileScreenState
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            NuraBrand.mint.withOpacity(0.1),
-            NuraBrand.pink.withOpacity(0.1),
+            NuraBrand.mint.withValues(alpha: 0.2),
+            NuraBrand.pink.withValues(alpha: 0.1),
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
@@ -543,29 +558,29 @@ class _ArtistPersonalProfileScreenState
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: NuraBrand.pink.withOpacity(0.1),
+              color: NuraBrand.pink.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.lock_outline, color: NuraBrand.pink, size: 20),
           ),
           const SizedBox(width: 16),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Sblocca Nura Pro',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black87,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'Vedi i punteggi completi e l\'analisi dettagliata.',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.black54,
                     fontSize: 12,
                     height: 1.3,
                   ),
