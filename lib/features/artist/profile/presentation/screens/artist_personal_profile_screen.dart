@@ -5,23 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart' show ParallaxOrganicMeshPainter;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../../core/services/supabase_bootstrap.dart';
+import '../../../../auth/presentation/auth_providers.dart';
 
-// --- MOCKS ---
-class _MockTrack {
-  final String title;
-  final String duration;
-  final int plays;
-  const _MockTrack(this.title, this.duration, this.plays);
-}
 
-final _mockTracks = [
-  const _MockTrack('Neon Midnight', '3:45', 12450),
-  const _MockTrack('Cybernetic Groove', '4:10', 8300),
-  const _MockTrack('Electric Rain', '2:55', 21000),
-  const _MockTrack('Synthetic Soul', '5:20', 4500),
-  const _MockTrack('Analog Dreams', '4:05', 3200),
-  const _MockTrack('Void Walker', '3:12', 18900),
-];
 
 class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
   final NuraVibe vibe;
@@ -44,6 +32,9 @@ class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
 class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProfileScreen> {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
+  
+  List<Map<String, dynamic>> _realTracks = [];
+  bool _isLoadingTracks = true;
 
   @override
   void initState() {
@@ -51,6 +42,34 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
     _scrollController.addListener(() {
       _scrollNotifier.value = _scrollController.offset;
     });
+    _loadTracks();
+  }
+
+  Future<void> _loadTracks() async {
+    try {
+      final authUser = await ref.read(authRepositoryProvider).getCurrentUser();
+      if (authUser == null || !SupabaseBootstrap.isInitialized) {
+        if (mounted) setState(() => _isLoadingTracks = false);
+        return;
+      }
+      
+      final rows = await Supabase.instance.client
+          .from('tracks')
+          .select('id,title,duration_seconds')
+          .eq('artist_id', authUser.id)
+          .not('storage_path', 'is', null)
+          .order('created_at', ascending: false)
+          .limit(20);
+          
+      if (mounted) {
+        setState(() {
+          _realTracks = List<Map<String, dynamic>>.from(rows);
+          _isLoadingTracks = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingTracks = false);
+    }
   }
 
   @override
@@ -69,21 +88,16 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
       body: Stack(
         children: [
           // Sfondo Organico Allineato al resto dell'app
-          ValueListenableBuilder<double>(
-            valueListenable: _scrollNotifier,
-            builder: (context, scrollOffset, _) {
-              return Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: ParallaxOrganicMeshPainter(
-                      scrollOffset: scrollOffset,
-                      musicuraBlu: NuraBrand.deepMid,
-                      nuraPink: NuraBrand.pink,
-                    ),
-                  ),
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: ParallaxOrganicMeshPainter(
+                  scrollOffset: 0,
+                  musicuraBlu: NuraBrand.deepMid,
+                  nuraPink: NuraBrand.pink,
                 ),
-              );
-            },
+              ),
+            ),
           ),
 
           // 1. Cover Image (Parallax & Elastic)
@@ -163,15 +177,28 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
               // Lista dei Brani
               SliverPadding(
                 padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 0.0),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final track = _mockTracks[index];
-                      return _buildTrackTile(track, index);
-                    },
-                    childCount: _mockTracks.length,
-                  ),
-                ),
+                sliver: _isLoadingTracks 
+                  ? const SliverToBoxAdapter(
+                      child: Center(child: CircularProgressIndicator(color: NuraBrand.mint)),
+                    )
+                  : _realTracks.isEmpty
+                      ? const SliverToBoxAdapter(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32.0),
+                              child: Text('Nessuna traccia caricata.', style: TextStyle(color: Colors.white54)),
+                            ),
+                          ),
+                        )
+                      : SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final track = _realTracks[index];
+                              return _buildTrackTile(track, index);
+                            },
+                            childCount: _realTracks.length,
+                          ),
+                        ),
               ),
 
               // Padding finale per non coprire col MiniPlayer
@@ -449,7 +476,14 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
     );
   }
 
-  Widget _buildTrackTile(_MockTrack track, int index) {
+  Widget _buildTrackTile(Map<String, dynamic> track, int index) {
+    final title = track['title'] as String? ?? 'Senza titolo';
+    final durSecs = track['duration_seconds'] as int? ?? 0;
+    final min = durSecs ~/ 60;
+    final sec = (durSecs % 60).toString().padLeft(2, '0');
+    final durationStr = '$min:$sec';
+    final mockPlays = 1200 + (index * 432); // Mock temporaneo per stats
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
@@ -471,7 +505,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  track.title,
+                  title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -480,7 +514,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${track.plays} ascolti • ${track.duration}',
+                  '$mockPlays ascolti • $durationStr',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 13,
