@@ -90,7 +90,56 @@ class _ArtistPersonalProfileScreenState
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
-                child: SizedBox(height: widget.safeTop + 16),
+                child: Padding(
+                  padding: EdgeInsets.only(top: widget.safeTop + 8, left: 16, right: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left Button (Initials)
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'L',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      // Right Button (Settings)
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               
               // 1. HERO IDENTITY (Avatar, Name, Bio pulita)
@@ -166,59 +215,56 @@ class _ArtistPersonalProfileScreenState
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const SizedBox(height: 16),
-        // Avatar con Glow leggero
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            // Ambient Glow
-            Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: NuraBrand.pink.withValues(alpha: 0.15),
-                    blurRadius: 30,
-                    spreadRadius: 8,
-                  ),
-                ],
-              ),
-            ),
-            // Avatar
-            Container(
-              width: 120,
-              height: 120,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: AssetImage('assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            // Edit Button
-            Positioned(
-              bottom: 0,
-              right: 8,
-              child: Container(
-                width: 32,
-                height: 32,
+        // Avatar compatto con Edit button
+        SizedBox(
+          width: 104,
+          height: 104,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Avatar base
+              Container(
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: NuraBrand.pink.withValues(alpha: 0.08),
+                      blurRadius: 15,
+                      spreadRadius: 2,
                     ),
                   ],
+                  image: const DecorationImage(
+                    image: AssetImage('assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg'),
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                child: const Icon(Icons.edit, color: Colors.black87, size: 16),
               ),
-            ),
-          ],
+              // Edit Button (basso destra)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFF8F9FA), width: 2.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.black87, size: 15),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         // Name & Status
