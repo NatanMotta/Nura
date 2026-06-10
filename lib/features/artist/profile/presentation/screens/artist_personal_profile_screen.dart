@@ -103,7 +103,12 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
           // 1. Cover Image (Parallax & Elastic)
           ValueListenableBuilder<double>(
             valueListenable: _scrollNotifier,
-            builder: (context, scrollOffset, _) {
+            child: Image.asset(
+              'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (c, e, s) => Container(color: Colors.grey[800]),
+            ),
+            builder: (context, scrollOffset, child) {
               double parallaxOffset = 0;
               double scale = 1.0;
               
@@ -125,11 +130,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
                   alignment: Alignment.bottomCenter,
                   child: Opacity(
                     opacity: coverOpacity,
-                    child: Image.asset(
-                      'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => Container(color: Colors.grey[800]),
-                    ),
+                    child: child,
                   ),
                 ),
               );
@@ -244,18 +245,14 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
   }
 
   Widget _buildIdentityGlassCard() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          padding: const EdgeInsets.all(24.0),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.4), // Dark Glassmorphism
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1), // Rim light
-          ),
-          child: Row(
+    return Container(
+      padding: const EdgeInsets.all(24.0),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55), // Dark solid instead of glass
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1), // Rim light
+      ),
+      child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Avatar con Glow Ring (Nuura Score)
@@ -292,8 +289,6 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 
@@ -409,20 +404,14 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
   }
 
   Widget _buildBentoCard({required Widget child, EdgeInsetsGeometry? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding ?? const EdgeInsets.symmetric(vertical: 16.0),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
-          ),
-          child: child,
-        ),
+    return Container(
+      padding: padding ?? const EdgeInsets.symmetric(vertical: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
       ),
+      child: child,
     );
   }
 
