@@ -106,6 +106,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
             child: Image.asset(
               'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
               fit: BoxFit.cover,
+              cacheHeight: 1200, // Previene RAM OOM con immagini giganti
               errorBuilder: (c, e, s) => Container(color: Colors.grey[800]),
             ),
             builder: (context, scrollOffset, child) {
@@ -334,6 +335,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
         child: Image.asset(
           'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
           fit: BoxFit.cover,
+          cacheHeight: 200, // Previene RAM OOM
           errorBuilder: (c, e, s) => const Icon(Icons.person, color: Colors.white54),
         ),
       ),

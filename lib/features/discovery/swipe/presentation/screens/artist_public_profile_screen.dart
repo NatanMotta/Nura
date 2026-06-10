@@ -159,6 +159,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                         child: Image.asset(
                           _imageAsset!,
                           fit: BoxFit.cover,
+                          cacheHeight: 1200,
                         ),
                       ),
                     ),

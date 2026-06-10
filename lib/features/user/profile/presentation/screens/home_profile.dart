@@ -381,7 +381,7 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                               stops: [0.0, 0.45, 0.95],
                             ).createShader(rect),
                             blendMode: BlendMode.dstIn,
-                            child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover),
+                            child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover, cacheHeight: 1200),
                           ),
                         ),
                       ),

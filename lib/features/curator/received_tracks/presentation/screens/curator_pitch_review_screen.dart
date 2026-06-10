@@ -153,6 +153,7 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
                                   width: 72,
                                   height: 72,
                                   fit: BoxFit.cover,
+                                  cacheWidth: 300,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Container(
                                     width: 72,
@@ -327,6 +328,7 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
+                    cacheWidth: 300,
                     errorBuilder: (context, error, stackTrace) => Container(
                       width: 64,
                       height: 64,
