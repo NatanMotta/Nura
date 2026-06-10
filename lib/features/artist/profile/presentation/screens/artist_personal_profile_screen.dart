@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,6 +36,8 @@ class _ArtistPersonalProfileScreenState
   ];
 
   late NuuraScore _nuuraScore;
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
@@ -46,16 +50,43 @@ class _ArtistPersonalProfileScreenState
       marketPotentialScore: 86,
       totalFeedbacks: 14,
     );
+    _scrollController.addListener(() {
+      _scrollOffsetNotifier.value = _scrollController.offset;
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollOffsetNotifier.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Sfondo ufficiale delle schermate Nura
+      backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
+          // BACKGROUND MIXED WITH APP COLORS
+          Positioned.fill(
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollOffsetNotifier,
+              builder: (context, offset, _) {
+                return CustomPaint(
+                  painter: ParallaxOrganicMeshPainter(
+                    scrollOffset: offset,
+                    musicuraBlu: NuraBrand.deepMid, // Usa i colori scuri/vibranti per i blob
+                    nuraPink: NuraBrand.pink,
+                  ),
+                );
+              },
+            ),
+          ),
+
           // SCROLL CONTENT
           CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
@@ -299,9 +330,9 @@ class _ArtistPersonalProfileScreenState
           children: [
             const Icon(Icons.link, color: Colors.black54, size: 18),
             const SizedBox(width: 6),
-            Text(
+            const Text(
               'https://ada.lnk.to/KOcco',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black87,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -610,4 +641,35 @@ class _ArtistPersonalProfileScreenState
       ),
     );
   }
+}
+
+class ParallaxOrganicMeshPainter extends CustomPainter {
+  final double scrollOffset;
+  final Color musicuraBlu;
+  final Color nuraPink;
+
+  ParallaxOrganicMeshPainter({required this.scrollOffset, required this.musicuraBlu, required this.nuraPink});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    paint.color = const Color(0xFFF8F9FA); // Sfondo base chiaro
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+
+    void drawReflection(Offset center, double radius, Color color, double opacity) {
+      final glowPaint = Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55)..color = color.withValues(alpha: opacity);
+      final parallaxCenter = Offset(center.dx, center.dy - (scrollOffset * 0.15));
+      canvas.drawCircle(parallaxCenter, radius, glowPaint);
+    }
+
+    // Blob colorati sparsi che creano il "misto con i colori dell'app"
+    drawReflection(Offset(size.width * 0.15, size.height * 0.1), size.width * 0.5, musicuraBlu, 0.15);
+    drawReflection(Offset(size.width * 0.9, size.height * 0.6), size.width * 0.4, musicuraBlu, 0.12);
+    drawReflection(Offset(size.width * 0.4, size.height * 0.8), size.width * 0.35, musicuraBlu, 0.10);
+    drawReflection(Offset(size.width * 0.85, size.height * 0.2), size.width * 0.25, nuraPink, 0.05);
+    drawReflection(Offset(size.width * 0.05, size.height * 0.6), size.width * 0.3, nuraPink, 0.04);
+  }
+
+  @override
+  bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) => oldDelegate.scrollOffset != scrollOffset;
 }
