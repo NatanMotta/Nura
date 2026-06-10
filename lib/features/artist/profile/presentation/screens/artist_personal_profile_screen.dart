@@ -176,34 +176,41 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
               ),
 
               // Lista dei Brani
-              SliverPadding(
-                padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 0.0),
-                sliver: _isLoadingTracks 
-                  ? const SliverToBoxAdapter(
-                      child: SizedBox(
-                        height: 100,
-                        child: Center(child: CircularProgressIndicator(color: NuraBrand.mint)),
+              if (_isLoadingTracks)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0),
+                    child: SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator(color: NuraBrand.mint)),
+                    ),
+                  ),
+                )
+              else if (_realTracks.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0),
+                    child: SizedBox(
+                      height: 150,
+                      child: Center(
+                        child: Text('Nessuna traccia caricata.', style: TextStyle(color: Colors.white54)),
                       ),
-                    )
-                  : _realTracks.isEmpty
-                      ? const SliverToBoxAdapter(
-                          child: SizedBox(
-                            height: 150,
-                            child: Center(
-                              child: Text('Nessuna traccia caricata.', style: TextStyle(color: Colors.white54)),
-                            ),
-                          ),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final track = _realTracks[index];
-                              return _buildTrackTile(track, index);
-                            },
-                            childCount: _realTracks.length,
-                          ),
-                        ),
-              ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 0.0),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final track = _realTracks[index];
+                        return _buildTrackTile(track, index);
+                      },
+                      childCount: _realTracks.length,
+                    ),
+                  ),
+                ),
 
               // Padding finale per non coprire col MiniPlayer
               SliverToBoxAdapter(

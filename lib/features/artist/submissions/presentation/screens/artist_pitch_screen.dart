@@ -1169,9 +1169,11 @@ class _ArtistPitchScreenState extends ConsumerState<ArtistPitchScreen> {
         );
       },
       loading: () => const SliverFillRemaining(
+        hasScrollBody: false,
         child: Center(child: CircularProgressIndicator(color: NuraBrand.pink)),
       ),
       error: (err, _) => SliverFillRemaining(
+        hasScrollBody: false,
         child: Center(
           child: Text('Errore nel caricamento dello storico: $err', style: const TextStyle(color: Colors.redAccent)),
         ),
