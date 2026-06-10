@@ -89,8 +89,38 @@ class _ArtistPersonalProfileScreenState
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
+              // 0. TOP BAR (Settings gear che scolla col contenuto)
               SliverToBoxAdapter(
-                child: SizedBox(height: widget.safeTop + 16),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: widget.safeTop + 8,
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left Button (Settings)
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               
               // 1. HERO IDENTITY (Avatar, Name, Bio pulita)
@@ -155,39 +185,6 @@ class _ArtistPersonalProfileScreenState
                 child: SizedBox(height: widget.safeBottom + 100),
               ),
             ],
-          ),
-
-          // TOP FLOATING BUTTONS
-          _buildFloatingTopBar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFloatingTopBar() {
-    return Positioned(
-      top: widget.safeTop + 8,
-      left: 16,
-      right: 16,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Left Button (Settings)
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
           ),
         ],
       ),
