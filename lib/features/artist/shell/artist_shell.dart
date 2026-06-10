@@ -9,7 +9,7 @@ import '../../../core/widgets/global_mini_player.dart';
 import '../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
 import '../../discovery/swipe/presentation/screens/home_feed.dart';
 import '../../events/presentation/screens/empty_events_tab.dart';
-import '../../user/profile/presentation/screens/home_profile.dart';
+import '../profile/presentation/screens/artist_personal_profile_screen.dart';
 import '../../user/search/presentation/screens/home_search.dart';
 import '../../user/shell/user_shell.dart' show GlobalHeader;
 import '../submissions/presentation/screens/artist_pitch_screen.dart';
@@ -192,8 +192,8 @@ class _ArtistShellState extends State<ArtistShell> {
           enabled: currentIndex == 4,
           child: IgnorePointer(
             ignoring: currentIndex != 4,
-            child: HomeProfile(
-              key: const PageStorageKey('home_profile'),
+            child: ArtistPersonalProfileScreen(
+              key: const PageStorageKey('artist_personal_profile'),
               vibe: widget.vibe,
               accent: widget.accent,
               safeTop: safeTop,
