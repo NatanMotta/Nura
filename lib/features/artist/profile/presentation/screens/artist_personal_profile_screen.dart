@@ -190,13 +190,39 @@ class _ArtistPersonalProfileScreenState
               ),
 
               // ZONA 3: STICKY HEADER BRANI
-              SliverPersistentHeader(
+              SliverAppBar(
                 pinned: true,
-                delegate: _BraniStickyHeader(
-                  artistName: _artistName,
-                  totalScore: _nuuraScore.totalScore,
-                  onAddTap: () {},
+                primary: false,
+                toolbarHeight: 64,
+                backgroundColor: NuraBrand.deepest.withValues(alpha: 0.95),
+                elevation: 0,
+                automaticallyImplyLeading: false,
+                title: const Text(
+                  'I TUOI BRANI',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
                 ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               // ZONA 4: LISTA BRANI
@@ -474,15 +500,13 @@ class _ArtistPersonalProfileScreenState
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
-          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+            ),
           child: Row(
             children: [
               // Icona lucchetto/tendenza
@@ -529,7 +553,6 @@ class _ArtistPersonalProfileScreenState
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -559,24 +582,22 @@ class _ArtistPersonalProfileScreenState
         }),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isPlaying
+                  ? NuraBrand.pink.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
                 color: isPlaying
-                    ? NuraBrand.pink.withValues(alpha: 0.12)
-                    : Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isPlaying
-                      ? NuraBrand.pink.withValues(alpha: 0.5)
-                      : Colors.white.withValues(alpha: 0.08),
-                  width: isPlaying ? 1.5 : 1.0,
-                ),
+                    ? NuraBrand.pink.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.08),
+                width: isPlaying ? 1.5 : 1.0,
               ),
+            ),
               child: Row(
                 children: [
                   // ── Play Button / Numero ───────────────────────────────────
@@ -679,7 +700,6 @@ class _ArtistPersonalProfileScreenState
             ),
           ),
         ),
-      ),
     );
   }
 
