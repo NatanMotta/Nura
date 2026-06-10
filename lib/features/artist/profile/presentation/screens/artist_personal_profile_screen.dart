@@ -87,7 +87,7 @@ class _ArtistPersonalProfileScreenState
           // SCROLL CONTENT
           CustomScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             slivers: [
               // 0. TOP BAR (Settings gear che scolla col contenuto)
               SliverToBoxAdapter(
