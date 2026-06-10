@@ -1,5 +1,4 @@
-import 'dart:math' as math;
-import 'dart:ui' as ui;
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -72,20 +71,6 @@ class _ArtistPersonalProfileScreenState
       backgroundColor: Colors.transparent, // Background handle globally or in shell
       body: Stack(
         children: [
-          // MESH ORGANICA IN PARALLASSE (Mantiene i colori dell'app)
-          Positioned.fill(
-            child: ValueListenableBuilder<double>(
-              valueListenable: _scrollOffsetNotifier,
-              builder: (context, offset, _) => CustomPaint(
-                painter: _DarkOrganicMeshPainter(
-                  scrollOffset: offset,
-                  primaryColor: NuraBrand.deep,
-                  accentColor: NuraBrand.pink,
-                ),
-              ),
-            ),
-          ),
-
           // SCROLL CONTENT
           CustomScrollView(
             controller: _scrollController,
@@ -103,11 +88,6 @@ class _ArtistPersonalProfileScreenState
               // 2. STATS ROW
               SliverToBoxAdapter(
                 child: _buildStatsRow(),
-              ),
-
-              // 3. HIGHLIGHTS (Storie)
-              SliverToBoxAdapter(
-                child: _buildHighlights(),
               ),
 
               // 4. HEADER "I tuoi brani"
@@ -305,17 +285,6 @@ class _ArtistPersonalProfileScreenState
           ),
         ),
         const SizedBox(height: 12),
-        // Bio testuale
-        const Text(
-          'Ig: giovami_ ✨\nKOcco, fuori ora ovunque!',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 6),
         // Link
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -436,79 +405,6 @@ class _ArtistPersonalProfileScreenState
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildHighlights() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 32, bottom: 24),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Nuovo Highlight
-            Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5), // Ideally dashed
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.add, color: Colors.white.withOpacity(0.6), size: 30),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Nuovo',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 20),
-            // KOcco Highlight
-            Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                  ),
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        image: AssetImage('assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg'), // Mock image
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'KOcco',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -698,58 +594,5 @@ class _ArtistPersonalProfileScreenState
         ],
       ),
     );
-  }
-}
-
-// Organic Mesh Painter
-class _DarkOrganicMeshPainter extends CustomPainter {
-  final double scrollOffset;
-  final Color primaryColor;
-  final Color accentColor;
-
-  _DarkOrganicMeshPainter({
-    required this.scrollOffset,
-    required this.primaryColor,
-    required this.accentColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = primaryColor,
-    );
-
-    final offsetFactor = scrollOffset * 0.2;
-    
-    _drawBlob(
-      canvas,
-      size,
-      Offset(size.width * 0.8, size.height * 0.2 - offsetFactor),
-      size.width * 0.6,
-      accentColor.withOpacity(0.08),
-    );
-
-    _drawBlob(
-      canvas,
-      size,
-      Offset(size.width * 0.1, size.height * 0.6 - offsetFactor * 0.6),
-      size.width * 0.8,
-      const Color(0xFF00D4AA).withOpacity(0.05),
-    );
-  }
-
-  void _drawBlob(Canvas canvas, Size size, Offset center, double radius, Color color) {
-    final paint = Paint()
-      ..color = color
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
-    canvas.drawCircle(center, radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _DarkOrganicMeshPainter oldDelegate) {
-    return oldDelegate.scrollOffset != scrollOffset ||
-           oldDelegate.primaryColor != primaryColor ||
-           oldDelegate.accentColor != accentColor;
   }
 }
