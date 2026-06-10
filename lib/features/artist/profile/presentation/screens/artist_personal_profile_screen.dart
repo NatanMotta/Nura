@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
+import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart' show ParallaxOrganicMeshPainter;
 
 // --- MOCKS ---
 class _MockTrack {
@@ -42,64 +43,83 @@ class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
 
 class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProfileScreen> {
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
+  final ValueNotifier<double> _scrollNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
+      _scrollNotifier.value = _scrollController.offset;
     });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _scrollNotifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Parallax logic
     const double coverHeight = 300.0;
-    // When scrolling down, offset is positive. We move the image up slower than the scroll.
-    // When pulling down (overscroll), offset is negative. We scale the image.
-    double parallaxOffset = 0;
-    double scale = 1.0;
-    
-    if (_scrollOffset > 0) {
-      parallaxOffset = _scrollOffset * 0.5;
-    } else {
-      // Overscroll effect
-      scale = 1.0 + (-_scrollOffset / coverHeight);
-    }
-    
-    final double coverOpacity = (1.0 - (_scrollOffset / (coverHeight * 0.8))).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A), // Molto scuro
+      backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
-          // 1. Cover Image (Parallax & Elastic)
-          Positioned(
-            top: -parallaxOffset,
-            left: 0,
-            right: 0,
-            height: coverHeight,
-            child: Transform.scale(
-              scale: scale,
-              alignment: Alignment.bottomCenter,
-              child: Opacity(
-                opacity: coverOpacity,
-                child: Image.asset(
-                  'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg', // Mock cover
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => Container(color: Colors.grey[800]),
+          // Sfondo Organico Allineato al resto dell'app
+          ValueListenableBuilder<double>(
+            valueListenable: _scrollNotifier,
+            builder: (context, scrollOffset, _) {
+              return Positioned.fill(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: ParallaxOrganicMeshPainter(
+                      scrollOffset: scrollOffset,
+                      musicuraBlu: NuraBrand.deepMid,
+                      nuraPink: NuraBrand.pink,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
+
+          // 1. Cover Image (Parallax & Elastic)
+          ValueListenableBuilder<double>(
+            valueListenable: _scrollNotifier,
+            builder: (context, scrollOffset, _) {
+              double parallaxOffset = 0;
+              double scale = 1.0;
+              
+              if (scrollOffset > 0) {
+                parallaxOffset = scrollOffset * 0.5;
+              } else {
+                scale = 1.0 + (-scrollOffset / coverHeight);
+              }
+              
+              final double coverOpacity = (1.0 - (scrollOffset / (coverHeight * 0.8))).clamp(0.0, 1.0);
+
+              return Positioned(
+                top: -parallaxOffset,
+                left: 0,
+                right: 0,
+                height: coverHeight,
+                child: Transform.scale(
+                  scale: scale,
+                  alignment: Alignment.bottomCenter,
+                  child: Opacity(
+                    opacity: coverOpacity,
+                    child: Image.asset(
+                      'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => Container(color: Colors.grey[800]),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           
           // 2. Custom Scroll View (Main Content)
@@ -495,7 +515,7 @@ class _StickySectionHeaderDelegate extends SliverPersistentHeaderDelegate {
     final double opacity = (shrinkOffset / maxExtent).clamp(0.0, 1.0);
     
     return Container(
-      color: Color.lerp(Colors.transparent, const Color(0xFF0A0A0A), opacity),
+      color: Color.lerp(Colors.transparent, NuraBrand.deepest.withValues(alpha: 0.95), opacity),
       padding: EdgeInsets.only(top: safeTop, left: 20, right: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
