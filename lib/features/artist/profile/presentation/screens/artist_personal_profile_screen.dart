@@ -1,12 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
-import '../../../../../core/services/supabase_bootstrap.dart';
-import '../../../../auth/presentation/auth_providers.dart';
+import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart' show ParallaxOrganicMeshPainter;
 import '../../data/artist_stats_service.dart';
 
 class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
@@ -28,181 +25,160 @@ class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProfileScreen> {
-  List<Map<String, dynamic>> _realTracks = [];
-  bool _isLoadingTracks = true;
+  final List<Map<String, dynamic>> _mockTracks = [
+    {
+      'title': 'Midnight Neon',
+      'duration_seconds': 184,
+      'plays': 12400,
+    },
+    {
+      'title': 'Synthwave Dreams',
+      'duration_seconds': 212,
+      'plays': 8900,
+    },
+    {
+      'title': 'Retro Future',
+      'duration_seconds': 195,
+      'plays': 15600,
+    },
+    {
+      'title': 'Cybernetic Heart',
+      'duration_seconds': 208,
+      'plays': 7200,
+    },
+  ];
+
   NuuraScore? _nuuraScore;
-  String _artistName = 'Caricamento...';
-  String _artistBio = '';
+  final String _artistName = 'Michael Dam';
+  final String _artistBio = 'Electronic Music Producer';
+
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _scrollController.addListener(() {
+      _scrollOffsetNotifier.value = _scrollController.offset;
+    });
+    
+    // Dati completamente Mockati come richiesto (senza delay)
+    _nuuraScore = const NuuraScore(
+      totalScore: 88,
+      lyricsScore: 85,
+      vibeScore: 92,
+      productionScore: 89,
+      marketPotentialScore: 86,
+      totalFeedbacks: 14,
+    );
   }
 
-  Future<void> _loadData() async {
-    try {
-      final authUser = await ref.read(authRepositoryProvider).getCurrentUser();
-      if (authUser == null || !SupabaseBootstrap.isInitialized) {
-        if (mounted) setState(() => _isLoadingTracks = false);
-        return;
-      }
-
-      // 1. Fetch Profile Data
-      final profileResponse = await Supabase.instance.client
-          .from('profiles')
-          .select('display_name, bio')
-          .eq('id', authUser.id)
-          .maybeSingle();
-
-      if (profileResponse != null) {
-        _artistName = profileResponse['display_name'] ?? 'Artista';
-        _artistBio = profileResponse['bio'] ?? 'Produttore & Cantautore';
-      }
-
-      // 2. Fetch Nuura Score from Service
-      final scoreService = ref.read(artistStatsServiceProvider);
-      final score = await scoreService.getArtistNuuraScore(authUser.id);
-
-      // 3. Fetch Tracks
-      final rows = await Supabase.instance.client
-          .from('tracks')
-          .select('id,title,duration_seconds')
-          .eq('artist_id', authUser.id)
-          .not('storage_path', 'is', null)
-          .order('created_at', ascending: false)
-          .limit(20);
-
-      if (mounted) {
-        setState(() {
-          _artistName = _artistName;
-          _artistBio = _artistBio;
-          _nuuraScore = score;
-          _realTracks = List<Map<String, dynamic>>.from(rows);
-          _isLoadingTracks = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingTracks = false);
-    }
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _scrollOffsetNotifier.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NuraBrand.deepest,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        slivers: [
-          // 1. SliverAppBar (Parallax Cover Nativa)
-          SliverAppBar(
-            expandedHeight: 340.0,
-            pinned: true,
-            stretch: true,
-            backgroundColor: NuraBrand.deepest,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 28),
-                  onPressed: () {},
+      body: Stack(
+        children: [
+          // 1. Sfondo Organico Mesh (Allineato con il resto dell'app)
+          Positioned.fill(
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollOffsetNotifier,
+              builder: (context, offset, child) {
+                return CustomPaint(
+                  painter: ParallaxOrganicMeshPainter(
+                    scrollOffset: offset,
+                    musicuraBlu: NuraBrand.deepMid,
+                    nuraPink: NuraBrand.pink,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // 2. Contenuto Scrollabile
+          CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            slivers: [
+              SliverToBoxAdapter(
+                child: SizedBox(height: widget.safeTop + 60),
+              ),
+              
+              // 3. Nuura Score & Identity Card
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Column(
+                    children: [
+                      _buildIdentityGlassCard(),
+                      const SizedBox(height: 24),
+                      if (_nuuraScore != null) _buildNuuraBentoGrid(_nuuraScore!),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
+              ),
+
+              // 4. Intestazione Sticky Brani
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickySectionHeaderDelegate(
+                  title: 'BRANI',
+                  safeTop: 0, 
+                ),
+              ),
+
+              // 5. Lista dei Brani Mockata
+              SliverPadding(
+                padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 0.0),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return _buildTrackTile(_mockTracks[index], index);
+                    },
+                    childCount: _mockTracks.length,
+                  ),
+                ),
+              ),
+
+              // Spazio per il MiniPlayer in fondo
+              SliverToBoxAdapter(
+                child: SizedBox(height: widget.safeBottom + 140),
               ),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg',
-                    fit: BoxFit.cover,
-                    cacheHeight: 1200,
-                  ),
-                  // Dark Glassmorphism Gradient Overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          NuraBrand.deepest.withValues(alpha: 0.6),
-                          NuraBrand.deepest,
-                        ],
-                        stops: const [0.4, 0.8, 1.0],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
 
-          // 2. Profile Info & Nuura Score
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  _buildIdentityGlassCard(),
-                  const SizedBox(height: 24),
-                  if (_nuuraScore != null) _buildNuuraBentoGrid(_nuuraScore!),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          ),
-
-          // 3. Sticky Header
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _StickySectionHeaderDelegate(
-              title: 'BRANI',
-              safeTop: 0,
-            ),
-          ),
-
-          // 4. Tracks List
-          if (_isLoadingTracks)
-            const SliverToBoxAdapter(
-              child: SizedBox(
-                height: 100,
-                child: Center(child: CircularProgressIndicator(color: NuraBrand.mint)),
-              ),
-            )
-          else if (_realTracks.isEmpty)
-            const SliverToBoxAdapter(
-              child: SizedBox(
-                height: 150,
-                child: Center(
-                  child: Text('Nessuna traccia caricata.', style: TextStyle(color: Colors.white54)),
+          // Bottone Impostazioni Fluttuante in alto a destra
+          Positioned(
+            top: widget.safeTop + 8,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 0.0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return _buildTrackTile(_realTracks[index], index);
-                  },
-                  childCount: _realTracks.length,
-                ),
+                child: const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
               ),
             ),
-
-          SliverToBoxAdapter(
-            child: SizedBox(height: widget.safeBottom + 140),
           ),
         ],
       ),
     );
   }
 
-  // --- IDENTITY CARD (Gamification Ring) ---
+  // --- IDENTITY CARD ---
   Widget _buildIdentityGlassCard() {
     final score = _nuuraScore?.totalScore ?? 0;
     
@@ -210,7 +186,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _buildGamifiedAvatar('assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg', score),
-        const SizedBox(width: 20),
+        const SizedBox(width: 24),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,41 +224,41 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
                       score >= 70 ? Colors.yellow : NuraBrand.pink;
                       
     return SizedBox(
-      width: 104,
-      height: 104,
+      width: 110,
+      height: 110,
       child: Stack(
         alignment: Alignment.center,
         children: [
           // Background Glow
           Container(
-            width: 104,
-            height: 104,
+            width: 110,
+            height: 110,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: ringColor.withValues(alpha: 0.3),
+                  color: ringColor.withValues(alpha: 0.25),
                   blurRadius: 24,
                   spreadRadius: 2,
                 ),
               ],
             ),
           ),
-          // Avatar
+          // Avatar Image
           ClipRRect(
-            borderRadius: BorderRadius.circular(52),
+            borderRadius: BorderRadius.circular(55),
             child: Image.asset(
               imageUrl,
-              width: 88,
-              height: 88,
+              width: 96,
+              height: 96,
               fit: BoxFit.cover,
               cacheWidth: 300,
             ),
           ),
-          // Progress Ring
+          // Circular Progress Ring
           SizedBox(
-            width: 104,
-            height: 104,
+            width: 110,
+            height: 110,
             child: CircularProgressIndicator(
               value: score / 100.0,
               strokeWidth: 4,
@@ -291,15 +267,15 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
               strokeCap: StrokeCap.round,
             ),
           ),
-          // Score Badge
+          // Nuura Score Badge
           Positioned(
-            bottom: 0,
+            bottom: -2,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: NuraBrand.deepest,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ringColor, width: 1.5),
+                border: Border.all(color: ringColor, width: 2),
               ),
               child: Text(
                 score.toString(),
@@ -415,12 +391,13 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
 
   // --- TRACK TILE ---
   Widget _buildTrackTile(Map<String, dynamic> track, int index) {
-    final title = track['title'] as String? ?? 'Senza titolo';
-    final durSecs = track['duration_seconds'] as int? ?? 0;
+    final title = track['title'] as String;
+    final durSecs = track['duration_seconds'] as int;
+    final plays = track['plays'] as int;
+    
     final min = durSecs ~/ 60;
     final sec = (durSecs % 60).toString().padLeft(2, '0');
     final durationStr = '$min:$sec';
-    final mockPlays = 1200 + (index * 432); 
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -451,7 +428,7 @@ class _ArtistPersonalProfileScreenState extends ConsumerState<ArtistPersonalProf
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$mockPlays ascolti • $durationStr',
+                  '$plays ascolti • $durationStr',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 14,
