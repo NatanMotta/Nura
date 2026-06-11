@@ -195,7 +195,7 @@ class _VinylTrackCoverState extends State<VinylTrackCover> with SingleTickerProv
           AnimatedPositioned(
             duration: const Duration(milliseconds: 550),
             curve: widget.isPlaying ? Curves.easeOutBack : Curves.easeOut,
-            left: widget.isPlaying ? (widget.size * 0.6) : (widget.size * 0.1),
+            left: widget.isPlaying ? (widget.size * 0.55) : (widget.size * 0.04),
             top: 5 + (widget.size * 0.04), // slightly centered
             child: AnimatedBuilder(
               animation: _spinController,
