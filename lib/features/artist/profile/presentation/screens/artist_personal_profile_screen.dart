@@ -90,7 +90,7 @@ class _ArtistPersonalProfileScreenState
           // SCROLL CONTENT
           CustomScrollView(
             controller: _scrollController,
-            physics: const ClampingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               // 1. HERO IDENTITY & TOP BAR
               SliverToBoxAdapter(
@@ -154,12 +154,18 @@ class _ArtistPersonalProfileScreenState
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      Text(
-                        'Vedi tutti >',
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          // TODO: Navigate to all tracks
+                        },
+                        child: const Text(
+                          'Vedi tutti >',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],

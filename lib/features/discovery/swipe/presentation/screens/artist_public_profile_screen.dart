@@ -134,7 +134,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             // SCROLL CONTENT
             CustomScrollView(
               controller: _scrollController,
-              physics: const ClampingScrollPhysics(),
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               slivers: [
                 SliverToBoxAdapter(
                   child: Stack(
@@ -198,12 +198,17 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text(
-                          'Vedi tutti >',
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                          },
+                          child: const Text(
+                            'Vedi tutti >',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
