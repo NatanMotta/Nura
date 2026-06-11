@@ -9,3 +9,7 @@ Questi appunti servono solo come promemoria concettuale per quando andremo a col
 
 ## Bio Artista
 - **Bio/Descrizione**: La descrizione e l'eventuale link attualmente hardcoded ('KOcco...', 'https...') dovranno essere recuperati dinamicamente dai campi del profilo artista nel database.
+
+## Sistema di Following
+- **Azione Segui/Non Segui**: Quando un utente clicca 'Segui' su un profilo pubblico, dovrà essere aggiornata la tabella delle relazioni (es. 'follows' o 'user_followers').
+- **Conteggio Follower**: Il numero totale di follower dovrà aggiornarsi dinamicamente in tempo reale o al ricaricamento, pescando il dato aggiornato dal database.

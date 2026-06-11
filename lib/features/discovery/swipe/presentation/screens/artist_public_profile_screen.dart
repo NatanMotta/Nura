@@ -1,16 +1,16 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
+import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
-import '../../../../shared/domain/user_role.dart';
-import '../../../../shared/presentation/providers/user_role_provider.dart';
-import '../../../../auth/presentation/auth_providers.dart';
+
+import '../../../../artist/profile/presentation/screens/nura_score_analytics_screen.dart';
+import '../../../../artist/profile/data/artist_stats_service.dart';
 
 class ArtistPublicProfileScreen extends ConsumerStatefulWidget {
   final String artistId;
@@ -35,28 +35,29 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
   
   bool _loading = true;
   bool _following = false;
-  bool _showAllTracks = false;
-
+  
   String? _displayName;
   String? _imageAsset;
   List<Map<String, dynamic>> _tracks = const [];
-
-  final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier<double>(0.0);
+  
+  final NuuraScore _nuuraScore = NuuraScore(
+    totalFeedbacks: 124,
+    totalScore: 63,
+    vibeScore: 71,
+    productionScore: 58,
+    lyricsScore: 65,
+    marketPotentialScore: 60,
+  );
 
   @override
   void initState() {
     super.initState();
     _load();
-    _scrollController.addListener(() {
-      _scrollOffsetNotifier.value = _scrollController.offset;
-    });
   }
 
   @override
   void dispose() {
-    _scrollOffsetNotifier.dispose();
     _scrollController.dispose();
-
     super.dispose();
   }
 
@@ -88,22 +89,19 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     }
   }
 
-  String _durationLabel(int? seconds) {
-    if (seconds == null) return '--:--';
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
+  void _toggleFollow() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _following = !_following;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator(color: NuraBrand.pink));
 
-    final authUser = ref.watch(authStateProvider).value;
-    final mockRole = ref.watch(userRoleProvider);
-    final role = authUser?.role ?? mockRole;
-
     final artistName = _displayName ?? widget.artistName;
+    final safeTop = MediaQuery.of(context).padding.top;
 
     return PopScope(
       canPop: false,
@@ -111,311 +109,532 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
         if (didPop) return;
         await _audio.stop();
         if (context.mounted) {
-          Navigator.of(context).pop(result);
+          if (widget.onBack != null) {
+            widget.onBack!();
+          } else {
+            Navigator.of(context).pop(result);
+          }
         }
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: Stack(
-        children: [
-          // 1. PARALLAX BACKGROUND
-          Positioned.fill(
-            child: ValueListenableBuilder<double>(
-              valueListenable: _scrollOffsetNotifier,
-              builder: (context, offset, child) {
-                return CustomPaint(
-                  painter: ParallaxOrganicMeshPainter(
-                    scrollOffset: offset,
-                    musicuraBlu: NuraBrand.deep,
-                    nuraPink: NuraBrand.pink,
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // 2. HERO BANNER IMAGE (Scrolls 1:1 with transparency & Linear Gradient Mask)
-          if (_imageAsset != null && _imageAsset!.isNotEmpty)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 380,
-              child: ValueListenableBuilder<double>(
-                valueListenable: _scrollOffsetNotifier,
-                builder: (context, offset, child) {
-                  return Transform.translate(
-                    offset: Offset(0, -offset), // Normal 1:1 scrolling rate
-                    child: Opacity(
-                      opacity: (1.0 - (offset / 260)).clamp(0.0, 1.0),
-                      child: ShaderMask(
-                        shaderCallback: (rect) => const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.white, Colors.white, Colors.transparent],
-                          stops: [0.0, 0.4, 1.0],
-                        ).createShader(rect),
-                        blendMode: BlendMode.dstIn,
-                        child: Image.asset(
-                          _imageAsset!,
-                          fit: BoxFit.cover,
-                          cacheHeight: 1200,
-                        ),
-                      ),
-                    ),
-                  );
-                },
+        backgroundColor: Colors.transparent, // Background handled by Stack
+        body: Stack(
+          children: [
+            // PARALLAX BACKGROUND
+            Positioned.fill(
+              child: CustomPaint(
+                painter: ParallaxOrganicMeshPainter(
+                  scrollOffset: 0.0, 
+                  musicuraBlu: NuraBrand.deep,
+                  nuraPink: NuraBrand.pink,
+                ),
               ),
             ),
 
-          // 3. NORMAL SCROLLABLE CONTENT
-          Positioned.fill(
-            child: CustomScrollView(
+            // SCROLL CONTENT
+            CustomScrollView(
               controller: _scrollController,
+              physics: const ClampingScrollPhysics(),
               slivers: [
-                // MAIN ARTIST HEADER (Opaque, scrolls normally up and away)
                 SliverToBoxAdapter(
-                  child: Column(
+                  child: Stack(
                     children: [
-                      // Transparent spacer pushed down to 280px to clear the artist's face completely
-                      const SizedBox(height: 280),
-                      
-                      const SizedBox(height: 24),
-                      Text(artistName, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                      const SizedBox(height: 10),
-                      const Text('Electronic / Synthwave', style: TextStyle(color: Colors.black45, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
-                      const SizedBox(height: 48),
-                      
-                      // Follow/Battle Buttons
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          children: [
-                            Expanded(child: _mainBtn(label: _following ? 'Following' : 'Follow', isSolid: _following, onTap: () => setState(() => _following = !_following))),
-                            if (role == UserRole.artist) ...[
-                              const SizedBox(width: 12),
-                              Expanded(child: _mainBtn(label: 'Battle', isSolid: false, onTap: () {})),
-                            ],
-                          ],
-                        ),
+                        padding: EdgeInsets.only(top: safeTop + 16),
+                        child: _buildHeroIdentity(artistName),
                       ),
-                      
-                      const SizedBox(height: 48),
-                      // Stats Row
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _statItem('1.2M', 'FOLLOWERS'),
-                            _vDivider(),
-                            _statItem('4.5M', 'MONTHLY'),
-                            _vDivider(),
-                            _statItem('28', 'RELEASES'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 64),
-                      
-                      // BRANI Title
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: const Text(
-                          'BRANI',
-                          style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-
-                // Tracks List
-                ValueListenableBuilder<String?>(
-                  valueListenable: _audio.playingTrackId,
-                  builder: (context, trackId, _) {
-                    final hasPlayer = trackId != null && trackId.isNotEmpty;
-                    final displayCount = (_showAllTracks || _tracks.length <= 5) ? _tracks.length : 5;
-                    final hasMore = _tracks.length > 5;
-                    
-                    return SliverPadding(
-                      padding: EdgeInsets.fromLTRB(24, 0, 24, hasPlayer ? 280 : 120),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            if (index == displayCount) {
-                              if (!_showAllTracks && hasMore) {
-                                return Center(
-                                  child: TextButton(
-                                    onPressed: () => setState(() => _showAllTracks = true),
-                                    child: const Text('MOSTRA TUTTI I BRANI', style: TextStyle(color: NuraBrand.pink, fontSize: 11, fontWeight: FontWeight.w900)),
-                                  ),
-                                );
+                      Positioned(
+                        top: safeTop + 8,
+                        left: 16,
+                        child: GestureDetector(
+                          onTap: () async {
+                            HapticFeedback.lightImpact();
+                            await _audio.stop();
+                            if (context.mounted) {
+                              if (widget.onBack != null) {
+                                widget.onBack!();
+                              } else {
+                                Navigator.of(context).pop();
                               }
-                              return const SizedBox.shrink();
                             }
-                            return _trackRow(_tracks[index], index + 1);
                           },
-                          childCount: displayCount + ((!_showAllTracks && hasMore) ? 1 : 0),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          // 3. FLOATING BACK BUTTON WITH SOFT GLASS BACKPLATE
-          Positioned(
-            top: 40, left: 16,
-            child: ClipOval(
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  color: Colors.white.withValues(alpha: 0.25),
-                  alignment: Alignment.center,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
-                    padding: EdgeInsets.zero,
-                    onPressed: () async {
-                      final nav = Navigator.of(context);
-                      await _audio.stop();
-                      if (widget.onBack != null) {
-                        widget.onBack!();
-                      } else if (nav.canPop()) {
-                        nav.pop();
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // 4. FLOATING OPTIONS BUTTON WITH SOFT GLASS BACKPLATE
-          Positioned(
-            top: 40, right: 16,
-            child: ClipOval(
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  color: Colors.white.withValues(alpha: 0.25),
-                  alignment: Alignment.center,
-                  child: IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.black87, size: 20),
-                    padding: EdgeInsets.zero,
-                    onPressed: () {},
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ));
-  }
-
-  Widget _mainBtn({required String label, required bool isSolid, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: isSolid ? NuraBrand.pink : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(26),
-        ),
-        alignment: Alignment.center,
-        child: Text(label, style: TextStyle(color: isSolid ? Colors.white : Colors.black87, fontWeight: FontWeight.w700, fontSize: 15)),
-      ),
-    );
-  }
-
-  Widget _trackRow(Map<String, dynamic> track, int rank) {
-    final id = track['id'] as String;
-    return Dismissible(
-      key: Key(id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(color: NuraBrand.pink.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(12)),
-        child: const Icon(Icons.favorite, color: Colors.white),
-      ),
-      onDismissed: (_) { HapticFeedback.mediumImpact(); },
-      confirmDismiss: (_) async { HapticFeedback.lightImpact(); return false; },
-      child: ValueListenableBuilder<String?>(
-        valueListenable: _audio.playingTrackId,
-        builder: (context, playingId, _) {
-          final isPlaying = playingId == id;
-          return GestureDetector(
-            onTap: () => _playTrack(track),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              color: Colors.transparent,
-              child: Row(
-                children: [
-                  SizedBox(width: 20, child: Text(rank.toString(), style: TextStyle(color: isPlaying ? NuraBrand.pink : Colors.black26, fontSize: 12))),
-                  const SizedBox(width: 10),
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ClipRRect(borderRadius: BorderRadius.circular(6), child: Container(width: 44, height: 44, color: Colors.black12, child: const Icon(Icons.music_note, color: Colors.white, size: 20))),
-                      if (isPlaying)
-                        Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(6)), child: const Center(child: AudioVisualizerAnimation())),
                     ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+
+                SliverToBoxAdapter(
+                  child: _buildStatsRow(),
+                ),
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(track['title'] ?? '', style: TextStyle(color: const Color(0xFF1A1A1A), fontSize: 15, fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700)),
-                        const Row(
-                          children: [
-                            Icon(Icons.favorite, size: 10, color: Colors.black12),
-                            SizedBox(width: 2),
-                            Text('124', style: TextStyle(color: Colors.black26, fontSize: 10)),
-                            SizedBox(width: 8),
-                            Icon(Icons.chat_bubble, size: 10, color: Colors.black12),
-                            SizedBox(width: 2),
-                            Text('12', style: TextStyle(color: Colors.black26, fontSize: 10)),
-                          ],
+                        Text(
+                          'I brani di $artistName',
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Text(
+                          'Vedi tutti >',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Text(_durationLabel(track['duration_seconds'] as int?), style: TextStyle(color: Colors.black.withValues(alpha: 0.3), fontSize: 12)),
-                ],
-              ),
+                ),
+
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return _buildTrackTile(_tracks[index], index + 1);
+                      },
+                      childCount: _tracks.length,
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 120),
+                ),
+              ],
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 
-  Widget _statItem(String value, String label) {
+  Widget _buildHeroIdentity(String artistName) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-        const SizedBox(height: 2),
-        Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+        Container(
+          width: 110,
+          height: 110,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            image: _imageAsset != null && _imageAsset!.isNotEmpty
+                ? DecorationImage(
+                    image: AssetImage(_imageAsset!),
+                    fit: BoxFit.cover,
+                  )
+                : const DecorationImage(
+                    image: AssetImage('assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg'),
+                    fit: BoxFit.cover,
+                  ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              artistName,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: NuraBrand.pink,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '@${artistName.toLowerCase().replaceAll(' ', '_')}',
+          style: const TextStyle(
+            color: Colors.black54,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 40),
+          child: Text(
+            'Produttore e DJ indipendente. Esplorando nuovi suoni e vibrazioni.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              height: 1.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        GestureDetector(
+          onTap: _toggleFollow,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            decoration: BoxDecoration(
+              color: _following ? Colors.black.withValues(alpha: 0.05) : NuraBrand.pink,
+              borderRadius: BorderRadius.circular(24),
+              border: _following ? Border.all(color: Colors.black.withValues(alpha: 0.1)) : null,
+              boxShadow: !_following
+                  ? [
+                      BoxShadow(
+                        color: NuraBrand.pink.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ]
+                  : [],
+            ),
+            child: Text(
+              _following ? 'Segui già' : 'Segui',
+              style: TextStyle(
+                color: _following ? Colors.black87 : Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _vDivider() { return Container(width: 1, height: 20, color: Colors.black.withValues(alpha: 0.05)); }
+  Widget _buildStatsRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildStatCol(icon: Icons.music_note, iconColor: NuraBrand.pink, value: '${_tracks.length}', label: 'BRANI'),
+          _buildVerticalDivider(),
+          _buildStatCol(icon: Icons.people_alt, iconColor: const Color(0xFF9D00FF), value: '74.883', label: 'FOLLOWER'),
+          _buildVerticalDivider(),
+          _buildScoreCol(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerticalDivider() {
+    return Container(
+      width: 1,
+      height: 40,
+      color: Colors.black.withValues(alpha: 0.05),
+    );
+  }
+
+  Widget _buildStatCol({
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String label,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: iconColor, size: 24),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.black54,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScoreCol() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => NuraScoreAnalyticsScreen(
+            vibe: NuraVibe.premium,
+            globalScore: _nuuraScore,
+            tracks: _tracks,
+          ),
+        ));
+      },
+      child: Container(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: SweepGradient(
+                  colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
+                  stops: [0.0, 0.33, 0.66, 1.0],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2.5),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${_nuuraScore.totalScore}',
+                    style: const TextStyle(
+                      color: NuraBrand.pink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'NURA SCORE',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_ios, size: 8, color: Colors.black87),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrackTile(Map<String, dynamic> track, int rank) {
+    final trackId = track['id'] ?? 'mock_id_$rank';
+    final title = track['title'] ?? 'Brano $rank';
+    final genre = track['genre'] ?? 'Pop Indie';
+    final baseScore = track['score'] ?? 63;
+
+    return ValueListenableBuilder<String?>(
+      valueListenable: _audio.playingTrackId,
+      builder: (context, playingId, _) {
+        final isPlaying = playingId == trackId;
+        return GestureDetector(
+          onTap: () => _playTrack(track),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isPlaying ? NuraBrand.pink.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isPlaying ? NuraBrand.pink.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        image: const DecorationImage(
+                          image: AssetImage('assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    if (isPlaying)
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.pause, color: Colors.white, size: 28),
+                        ),
+                      )
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                          fontWeight: isPlaying ? FontWeight.w900 : FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        genre,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF9D00FF),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            '12 feedback',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => NuraScoreAnalyticsScreen(
+                        vibe: NuraVibe.premium,
+                        globalScore: _nuuraScore,
+                        tracks: _tracks,
+                      ),
+                    ));
+                  },
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$baseScore',
+                      style: const TextStyle(
+                        color: NuraBrand.pink,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (!isPlaying)
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded, color: Colors.black87, size: 20),
+                  ),
+                if (isPlaying)
+                  const SizedBox(width: 32),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _playTrack(Map<String, dynamic> track) async {
-    final id = track['id'] as String;
+    HapticFeedback.lightImpact();
+    final id = track['id'] as String?;
     final storagePath = track['storage_path'] as String?;
-    if (storagePath == null) return;
+    if (id == null || storagePath == null) return;
+    
     final fileName = storagePath.split('/').last;
     final assetPath = 'assets/audio/$fileName';
 
