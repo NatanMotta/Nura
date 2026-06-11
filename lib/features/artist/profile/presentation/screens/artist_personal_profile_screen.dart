@@ -302,23 +302,6 @@ class _ArtistPersonalProfileScreenState
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        // Link
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.link, color: Colors.black54, size: 16),
-            const SizedBox(width: 6),
-            const Text(
-              'https://nura.app/giovami___',
-              style: TextStyle(
-                color: Colors.black87,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
         const SizedBox(height: 20),
       ],
     );
