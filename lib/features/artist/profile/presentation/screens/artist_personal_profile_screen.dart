@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
+import '../../../../../core/widgets/vinyl_track_cover.dart';
 import '../../../../user/profile/presentation/screens/profile_settings_screen.dart';
 import '../../data/artist_stats_service.dart';
 import 'nura_score_analytics_screen.dart';
@@ -474,32 +475,11 @@ class _ArtistPersonalProfileScreenState
             ),
             child: Row(
               children: [
-                // Cover
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'), // Mock
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    if (isPlaying)
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const AudioVisualizerAnimation(),
-                      ),
-                  ],
+                // Vinyl Cover
+                VinylTrackCover(
+                  isPlaying: isPlaying,
+                  coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
+                  size: 60,
                 ),
                 const SizedBox(width: 16),
                 // Info

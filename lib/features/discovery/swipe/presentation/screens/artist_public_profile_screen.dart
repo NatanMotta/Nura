@@ -8,6 +8,7 @@ import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
+import '../../../../../core/widgets/vinyl_track_cover.dart';
 
 import '../../../../artist/profile/presentation/screens/nura_score_analytics_screen.dart';
 import '../../../../artist/profile/data/artist_stats_service.dart';
@@ -510,35 +511,12 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             ),
             child: Row(
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    if (isPlaying)
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.pause, color: Colors.white, size: 28),
-                        ),
-                      )
-                  ],
+                VinylTrackCover(
+                  isPlaying: isPlaying,
+                  coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
+                  size: 60,
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
