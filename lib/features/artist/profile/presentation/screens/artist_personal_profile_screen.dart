@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
+import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../user/profile/presentation/screens/profile_settings_screen.dart';
 import '../../data/artist_stats_service.dart';
 import 'nura_score_analytics_screen.dart';
@@ -33,14 +34,15 @@ class _ArtistPersonalProfileScreenState
     extends ConsumerState<ArtistPersonalProfileScreen> {
   // Dati Mock
   final List<Map<String, dynamic>> _mockTracks = [
-    {'title': 'Passerà', 'genre': 'Pop Indie', 'feedback': 12, 'trend': null, 'score': 63},
-    {'title': 'Velvet Static', 'genre': 'Dream Pop', 'feedback': 18, 'trend': null, 'score': 71},
-    {'title': 'maiLOVER', 'genre': 'Alt Pop', 'feedback': 9, 'trend': 'Migliorata +5 ↗', 'score': 68},
+    {'id': 'mock_1', 'title': 'Passerà', 'genre': 'Pop Indie', 'feedback': 12, 'trend': null, 'score': 63, 'storage_path': 'preview_audio_1.mp3'},
+    {'id': 'mock_2', 'title': 'Velvet Static', 'genre': 'Dream Pop', 'feedback': 18, 'trend': null, 'score': 71, 'storage_path': 'preview_audio_2.mp3'},
+    {'id': 'mock_3', 'title': 'maiLOVER', 'genre': 'Alt Pop', 'feedback': 9, 'trend': 'Migliorata +5 📈', 'score': 68, 'storage_path': 'preview_audio_3.mp3'},
   ];
 
   late NuuraScore _nuuraScore;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier<double>(0.0);
+  final _audio = AudioPreviewService.instance;
 
   @override
   void initState() {
@@ -445,141 +447,193 @@ class _ArtistPersonalProfileScreenState
   }
 
   Widget _buildTrackTile(Map<String, dynamic> track) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Cover
-          Container(
-            width: 60,
-            height: 60,
+    final trackId = track['id'];
+
+    return ValueListenableBuilder<String?>(
+      valueListenable: _audio.playingTrackId,
+      builder: (context, playingId, _) {
+        final isPlaying = playingId == trackId;
+        return GestureDetector(
+          onTap: () => _playTrack(track),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              image: const DecorationImage(
-                image: AssetImage('assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'), // Mock
-                fit: BoxFit.cover,
+              color: isPlaying ? NuraBrand.pink.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isPlaying ? NuraBrand.pink.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  track['title'],
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  track['genre'],
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF9D00FF),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${track['feedback']} feedback',
-                      style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (track['trend'] != null) ...[
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          track['trend'],
-                          style: const TextStyle(
-                            color: Color(0xFF00BFA5), // Vibrant Green for positive trend
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-          ),
-          // Score
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => NuraScoreAnalyticsScreen(
-                  vibe: widget.vibe,
-                  globalScore: _nuuraScore,
-                  tracks: _mockTracks,
+            child: Row(
+              children: [
+                // Cover
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        image: const DecorationImage(
+                          image: AssetImage('assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'), // Mock
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    if (isPlaying)
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const AudioVisualizerAnimation(),
+                      ),
+                  ],
                 ),
-              ));
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '${track['score']}',
-                style: const TextStyle(
-                  color: NuraBrand.pink,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 16),
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track['title'],
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        track['genre'],
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF9D00FF),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${track['feedback']} feedback',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (track['trend'] != null) ...[
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                track['trend'],
+                                style: const TextStyle(
+                                  color: Color(0xFF00BFA5), // Vibrant Green for positive trend
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                // Score
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => NuraScoreAnalyticsScreen(
+                        vibe: widget.vibe,
+                        globalScore: _nuuraScore,
+                        tracks: _mockTracks,
+                      ),
+                    ));
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${track['score']}',
+                      style: const TextStyle(
+                        color: NuraBrand.pink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Play button
+                if (!isPlaying)
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.play_arrow_rounded, color: Colors.black87, size: 20),
+                  ),
+                if (isPlaying)
+                  const SizedBox(width: 32),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          // Play button
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.black87, size: 20),
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> _playTrack(Map<String, dynamic> track) async {
+    HapticFeedback.lightImpact();
+    final id = track['id'] as String?;
+    final storagePath = track['storage_path'] as String?;
+    if (id == null || storagePath == null) return;
+    
+    final fileName = storagePath.split('/').last;
+    final assetPath = 'assets/audio/$fileName';
+
+    if (_audio.playingTrackId.value == id) {
+      if (_audio.isPlaying.value) {
+        await _audio.pause();
+      } else {
+        await _audio.resume();
+      }
+    } else {
+      await _audio.playTrack(trackId: id, assetPath: assetPath);
+    }
   }
 
   Widget _buildProBanner() {
@@ -685,4 +739,42 @@ class ParallaxOrganicMeshPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) => oldDelegate.scrollOffset != scrollOffset;
+}
+
+class AudioVisualizerAnimation extends StatefulWidget {
+  const AudioVisualizerAnimation({super.key});
+  @override
+  State<AudioVisualizerAnimation> createState() => _AudioVisualizerAnimationState();
+}
+
+class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation> with TickerProviderStateMixin {
+  late List<AnimationController> _controllers;
+  final int _count = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = List.generate(_count, (i) {
+      return AnimationController(vsync: this, duration: Duration(milliseconds: 400 + (i * 100)))..repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() { for (var c in _controllers) { c.dispose(); } super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: List.generate(_count, (i) => AnimatedBuilder(
+        animation: _controllers[i],
+        builder: (context, _) => Container(
+          width: 3, height: 4 + (_controllers[i].value * 12),
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2)),
+        ),
+      )),
+    );
+  }
 }
