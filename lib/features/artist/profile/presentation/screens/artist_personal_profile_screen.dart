@@ -91,20 +91,20 @@ class _ArtistPersonalProfileScreenState
             controller: _scrollController,
             physics: const ClampingScrollPhysics(),
             slivers: [
-              // 0. TOP BAR (Settings gear che scolla col contenuto)
+              // 1. HERO IDENTITY & TOP BAR
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: widget.safeTop + 8,
-                    left: 16,
-                    right: 16,
-                    bottom: 16,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Left Button (Settings)
-                      Container(
+                child: Stack(
+                  children: [
+                    // Hero Identity (Avatar, Name, Bio)
+                    Padding(
+                      padding: EdgeInsets.only(top: widget.safeTop + 16),
+                      child: _buildHeroIdentity(),
+                    ),
+                    // Settings Gear in top left
+                    Positioned(
+                      top: widget.safeTop + 8,
+                      left: 16,
+                      child: Container(
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
@@ -120,14 +120,9 @@ class _ArtistPersonalProfileScreenState
                         ),
                         child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ),
-              
-              // 1. HERO IDENTITY (Avatar, Name, Bio pulita)
-              SliverToBoxAdapter(
-                child: _buildHeroIdentity(),
               ),
 
               // 2. STATS ROW
@@ -138,7 +133,7 @@ class _ArtistPersonalProfileScreenState
               // 3. HEADER "I tuoi brani"
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -311,7 +306,7 @@ class _ArtistPersonalProfileScreenState
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 20),
       ],
     );
   }
