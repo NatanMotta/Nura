@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
+import '../../../../user/profile/presentation/screens/profile_settings_screen.dart';
 import '../../data/artist_stats_service.dart';
 import 'nura_score_analytics_screen.dart';
 
@@ -104,21 +105,29 @@ class _ArtistPersonalProfileScreenState
                     Positioned(
                       top: widget.safeTop + 8,
                       left: 16,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const ProfileSettingsScreen(),
+                          ));
+                        },
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
                         ),
-                        child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
                       ),
                     ),
                   ],
@@ -280,13 +289,17 @@ class _ArtistPersonalProfileScreenState
         ),
         const SizedBox(height: 16),
         // Bio essenziale Nura (senza riferimenti IG)
-        const Text(
-          'KOcco, fuori ora ovunque!',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 40),
+          child: Text(
+            'Produttore e DJ indipendente. Esplorando nuovi suoni e vibrazioni.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              height: 1.4,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -294,13 +307,13 @@ class _ArtistPersonalProfileScreenState
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.link, color: Colors.black54, size: 18),
+            const Icon(Icons.link, color: Colors.black54, size: 16),
             const SizedBox(width: 6),
             const Text(
-              'https://ada.lnk.to/KOcco',
+              'https://nura.app/giovami___',
               style: TextStyle(
                 color: Colors.black87,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
