@@ -229,7 +229,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                 ),
 
                 const SliverToBoxAdapter(
-                  child: SizedBox(height: 120),
+                  child: SizedBox(height: 160),
                 ),
               ],
             ),

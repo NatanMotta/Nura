@@ -192,9 +192,9 @@ class _ArtistPersonalProfileScreenState
                 ),
               ),
 
-              // Spazio per Bottom Nav
+              // Spazio per Bottom Nav e Mini Player
               SliverToBoxAdapter(
-                child: SizedBox(height: widget.safeBottom + 100),
+                child: SizedBox(height: widget.safeBottom + 160),
               ),
             ],
           ),

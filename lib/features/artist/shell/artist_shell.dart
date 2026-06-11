@@ -329,11 +329,13 @@ class _ArtistShellState extends State<ArtistShell> {
                       child: ValueListenableBuilder<String?>(
                         valueListenable: audio.playingTrackId,
                         builder: (context, trackId, _) {
-                          // Show player ONLY on Artist Profile screen
-                          if (_screen != _artistProfileRoute)
+                          // Show player on both Profile screens
+                          if (_screen != _artistProfileRoute && _screen != RouteNames.profile) {
                             return const SizedBox.shrink();
-                          if (trackId == null || trackId.isEmpty)
+                          }
+                          if (trackId == null || trackId.isEmpty) {
                             return const SizedBox.shrink();
+                          }
                           return GlobalMiniPlayer(vibe: widget.vibe);
                         },
                       ),
