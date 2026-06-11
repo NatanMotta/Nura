@@ -134,7 +134,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             // SCROLL CONTENT
             CustomScrollView(
               controller: _scrollController,
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
                   child: Stack(

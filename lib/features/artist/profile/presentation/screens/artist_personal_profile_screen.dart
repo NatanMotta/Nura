@@ -90,7 +90,7 @@ class _ArtistPersonalProfileScreenState
           // SCROLL CONTENT
           CustomScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // 1. HERO IDENTITY & TOP BAR
               SliverToBoxAdapter(
