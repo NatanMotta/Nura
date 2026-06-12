@@ -112,50 +112,6 @@ class _VinylTrackCoverState extends State<VinylTrackCover> with SingleTickerProv
             ),
           ),
 
-          // Center Sticker
-          Container(
-            width: vinylSize * 0.32,
-            height: vinylSize * 0.32,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Two-toned sticker gradient
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        widget.swatch,
-                        widget.swatch.withValues(alpha: 0.6),
-                      ],
-                    ),
-                  ),
-                ),
-                // Center hole
-                Center(
-                  child: Container(
-                    width: vinylSize * 0.07,
-                    height: vinylSize * 0.07,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -182,78 +138,98 @@ class _VinylTrackCoverState extends State<VinylTrackCover> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    // Total width must accommodate the sleeve + vinyl sliding out
-    final totalWidth = widget.size * 1.5;
-
     return SizedBox(
-      height: widget.size + 10,
-      width: totalWidth,
+      height: widget.size,
+      width: widget.size,
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          // 1. Vinyl Record (Slides out from behind cover)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 550),
-            curve: widget.isPlaying ? Curves.easeOutBack : Curves.easeOut,
-            left: widget.isPlaying ? (widget.size * 0.55) : (widget.size * 0.04),
-            top: 5 + (widget.size * 0.04), // slightly centered
-            child: AnimatedBuilder(
-              animation: _spinController,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: _spinController.value * 2 * 3.1415926535,
-                  child: child,
-                );
-              },
-              child: _buildVinylRecord(),
+          // 1. Vinyl Record (Always centered, scales up when playing)
+          AnimatedScale(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutBack,
+            scale: widget.isPlaying ? 1.0 : 0.6,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: widget.isPlaying ? 1.0 : 0.0,
+              child: AnimatedBuilder(
+                animation: _spinController,
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: _spinController.value * 2 * 3.1415926535,
+                    child: child,
+                  );
+                },
+                child: _buildVinylRecord(),
+              ),
             ),
           ),
 
-          // 2. Sleeve Cover
-          Positioned(
-            left: 0,
-            top: 5,
-            child: Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.isPlaying 
-                        ? NuraBrand.pink.withValues(alpha: 0.25) 
-                        : Colors.black.withValues(alpha: 0.12),
-                    blurRadius: widget.isPlaying ? 12 : 6,
-                    offset: const Offset(0, 4),
+          // 2. Sleeve Cover -> Center Sticker
+          AnimatedBuilder(
+            animation: _spinController,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: widget.isPlaying ? _spinController.value * 2 * 3.1415926535 : 0,
+                child: child,
+              );
+            },
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutBack,
+              scale: widget.isPlaying ? 0.33 : 1.0,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutBack,
+                clipBehavior: Clip.antiAlias,
+                width: widget.size,
+                height: widget.size,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(widget.isPlaying ? widget.size / 2 : 12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.isPlaying 
+                          ? Colors.black.withValues(alpha: 0.4) 
+                          : Colors.black.withValues(alpha: 0.12),
+                      blurRadius: widget.isPlaying ? 8 : 6,
+                      offset: Offset(0, widget.isPlaying ? 2 : 4),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 1,
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                  image: widget.coverAsset != null
+                      ? DecorationImage(
+                          image: AssetImage(widget.coverAsset!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
                 child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    // Album cover or gradient
-                    widget.coverAsset != null
-                        ? Image.asset(
-                            widget.coverAsset!,
-                            width: widget.size,
-                            height: widget.size,
-                            fit: BoxFit.cover,
-                            gaplessPlayback: true,
-                            cacheWidth: 300,
-                            errorBuilder: (_, __, ___) => _buildPlaceholderCover(),
-                          )
-                        : _buildPlaceholderCover(),
+                    if (widget.coverAsset == null)
+                      _buildPlaceholderCover(),
                     
-                    // Glassmorphic overlay border
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: widget.isPlaying 
-                              ? NuraBrand.pink.withValues(alpha: 0.45) 
-                              : Colors.white.withValues(alpha: 0.15),
-                          width: widget.isPlaying ? 2.0 : 1.0,
+                    // Center hole
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 150),
+                      opacity: widget.isPlaying ? 1.0 : 0.0,
+                      child: Container(
+                        width: widget.size * 0.12, // slightly bigger hole
+                        height: widget.size * 0.12,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8F9FA),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black45,
+                              blurRadius: 4,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
                         ),
                       ),
                     ),

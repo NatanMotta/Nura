@@ -37,7 +37,11 @@ class _ArtistPersonalProfileScreenState
   final List<Map<String, dynamic>> _mockTracks = [
     {'id': 'mock_1', 'title': 'Passerà', 'genre': 'Pop Indie', 'feedback': 12, 'trend': null, 'score': 63, 'storage_path': 'preview_audio_1.mp3'},
     {'id': 'mock_2', 'title': 'Velvet Static', 'genre': 'Dream Pop', 'feedback': 18, 'trend': null, 'score': 71, 'storage_path': 'preview_audio_2.mp3'},
-    {'id': 'mock_3', 'title': 'maiLOVER', 'genre': 'Alt Pop', 'feedback': 9, 'trend': 'Migliorata +5 📈', 'score': 68, 'storage_path': 'preview_audio_3.mp3'},
+    {'id': 'mock_3', 'title': 'maiLOVER', 'genre': 'Alt Pop', 'feedback': 9, 'trend': 'Migliorata +5', 'score': 68, 'storage_path': 'preview_audio_3.mp3'},
+    {'id': 'mock_4', 'title': 'Midnight City', 'genre': 'Synth Pop', 'feedback': 24, 'trend': null, 'score': 75, 'storage_path': 'preview_audio_4.mp3'},
+    {'id': 'mock_5', 'title': 'Lost in Tokyo', 'genre': 'Lo-Fi', 'feedback': 5, 'trend': null, 'score': 60, 'storage_path': 'preview_audio_5.mp3'},
+    {'id': 'mock_6', 'title': 'Neon Lights', 'genre': 'Electro Pop', 'feedback': 32, 'trend': 'Migliorata +12', 'score': 82, 'storage_path': 'preview_audio_6.mp3'},
+    {'id': 'mock_7', 'title': 'Summer Breeze', 'genre': 'Acoustic', 'feedback': 15, 'trend': null, 'score': 66, 'storage_path': 'preview_audio_7.mp3'},
   ];
 
   late NuuraScore _nuuraScore;
@@ -177,14 +181,18 @@ class _ArtistPersonalProfileScreenState
               ),
 
               // 4. LISTA BRANI
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 220,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _mockTracks.length,
-                    itemBuilder: (context, i) => _buildTrackTile(_mockTracks[i]),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 24,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.68,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _buildTrackTile(_mockTracks[i]),
+                    childCount: _mockTracks.length > 6 ? 6 : (_mockTracks.length - (_mockTracks.length % 2)),
                   ),
                 ),
               ),
@@ -226,6 +234,7 @@ class _ArtistPersonalProfileScreenState
                 height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
                       color: NuraBrand.pink.withValues(alpha: 0.08),
@@ -239,32 +248,32 @@ class _ArtistPersonalProfileScreenState
                   ),
                 ),
               ),
-              // Edit Button (basso destra)
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFF8F9FA), width: 2.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                  // Edit Button (basso destra)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFF8F9FA), width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
+                      child: const Icon(Icons.edit, color: Colors.black87, size: 15),
+                    ),
                   ),
-                  child: const Icon(Icons.edit, color: Colors.black87, size: 15),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
+            ),
+            const SizedBox(height: 16),
         // Name & Status
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -324,9 +333,9 @@ class _ArtistPersonalProfileScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildStatCol(icon: Icons.music_note, iconColor: NuraBrand.pink, value: '12', label: 'BRANI'),
+          _buildStatCol(icon: Icons.music_note, value: '12', label: 'BRANI'),
           _buildVerticalDivider(),
-          _buildStatCol(icon: Icons.people_alt, iconColor: const Color(0xFF9D00FF), value: '74.883', label: 'FOLLOWER'),
+          _buildStatCol(icon: Icons.people_alt, value: '74.883', label: 'FOLLOWER'),
           _buildVerticalDivider(),
           _buildScoreCol(),
         ],
@@ -344,13 +353,12 @@ class _ArtistPersonalProfileScreenState
 
   Widget _buildStatCol({
     required IconData icon,
-    required Color iconColor,
     required String value,
     required String label,
   }) {
     return Column(
       children: [
-        Icon(icon, color: iconColor, size: 24),
+        Icon(icon, color: Colors.black87, size: 22),
         const SizedBox(height: 8),
         Text(
           value,
@@ -365,7 +373,7 @@ class _ArtistPersonalProfileScreenState
           label,
           style: const TextStyle(
             color: Colors.black54,
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.0,
           ),
@@ -391,31 +399,19 @@ class _ArtistPersonalProfileScreenState
         child: Column(
           children: [
             Container(
-              width: 54,
-              height: 54,
-              decoration: const BoxDecoration(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: SweepGradient(
-                  colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
-                  stops: [0.0, 0.33, 0.66, 1.0],
-                ),
+                border: Border.all(color: Colors.black12, width: 2),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(2.5),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${_nuuraScore.totalScore}',
-                    style: const TextStyle(
-                      color: NuraBrand.pink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+              alignment: Alignment.center,
+              child: Text(
+                '${_nuuraScore.totalScore}',
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -426,10 +422,10 @@ class _ArtistPersonalProfileScreenState
                 color: Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'NURA SCORE',
                     style: TextStyle(
                       color: Colors.black87,
@@ -438,8 +434,8 @@ class _ArtistPersonalProfileScreenState
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_ios, size: 8, color: Colors.black87),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_ios, size: 8, color: Colors.black87),
                 ],
               ),
             ),
@@ -458,125 +454,100 @@ class _ArtistPersonalProfileScreenState
         final isPlaying = playingId == trackId;
         return GestureDetector(
           onTap: () => _playTrack(track),
-          child: Container(
-            width: 170, // Fixed width for horizontal list
-            margin: const EdgeInsets.only(right: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Cover and Score Stack
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    VinylTrackCover(
-                      isPlaying: isPlaying,
-                      coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
-                      size: 110,
-                    ),
-                    // Score Overlay
-                    Positioned(
-                      top: 4,
-                      left: 110 - 20, // overlap on the right edge of the sleeve
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => NuraScoreAnalyticsScreen(
-                              vibe: widget.vibe,
-                              globalScore: _nuuraScore,
-                              tracks: _mockTracks,
-                            ),
-                          ));
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: NuraBrand.pink, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${track['score']}',
-                              style: const TextStyle(
-                                color: NuraBrand.pink,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Title
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    track['title'],
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: const Color(0xFF1A1A1A),
-                      fontSize: 14,
-                      fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Genre
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    track['genre'].toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isPlaying ? NuraBrand.pink : Colors.black38,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                // Feedback
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final coverSize = constraints.maxWidth;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Cover and Score Stack
+                  Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF9D00FF),
-                          shape: BoxShape.circle,
-                        ),
+                      VinylTrackCover(
+                        isPlaying: isPlaying,
+                        coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
+                        size: coverSize,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${track['feedback']} feedback',
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                      // Score Overlay
+                      Positioned(
+                        top: -4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => NuraScoreAnalyticsScreen(
+                                vibe: widget.vibe,
+                                globalScore: _nuuraScore,
+                                tracks: _mockTracks,
+                              ),
+                            ));
+                          },
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.black12, width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${track['score']}',
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 12),
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      track['title'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFF1A1A1A),
+                        fontSize: 14,
+                        fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Genre
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      track['genre'].toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isPlaying ? NuraBrand.pink : Colors.black38,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },

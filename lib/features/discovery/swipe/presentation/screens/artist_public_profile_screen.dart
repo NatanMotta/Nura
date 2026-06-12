@@ -82,6 +82,18 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
           _displayName = profile?['display_name'];
           _imageAsset = profile?['image_asset'];
           _tracks = List<Map<String, dynamic>>.from(rows);
+          
+          // MOCK TRACKS FOR TESTING (added as requested)
+          if (_tracks.length < 7) {
+            _tracks.addAll([
+              {'id': 'mock_test_1', 'title': 'Midnight City', 'genre': 'Synth Pop', 'score': 75},
+              {'id': 'mock_test_2', 'title': 'Lost in Tokyo', 'genre': 'Lo-Fi', 'score': 60},
+              {'id': 'mock_test_3', 'title': 'Neon Lights', 'genre': 'Electro Pop', 'score': 82},
+              {'id': 'mock_test_4', 'title': 'Summer Breeze', 'genre': 'Acoustic', 'score': 66},
+              {'id': 'mock_test_5', 'title': 'Ocean Drive', 'genre': 'Chillwave', 'score': 70},
+            ]);
+          }
+          
           _loading = false;
         });
       }
@@ -217,16 +229,20 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                   ),
                 ),
 
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 220,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: _tracks.length,
-                      itemBuilder: (context, index) {
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 24,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 0.68,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                         return _buildTrackTile(_tracks[index], index + 1);
                       },
+                      childCount: _tracks.length > 6 ? 6 : (_tracks.length - (_tracks.length % 2)),
                     ),
                   ),
                 ),
@@ -251,6 +267,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white,
+            border: Border.all(color: Colors.white, width: 3),
             image: _imageAsset != null && _imageAsset!.isNotEmpty
                 ? DecorationImage(
                     image: AssetImage(_imageAsset!),
@@ -269,7 +286,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             ],
           ),
         ),
-        const SizedBox(height: 20),
+            const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -357,9 +374,9 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildStatCol(icon: Icons.music_note, iconColor: NuraBrand.pink, value: '${_tracks.length}', label: 'BRANI'),
+          _buildStatCol(icon: Icons.music_note, value: '${_tracks.length}', label: 'BRANI'),
           _buildVerticalDivider(),
-          _buildStatCol(icon: Icons.people_alt, iconColor: const Color(0xFF9D00FF), value: '74.883', label: 'FOLLOWER'),
+          _buildStatCol(icon: Icons.people_alt, value: '74.883', label: 'FOLLOWER'),
           _buildVerticalDivider(),
           _buildScoreCol(),
         ],
@@ -377,13 +394,12 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 
   Widget _buildStatCol({
     required IconData icon,
-    required Color iconColor,
     required String value,
     required String label,
   }) {
     return Column(
       children: [
-        Icon(icon, color: iconColor, size: 24),
+        Icon(icon, color: Colors.black87, size: 22),
         const SizedBox(height: 8),
         Text(
           value,
@@ -424,31 +440,19 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
         child: Column(
           children: [
             Container(
-              width: 54,
-              height: 54,
-              decoration: const BoxDecoration(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: SweepGradient(
-                  colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
-                  stops: [0.0, 0.33, 0.66, 1.0],
-                ),
+                border: Border.all(color: Colors.black12, width: 2),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(2.5),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${_nuuraScore.totalScore}',
-                    style: const TextStyle(
-                      color: NuraBrand.pink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+              alignment: Alignment.center,
+              child: Text(
+                '${_nuuraScore.totalScore}',
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -494,125 +498,100 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
         final isPlaying = playingId == trackId;
         return GestureDetector(
           onTap: () => _playTrack(track),
-          child: Container(
-            width: 170, // Fixed width for horizontal list
-            margin: const EdgeInsets.only(right: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Cover and Score Stack
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    VinylTrackCover(
-                      isPlaying: isPlaying,
-                      coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
-                      size: 110,
-                    ),
-                    // Score Overlay
-                    Positioned(
-                      top: 4,
-                      left: 110 - 20, // overlap on the right edge of the sleeve
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => NuraScoreAnalyticsScreen(
-                              vibe: NuraVibe.premium,
-                              globalScore: _nuuraScore,
-                              tracks: _tracks,
-                            ),
-                          ));
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: NuraBrand.pink, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$baseScore',
-                              style: const TextStyle(
-                                color: NuraBrand.pink,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Title
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: const Color(0xFF1A1A1A),
-                      fontSize: 14,
-                      fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Genre
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    genre.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isPlaying ? NuraBrand.pink : Colors.black38,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                // Feedback
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final coverSize = constraints.maxWidth;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Cover and Score Stack
+                  Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF9D00FF),
-                          shape: BoxShape.circle,
-                        ),
+                      VinylTrackCover(
+                        isPlaying: isPlaying,
+                        coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
+                        size: coverSize,
                       ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        '12 feedback',
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                      // Score Overlay
+                      Positioned(
+                        top: -4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => NuraScoreAnalyticsScreen(
+                                vibe: NuraVibe.premium,
+                                globalScore: _nuuraScore,
+                                tracks: _tracks,
+                              ),
+                            ));
+                          },
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.black12, width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                '$baseScore',
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 12),
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFF1A1A1A),
+                        fontSize: 14,
+                        fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Genre
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      genre.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isPlaying ? NuraBrand.pink : Colors.black38,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
