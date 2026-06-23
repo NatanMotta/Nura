@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/models/track.dart';
 import '../../../../core/services/supabase_bootstrap.dart';
 import '../../../shared/domain/label.dart';
-import '../../../shared/data/mock_nura_data.dart';
 import '../../../shared/domain/pitch_request.dart';
 
 class ArtistPitchService {
@@ -16,83 +15,55 @@ class ArtistPitchService {
   // 1. Fetch tracks owned by this artist
   Future<List<Track>> fetchArtistTracks(String artistId) async {
     final client = _client;
-    if (client == null) {
-      // Offline fallback: return all mock tracks
-      return kTracks;
-    }
+    if (client == null) return [];
 
     try {
       final rows = await client
           .from('tracks')
-          .select('id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+          .select(
+              'id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
           .eq('artist_id', artistId)
           .order('created_at', ascending: false);
 
-      final List<Track> tracks = rows
+      return rows
           .whereType<Map<String, dynamic>>()
           .map(_toTrack)
           .toList(growable: true);
-
-      if (tracks.isEmpty) {
-        return kTracks;
-      }
-
-      // Sviluppo & Test Mock: Aggiungi tracce fittizie solo se in modalità mock (nessun login serio)
-      final isMockSession = client.auth.currentUser == null;
-      if (isMockSession && tracks.length < 5) {
-        for (var i = 0; i < kTracks.length && tracks.length < 5; i++) {
-          final mockTrack = kTracks[i];
-          if (!tracks.any((t) => t.id == mockTrack.id)) {
-            tracks.add(mockTrack);
-          }
-        }
-      }
-
-      return tracks;
     } catch (_) {
-      return kTracks;
+      return [];
     }
   }
 
-  // 2. Fetch all labels to pitch to
+  // 2. Fetch all labels (curators) to pitch to
   Future<List<Label>> fetchLabels() async {
     final client = _client;
-    if (client == null) {
-      return kLabels;
-    }
+    if (client == null) return [];
 
     try {
-      // Query labels joining the owner's profiles.image_asset (logo path)
+      // Per ora peschiamo tutti i profili con role = 'curator'
       final rows = await client
-          .from('labels')
-          .select('id,name,city,bio,profiles!labels_owner_id_fkey(image_asset)');
+          .from('profiles')
+          .select('id,username,display_name,bio')
+          .eq('role', 'curator');
 
-      final labels = rows.whereType<Map<String, dynamic>>().map((row) {
+      return rows.whereType<Map<String, dynamic>>().map((row) {
         final id = row['id'] as String? ?? '';
-        final name = row['name'] as String? ?? '';
-        final city = row['city'] as String? ?? '';
+        final name = row['display_name'] as String? ??
+            row['username'] as String? ??
+            'Curator';
         final bio = row['bio'] as String? ?? '';
-        
-        final profile = row['profiles'];
-        final logoAsset = profile is Map<String, dynamic>
-            ? profile['image_asset'] as String?
-            : null;
 
         return Label(
           id: id,
           name: name,
-          city: city,
+          city: 'Global',
           bio: bio,
-          logoAsset: logoAsset ?? 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
+          logoAsset:
+              'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg', // Placeholder
         );
       }).toList(growable: false);
-
-      if (labels.isEmpty) {
-        return kLabels;
-      }
-      return labels;
     } catch (_) {
-      return kLabels;
+      return [];
     }
   }
 
@@ -104,73 +75,60 @@ class ArtistPitchService {
     String? message,
   }) async {
     final client = _client;
-    // Se il client non c'è oppure l'utente non è autenticato (mock session), non scrivere sul DB
-    if (client == null || client.auth.currentUser == null) {
-      debugPrint('Offline/Mock pitch sent: artist:$artistId, label:$labelId, track:$trackId, msg:$message');
-      await Future.delayed(const Duration(milliseconds: 800)); // Simula un piccolo caricamento
-      return;
-    }
+    if (client == null || client.auth.currentUser == null) return;
 
-    await client.from('pitch_requests').insert({
+    await client.from('curator_pitches').insert({
       'artist_id': artistId,
-      'label_id': labelId,
+      'curator_id': labelId,
       'track_id': trackId,
-      'status': 'sent',
-      'message': message,
+      'status': 'pending',
+      'pitch_message': message,
     });
   }
 
-  // 4. Fetch already sent pitches for this artist with nested joined details
+  // 4. Fetch already sent pitches for this artist
   Future<List<Map<String, dynamic>>> fetchArtistPitches(String artistId) async {
     final client = _client;
-    if (client == null) {
-      return _getMockPitchesJson();
-    }
+    if (client == null) return [];
 
     try {
       final rows = await client
-          .from('pitch_requests')
-          .select('id,status,created_at,message,track:tracks(title,genre),label:labels(name,city,profiles!labels_owner_id_fkey(image_asset))')
+          .from('curator_pitches')
+          .select('id,status,created_at,pitch_message,feedback_message,lyrics_score,vibe_score,production_score,market_potential_score,track:tracks(title,genre),curator:profiles!curator_pitches_curator_id_fkey(display_name)')
           .eq('artist_id', artistId)
           .order('created_at', ascending: false);
 
-      final pitches = rows.whereType<Map<String, dynamic>>().toList();
-      if (pitches.isEmpty) {
-        return _getMockPitchesJson();
-      }
-      return pitches;
-    } catch (_) {
-      return _getMockPitchesJson();
-    }
-  }
+      return rows.whereType<Map<String, dynamic>>().map((row) {
+         final l = row['lyrics_score'] as int? ?? 0;
+         final v = row['vibe_score'] as int? ?? 0;
+         final p = row['production_score'] as int? ?? 0;
+         final m = row['market_potential_score'] as int? ?? 0;
+         final int? nuraScore = (l > 0 || v > 0 || p > 0 || m > 0) ? ((l + v + p + m) / 4).round() : null;
 
-  List<Map<String, dynamic>> _getMockPitchesJson() {
-    return kPitchRequests.map((p) {
-      final track = getTrackById(p.trackId);
-      final label = getLabelById(p.labelId);
-      return {
-        'id': p.id,
-        'status': switch (p.visualStatus) {
-          PitchVisualStatus.sent => 'sent',
-          PitchVisualStatus.viewed => 'viewed',
-          PitchVisualStatus.shortlisted => 'shortlisted',
-          PitchVisualStatus.rejected => 'rejected',
-        },
-        'created_at': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
-        'message': p.message,
-        'track': {
-          'title': track?.track ?? 'Untitled',
-          'genre': track?.genre ?? 'demo',
-        },
-        'label': {
-          'name': label?.name ?? 'Aurora Records',
-          'city': label?.city ?? 'Milano, IT',
-          'profiles': {
-            'image_asset': label?.logoAsset,
+         return {
+            'id': row['id'],
+            'status': row['status'],
+            'created_at': row['created_at'],
+            'message': row['pitch_message'],
+            'curator_feedback': row['feedback_message'],
+            'nura_score': nuraScore,
+            'track': {
+            'title': row['track']?['title'] ?? 'Untitled',
+            'genre': row['track']?['genre'] ?? 'demo',
+          },
+          'label': {
+            'name': row['curator']?['display_name'] ?? 'Curator',
+            'city': 'Global',
+            'profiles': {
+              'image_asset':
+                  'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
+            }
           }
-        }
-      };
-    }).toList();
+        };
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // Mapper derived from RemoteTracksService
@@ -219,17 +177,8 @@ class ArtistPitchService {
     if (storagePath == null || storagePath.isEmpty) return null;
     final fileName = storagePath.split('/').last.toLowerCase();
     const map = <String, String>{
-      'preview_audio_1.mp3': 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
-      'preview_audio_2.mp3': 'assets/images/labels/jason-leung-wmyE5IBiOmo-unsplash.jpg',
-      'preview_audio_3.mp3': 'assets/images/labels/jean-philippe-delberghe-75xPHEQBmvA-unsplash.jpg',
-      'preview_audio_4.mp3': 'assets/images/labels/joel-filipe-QwoNAhbmLLo-unsplash.jpg',
-      'preview_audio_5.mp3': 'assets/images/labels/milad-fakurian-E8Ufcyxz514-unsplash.jpg',
-      'preview_audio_6.mp3': 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
-      'preview_audio_7.mp3': 'assets/images/labels/mymind-tZCrFpSNiIQ-unsplash.jpg',
-      'preview_audio_8.mp3': 'assets/images/labels/pawel-czerwinski-6lQDFGOB1iw-unsplash.jpg',
-      'preview_audio_9.mp3': 'assets/images/labels/pawel-czerwinski-ruJm3dBXCqw-unsplash.jpg',
-      'preview_audio_10.mp3': 'assets/images/labels/scott-webb-mV9-1XjnM4Y-unsplash.jpg',
-      'preview_audio_11.mp3': 'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
+      'preview_audio_1.mp3':
+          'assets/images/labels/annie-spratt-0ZPSX_mQ3xI-unsplash.jpg',
     };
     return map[fileName];
   }
@@ -250,6 +199,6 @@ class ArtistPitchService {
   String _mmss(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+    return '${m}:${s}';
   }
 }

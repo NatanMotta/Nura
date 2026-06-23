@@ -9,6 +9,7 @@ import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/vinyl_track_cover.dart';
+import '../../../../social/data/follows_repository.dart';
 
 import '../../../../artist/profile/presentation/screens/nura_score_analytics_screen.dart';
 import '../../../../artist/profile/data/artist_stats_service.dart';
@@ -50,9 +51,13 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     marketPotentialScore: 60,
   );
 
+  late final FollowsRepository _followsRepo;
+  int _followersCount = 0;
+
   @override
   void initState() {
     super.initState();
+    _followsRepo = FollowsRepository(Supabase.instance.client);
     _load();
   }
 
@@ -69,19 +74,24 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     }
     try {
       final client = Supabase.instance.client;
-      final profile = await client.from('profiles').select('display_name,image_asset').eq('id', widget.artistId).maybeSingle().timeout(const Duration(seconds: 4));
+      final profile = await client.from('profiles').select('display_name,avatar_url').eq('id', widget.artistId).maybeSingle().timeout(const Duration(seconds: 4));
       final rows = await client
           .from('tracks')
-          .select('id,title,genre,duration_seconds,storage_path')
+          .select('id,title,genre,duration_seconds,audio_url,cover_url')
           .eq('artist_id', widget.artistId)
           .order('created_at', ascending: false)
           .timeout(const Duration(seconds: 4));
 
+      final following = await _followsRepo.isFollowing(widget.artistId);
+      final count = await _followsRepo.getFollowersCount(widget.artistId);
+
       if (mounted) {
         setState(() {
           _displayName = profile?['display_name'];
-          _imageAsset = profile?['image_asset'];
+          _imageAsset = profile?['avatar_url'];
           _tracks = List<Map<String, dynamic>>.from(rows);
+          _following = following;
+          _followersCount = count;
           
           // MOCK TRACKS FOR TESTING (added as requested)
           if (_tracks.length < 7) {
@@ -102,11 +112,30 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     }
   }
 
-  void _toggleFollow() {
+  Future<void> _toggleFollow() async {
     HapticFeedback.mediumImpact();
+    
+    final wasFollowing = _following;
     setState(() {
       _following = !_following;
+      _followersCount += _following ? 1 : -1;
     });
+
+    try {
+      if (_following) {
+        await _followsRepo.followUser(widget.artistId);
+      } else {
+        await _followsRepo.unfollowUser(widget.artistId);
+      }
+    } catch (_) {
+      // Revert on failure
+      if (mounted) {
+        setState(() {
+          _following = wasFollowing;
+          _followersCount += wasFollowing ? 1 : -1;
+        });
+      }
+    }
   }
 
   @override
@@ -376,7 +405,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
         children: [
           _buildStatCol(icon: Icons.music_note, value: '${_tracks.length}', label: 'BRANI'),
           _buildVerticalDivider(),
-          _buildStatCol(icon: Icons.people_alt, value: '74.883', label: 'FOLLOWER'),
+          _buildStatCol(icon: Icons.people_alt, value: _followersCount.toString(), label: 'FOLLOWER'),
           _buildVerticalDivider(),
           _buildScoreCol(),
         ],

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "93053908417",
+    "project_id": "nura-app-78f5e",
+    "storage_bucket": "nura-app-78f5e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:93053908417:android:33691f608672fc34552b40",
+        "android_client_info": {
+          "package_name": "it.nuralabs.nura"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8lobiNjAkjG_OdhOO_rk5WEgpxuleYhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

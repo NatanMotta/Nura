@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../app/theme/app_theme.dart';
@@ -12,6 +14,7 @@ import '../../events/presentation/screens/empty_events_tab.dart';
 import '../profile/presentation/screens/artist_personal_profile_screen.dart';
 import '../../user/search/presentation/screens/home_search.dart';
 import '../../user/shell/user_shell.dart' show GlobalHeader;
+import '../upload_track/presentation/screens/artist_track_upload_screen.dart';
 import '../submissions/presentation/screens/artist_pitch_screen.dart';
 
 class ArtistShell extends StatefulWidget {
@@ -43,6 +46,7 @@ class _ArtistShellState extends State<ArtistShell> {
   final ValueNotifier<bool> _currentIsScrolled = ValueNotifier(false);
 
   String _screen = RouteNames.home;
+  bool _isFeedReady = false;
 
   String? _artistId;
   String? _artistName;
@@ -148,6 +152,11 @@ class _ArtistShellState extends State<ArtistShell> {
                 isActive: _screen == RouteNames.home ||
                     _screen == _artistProfileRoute,
                 onArtistTap: _onArtistTap,
+                onFeedReady: () {
+                  if (mounted && !_isFeedReady) {
+                    setState(() => _isFeedReady = true);
+                  }
+                },
               ),
             ),
           ),
@@ -362,6 +371,16 @@ class _ArtistShellState extends State<ArtistShell> {
                 );
               },
             ),
+            // OVERLAY DI CARICAMENTO (Nasconde tutto finché il feed non è pronto)
+            if (!_isFeedReady)
+              Positioned.fill(
+                child: Container(
+                  color: const Color(0xFFF8F9FA),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFFF0A75)),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

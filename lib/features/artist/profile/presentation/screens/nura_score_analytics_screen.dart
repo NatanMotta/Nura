@@ -34,7 +34,8 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.black87, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -50,13 +51,15 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Contenuto
           CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
-                child: SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
+                child: SizedBox(
+                    height:
+                        MediaQuery.of(context).padding.top + kToolbarHeight),
               ),
               SliverToBoxAdapter(
                 child: _buildGlobalScoreHero(),
@@ -113,7 +116,12 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
               ),
             ],
             gradient: const SweepGradient(
-              colors: [NuraBrand.pink, Color(0xFF9D00FF), NuraBrand.mint, NuraBrand.pink],
+              colors: [
+                NuraBrand.pink,
+                Color(0xFF9D00FF),
+                NuraBrand.mint,
+                NuraBrand.pink
+              ],
               stops: [0.0, 0.33, 0.66, 1.0],
             ),
           ),
@@ -193,13 +201,17 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _buildProgressBar('Vibe / Emozione', globalScore.vibeScore, NuraBrand.pink),
+          _buildProgressBar(
+              'Vibe / Emozione', globalScore.vibeScore, NuraBrand.pink),
           const SizedBox(height: 16),
-          _buildProgressBar('Produzione', globalScore.productionScore, const Color(0xFF9D00FF)),
+          _buildProgressBar('Produzione', globalScore.productionScore,
+              const Color(0xFF9D00FF)),
           const SizedBox(height: 16),
-          _buildProgressBar('Testo (Lyrics)', globalScore.lyricsScore, NuraBrand.deep),
+          _buildProgressBar(
+              'Testo (Lyrics)', globalScore.lyricsScore, NuraBrand.deep),
           const SizedBox(height: 16),
-          _buildProgressBar('Potenziale di Mercato', globalScore.marketPotentialScore, const Color(0xFF00BFA5)),
+          _buildProgressBar('Potenziale di Mercato',
+              globalScore.marketPotentialScore, const Color(0xFF00BFA5)),
         ],
       ),
     );
@@ -265,27 +277,89 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
   }
 
   Widget _buildTrackScoreDetail(Map<String, dynamic> track) {
-    // Generate some mock individual metrics for the track based on its main score
-    final baseScore = track['score'] as int;
-    final int vibe = (baseScore + 4).clamp(0, 100);
-    final int prod = (baseScore + 1).clamp(0, 100);
-    final int lyrics = (baseScore - 3).clamp(0, 100);
-    final int market = (baseScore + 2).clamp(0, 100);
+    final baseScore = track['score'] as int?;
+
+    // Contenitore base per mantenere la grafica
+    BoxDecoration cardDecoration = BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    );
+
+    // Gestione Traccia senza Valutazioni
+    if (baseScore == null || baseScore == 0) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: cardDecoration,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.black12,
+              ),
+              child: const Icon(Icons.music_note, color: Colors.white54),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track['title'] ?? 'Brano',
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Nessun NURA Score',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('N/A',
+                  style: TextStyle(
+                      color: Colors.black45, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Traccia con Valutazioni Reali
+    final trackScoreObj = track['trackScore'] as NuuraScore;
+    final int vibe = trackScoreObj.vibeScore;
+    final int prod = trackScoreObj.productionScore;
+    final int lyrics = trackScoreObj.lyricsScore;
+    final int market = trackScoreObj.marketPotentialScore;
+    final int totalFeedbacks = trackScoreObj.totalFeedbacks;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
+      decoration: cardDecoration,
       child: Theme(
         data: ThemeData.light().copyWith(
           dividerColor: Colors.transparent,
@@ -301,11 +375,9 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg'),
-                    fit: BoxFit.cover,
-                  ),
+                  color: Colors.black12,
                 ),
+                child: const Icon(Icons.library_music, color: Colors.black54),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -313,7 +385,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      track['title'],
+                      track['title'] ?? 'Brano',
                       style: const TextStyle(
                         color: Colors.black87,
                         fontSize: 16,
@@ -322,7 +394,7 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${track['feedback']} Feedback',
+                      '$totalFeedbacks Feedback',
                       style: const TextStyle(
                         color: Colors.black54,
                         fontSize: 12,
@@ -336,7 +408,8 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
+                  border: Border.all(
+                      color: NuraBrand.pink.withValues(alpha: 0.3), width: 1.5),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -358,11 +431,13 @@ class NuraScoreAnalyticsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildProgressBar('Vibe / Emozione', vibe, NuraBrand.pink),
                   const SizedBox(height: 12),
-                  _buildProgressBar('Produzione', prod, const Color(0xFF9D00FF)),
+                  _buildProgressBar(
+                      'Produzione', prod, const Color(0xFF9D00FF)),
                   const SizedBox(height: 12),
                   _buildProgressBar('Testo (Lyrics)', lyrics, NuraBrand.deep),
                   const SizedBox(height: 12),
-                  _buildProgressBar('Potenziale di Mercato', market, const Color(0xFF00BFA5)),
+                  _buildProgressBar(
+                      'Potenziale di Mercato', market, const Color(0xFF00BFA5)),
                 ],
               ),
             ),

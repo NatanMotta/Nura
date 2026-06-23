@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../../../core/models/track.dart';
 
 ui.FragmentProgram? _globalShaderProgram;
@@ -246,6 +247,59 @@ class _MusicCardState extends State<MusicCard>
                       )
                     ],
                 ),
+              ),
+            ),
+          ),
+
+          // Menu puntini per segnalazione/blocco
+          Positioned(
+            top: 24,
+            right: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [
+                  Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))
+                ]),
+                color: const Color(0xFF1E1E1E),
+                onSelected: (value) async {
+                  final client = Supabase.instance.client;
+                  final userId = client.auth.currentUser?.id;
+                  if (userId == null) return;
+
+                  if (value == 'report') {
+                    await client.from('content_reports').insert({
+                      'reporter_id': userId,
+                      'track_id': widget.track.id,
+                      'reason': 'Contenuto inappropriato o violazione copyright',
+                    });
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Traccia segnalata. Analizzeremo il contenuto a breve.')),
+                      );
+                    }
+                  } else if (value == 'block') {
+                    await client.from('user_blocks').insert({
+                      'blocker_id': userId,
+                      'blocked_id': widget.track.artistId,
+                    });
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Utente bloccato. Non vedrai più i suoi brani.')),
+                      );
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'report',
+                    child: Text('Segnala brano', style: TextStyle(color: Colors.white)),
+                  ),
+                  const PopupMenuItem(
+                    value: 'block',
+                    child: Text('Blocca artista', style: TextStyle(color: Colors.redAccent)),
+                  ),
+                ],
               ),
             ),
           ),

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -37,10 +38,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
+      final emailText = _email.text.replaceAll(' ', '');
+      
+      // Basic email validation
+      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+      if (!emailRegex.hasMatch(emailText)) {
+        setState(() {
+          _error = 'Per favore, inserisci un indirizzo email valido (es: nome@email.com).';
+          _loading = false;
+        });
+        return;
+      }
+
       final repo = ref.read(authRepositoryProvider);
       if (isSignUp) {
         await repo.signUpWithPassword(
-          email: _email.text.trim(),
+          email: emailText,
           password: _password.text,
           role: _selectedRole,
           displayName: _displayName.text.trim().isEmpty
@@ -49,24 +62,51 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
       } else {
         await repo.signInWithPassword(
-          email: _email.text.trim(),
+          email: emailText,
           password: _password.text,
         );
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop();
+      // RoleGate handles navigation via authStateProvider
     } catch (e) {
       setState(() {
         final raw = e.toString();
         if (raw.contains('EMAIL_CONFIRMATION_REQUIRED')) {
-          _error =
-              'Account creato. Controlla la tua email, conferma il link e poi fai login.';
+          _error = 'Account creato. Controlla la tua email, conferma il link e poi fai login.';
           _isSignUpMode = false;
         } else {
-          _error = raw;
+          _error = raw.replaceAll('Exception: ', '');
         }
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithOAuth(bool isApple) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      if (isApple) {
+        await repo.signInWithApple();
+      } else {
+        await repo.signInWithGoogle();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -85,9 +125,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -201,11 +242,46 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           : 'Non hai un account? Sign up',
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  const Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white24)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('Oppure accedi con', style: TextStyle(color: Colors.white54)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white24)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (Platform.isIOS) ...[
+                    ElevatedButton.icon(
+                      onPressed: (_loading || !supabaseReady) ? null : () => _signInWithOAuth(true),
+                      icon: const Icon(Icons.apple, color: Colors.black),
+                      label: const Text('Accedi con Apple', style: TextStyle(color: Colors.black)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  ElevatedButton.icon(
+                    onPressed: (_loading || !supabaseReady) ? null : () => _signInWithOAuth(false),
+                    // Icona provvisoria per Google, visto che MdiIcons non e' importato qui, usiamo login
+                    icon: const Icon(Icons.g_mobiledata, color: Colors.black, size: 32),
+                    label: const Text('Accedi con Google', style: TextStyle(color: Colors.black)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
       ),
     );
   }

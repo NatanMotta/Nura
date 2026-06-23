@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../../core/services/supabase_bootstrap.dart';
 import '../../shared/domain/user_role.dart';
@@ -108,8 +112,70 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> signInWithGoogle() async {
+    final googleSignIn = GoogleSignIn(
+      serverClientId: 'MOCK_WEB_CLIENT_ID', // DA CONFIGURARE SU SUPABASE
+    );
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) throw Exception('Google Sign In annullato');
+
+    final googleAuth = await googleUser.authentication;
+    final accessToken = googleAuth.accessToken;
+    final idToken = googleAuth.idToken;
+
+    if (accessToken == null || idToken == null) {
+      throw Exception('Token mancanti dal Google Sign In');
+    }
+
+    final client = _requireClient();
+    final response = await client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
+    );
+
+    final user = response.user;
+    if (user == null) throw Exception('Login Supabase con Google fallito');
+
+    await _ensureProfile(user);
+  }
+
+  @override
+  Future<void> signInWithApple() async {
+    final client = _requireClient();
+    final rawNonce = client.auth.generateRawNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    final idToken = credential.identityToken;
+    if (idToken == null) throw Exception('Token mancante da Apple Sign In');
+
+    final response = await client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
+      nonce: rawNonce,
+    );
+
+    final user = response.user;
+    if (user == null) throw Exception('Login Supabase con Apple fallito');
+
+    await _ensureProfile(
+      user,
+      displayName: credential.givenName != null ? '${credential.givenName} ${credential.familyName ?? ''}' : null,
+    );
+  }
+
+  @override
   Future<void> signOut() async {
     final client = _requireClient();
+    await GoogleSignIn().signOut().catchError((_) => null);
     await client.auth.signOut();
   }
 
@@ -122,17 +188,22 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       final row = await client
           .from('profiles')
-          .select('role')
+          .select('role, avatar_url, bio')
           .eq('id', user.id)
           .maybeSingle();
 
       final roleRaw = (row?['role'] as String?)?.toLowerCase();
       final role = _toRole(roleRaw);
+      
+      final avatarUrl = row?['avatar_url'] as String?;
+      final bio = row?['bio'] as String?;
+      final isComplete = avatarUrl != null && avatarUrl.isNotEmpty && bio != null && bio.isNotEmpty;
 
       return AppAuthUser(
         id: user.id,
         email: user.email,
         role: role,
+        isProfileComplete: isComplete,
       );
     } catch (_) {
       return AppAuthUser(id: user.id, email: user.email, role: UserRole.user);

@@ -41,6 +41,7 @@ class _UserShellState extends State<UserShell> {
   final ValueNotifier<bool> _currentIsScrolled = ValueNotifier(false);
   
   String _screen = RouteNames.home;
+  bool _isFeedReady = false;
 
   // Artist profile navigation state
   String? _artistId;
@@ -147,6 +148,11 @@ class _UserShellState extends State<UserShell> {
               safeBottom: safeBottom,
               isActive: _screen == RouteNames.home || _screen == _artistProfileRoute,
               onArtistTap: _onArtistTap,
+              onFeedReady: () {
+                if (mounted && !_isFeedReady) {
+                  setState(() => _isFeedReady = true);
+                }
+              },
             ),
           ),
         ),
@@ -358,6 +364,16 @@ class _UserShellState extends State<UserShell> {
                 );
               },
             ),
+            // OVERLAY DI CARICAMENTO (Nasconde tutto finché il feed non è pronto)
+            if (!_isFeedReady)
+              Positioned.fill(
+                child: Container(
+                  color: const Color(0xFFF8F9FA),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFFF0A75)),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../auth/presentation/auth_providers.dart';
@@ -38,6 +39,59 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     } catch (e) {
       setState(() {
         _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: NuraBrand.deepest,
+        title: const Text('Elimina Account', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Sei sicuro di voler eliminare permanentemente il tuo account e tutti i dati associati? Questa azione è irreversibile.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annulla', style: TextStyle(color: NuraBrand.mint)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Elimina', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      // Invochiamo l'Edge Function per eliminare l'account
+      await client.functions.invoke('delete-account');
+
+      // Logout locale per resettare lo stato
+      await ref.read(authRepositoryProvider).signOut();
+      ref.read(userRoleProvider.notifier).clear();
+      ref.read(mockProfileIdentityProvider.notifier).clear();
+      ref.read(mockProfileImageAssetProvider.notifier).state = null;
+
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      setState(() {
+        _error = 'Errore durante l\'eliminazione: $e';
       });
     } finally {
       if (mounted) {
@@ -133,14 +187,29 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               tileColor: NuraBrand.deepMidAlpha(0.55),
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
-              title: const Text('Logout account',
-                  style: TextStyle(color: NuraBrand.mint)),
+              leading: const Icon(Icons.logout, color: Colors.orangeAccent),
+              title: const Text('Logout',
+                  style: TextStyle(color: Colors.orangeAccent)),
               subtitle: Text(
-                'Disconnette l\'account Supabase',
+                'Disconnette l\'account',
                 style: TextStyle(color: NuraBrand.mintAlpha(0.65)),
               ),
               onTap: _loading ? null : _logoutAccount,
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              tileColor: NuraBrand.deepMidAlpha(0.55),
+              leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
+              title: const Text('Elimina Account',
+                  style: TextStyle(color: Colors.redAccent)),
+              subtitle: Text(
+                'Rimuove permanentemente i tuoi dati',
+                style: TextStyle(color: NuraBrand.mintAlpha(0.65)),
+              ),
+              onTap: _loading ? null : _deleteAccount,
             ),
             if (_loading)
               const Padding(

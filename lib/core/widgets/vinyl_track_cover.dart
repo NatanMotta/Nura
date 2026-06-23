@@ -7,6 +7,7 @@ class VinylTrackCover extends StatefulWidget {
   final String? coverAsset;
   final Color swatch;
   final double size;
+  final bool isNetwork;
 
   const VinylTrackCover({
     super.key,
@@ -14,6 +15,7 @@ class VinylTrackCover extends StatefulWidget {
     this.coverAsset,
     this.swatch = NuraBrand.pink,
     this.size = 60,
+    this.isNetwork = false,
   });
 
   @override
@@ -202,7 +204,9 @@ class _VinylTrackCoverState extends State<VinylTrackCover> with SingleTickerProv
                   ),
                   image: widget.coverAsset != null
                       ? DecorationImage(
-                          image: AssetImage(widget.coverAsset!),
+                          image: widget.isNetwork
+                              ? NetworkImage(widget.coverAsset!) as ImageProvider
+                              : AssetImage(widget.coverAsset!),
                           fit: BoxFit.cover,
                         )
                       : null,

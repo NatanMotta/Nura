@@ -13,7 +13,7 @@ import '../../../../../core/models/track.dart';
 import '../../../../../core/services/music_player_manager.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../social/data/social_engagement_service.dart';
-import '../../../../shared/data/mock_nura_data.dart';
+import '../../data/remote_tracks_service.dart';
 import '../../data/remote_tracks_service.dart';
 import '../widgets/music_card.dart';
 import '../widgets/physics_swiper.dart';
@@ -26,6 +26,7 @@ class HomeFeed extends StatefulWidget {
   final double safeTop, safeBottom;
   final bool isActive;
   final void Function(String artistId, String artistName)? onArtistTap;
+  final VoidCallback? onFeedReady;
   const HomeFeed(
       {super.key,
       required this.vibe,
@@ -34,7 +35,8 @@ class HomeFeed extends StatefulWidget {
       required this.safeTop,
       required this.safeBottom,
       this.isActive = true,
-      this.onArtistTap});
+      this.onArtistTap,
+      this.onFeedReady});
   @override
   State<HomeFeed> createState() => _HomeFeedState();
 }
@@ -163,7 +165,7 @@ class _HomeFeedState extends State<HomeFeed>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _sourceDeck = List.of(kTracks);
+    _sourceDeck = [];
 
     final cached = RemoteTracksService.cachedTracks;
     if (cached != null && cached.isNotEmpty) {
@@ -184,6 +186,9 @@ class _HomeFeedState extends State<HomeFeed>
       // Trigger the intro animation instantly
       _deckIntroController.forward(from: 0.0);
       _deckIntroPlayed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onFeedReady?.call();
+      });
     } else {
       deck = const [];
       _deckReady = false;
@@ -209,10 +214,10 @@ class _HomeFeedState extends State<HomeFeed>
       });
     }
 
-    List<Track> selected = List.of(kTracks);
+    List<Track> selected = [];
     try {
       final remote =
-          await _remoteTracks.fetchTracks().timeout(const Duration(seconds: 5));
+          await _remoteTracks.fetchTracks().timeout(const Duration(seconds: 10));
       if (remote.isNotEmpty) {
         selected = List.of(remote);
       } else {
@@ -220,20 +225,22 @@ class _HomeFeedState extends State<HomeFeed>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Nessuna traccia remota valida. Uso mock locali.',
+                'Nessuna traccia trovata nel database.',
               ),
             ),
           );
         }
       }
-    } catch (_) {}
+    } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Errore fetch tracce dal cloud.'),
+            ),
+          );
+        }
+    }
 
-    if (!mounted) return;
-
-    // FIX V: Sincronizzazione Rigida della VRAM.
-    // Blocchiamo il rendering del deck finché la primissima copertina non è
-    // fisicamente decodificata e presente nella memoria video (pre-cached).
-    // Questo elimina il pop-in di 0.5 sec allo start.
     if (selected.isNotEmpty) {
       // Estraiamo il colore dominante dello shader prima di svelare la UI
       await _resolveGlow(selected[0]);
@@ -258,6 +265,7 @@ class _HomeFeedState extends State<HomeFeed>
       deck = List.of(selected);
       _deckReady = true;
     });
+    widget.onFeedReady?.call();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maintainRollingCache();
@@ -391,7 +399,26 @@ class _HomeFeedState extends State<HomeFeed>
   Widget build(BuildContext context) {
     final nav = 86 + widget.safeBottom;
     if (!_deckReady) {
-      return const SizedBox.shrink();
+      return SizedBox.expand(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: ParallaxOrganicMeshPainter(
+                    scrollOffset: 0,
+                    musicuraBlu: NuraBrand.deep,
+                    nuraPink: NuraBrand.pink,
+                  ),
+                ),
+              ),
+            ),
+            const Center(
+              child: CircularProgressIndicator(color: NuraBrand.pink),
+            ),
+          ],
+        ),
+      );
     }
 
     if (deck.isEmpty) {

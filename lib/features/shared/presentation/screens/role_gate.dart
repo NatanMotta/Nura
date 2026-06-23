@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../artist/shell/artist_shell.dart';
 import '../../../auth/presentation/auth_providers.dart';
+import '../../../auth/presentation/screens/auth_screen.dart';
+import '../../../auth/presentation/screens/profile_setup_screen.dart';
 import '../../../curator/shell/curator_shell.dart';
 import '../../../user/shell/user_shell.dart';
 import '../../domain/user_role.dart';
-import '../providers/user_role_provider.dart';
-import 'mock_role_login_screen.dart';
 
 class RoleGate extends ConsumerWidget {
   final NuraVibe vibe;
@@ -25,12 +26,16 @@ class RoleGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
-    final mockRole = ref.watch(userRoleProvider);
 
     return authState.when(
       data: (authUser) {
-        final role = authUser?.role ?? mockRole;
-        if (role == null) return const MockRoleLoginScreen();
+        if (authUser == null) return const AuthScreen();
+        
+        if (!authUser.isProfileComplete) {
+          return ProfileSetupScreen(vibe: vibe, accent: accent);
+        }
+
+        final role = authUser.role;
 
         return switch (role) {
           UserRole.artist => ArtistShell(
@@ -61,9 +66,11 @@ class RoleGate extends ConsumerWidget {
           ),
         ),
       ),
-      loading: () => Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: const SizedBox.shrink(),
+      loading: () => const Scaffold(
+        backgroundColor: Color(0xFFF8F9FA),
+        body: Center(
+          child: CircularProgressIndicator(color: NuraBrand.pink),
+        ),
       ),
     );
   }

@@ -11,5 +11,7 @@ abstract class AuthRepository {
     required UserRole role,
     String? displayName,
   });
+  Future<void> signInWithGoogle();
+  Future<void> signInWithApple();
   Future<void> signOut();
 }

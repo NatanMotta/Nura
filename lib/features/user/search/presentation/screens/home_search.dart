@@ -7,8 +7,12 @@ import '../../../../../core/widgets/glass.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../../core/widgets/striped_panel.dart';
 import '../../../../../core/widgets/waveform.dart';
-import '../../../../shared/data/mock_nura_data.dart';
 import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart';
+
+class _DummyTrending { final int rank; final Color swatch; final String track; final String artist; final String delta; const _DummyTrending(this.rank, this.swatch, this.track, this.artist, this.delta); }
+const kTrending = <_DummyTrending>[];
+class _DummyGenre { final int hue; final String name; final String count; const _DummyGenre(this.hue, this.name, this.count); }
+const kGenres = <_DummyGenre>[];
 
 class HomeSearch extends StatefulWidget {
   final NuraVibe vibe;

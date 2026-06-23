@@ -8,9 +8,12 @@ import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
 import '../../../../../core/widgets/vinyl_track_cover.dart';
+import '../../../upload_track/presentation/screens/artist_track_upload_screen.dart';
 import '../../../../user/profile/presentation/screens/profile_settings_screen.dart';
 import '../../data/artist_stats_service.dart';
 import 'nura_score_analytics_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../social/data/follows_repository.dart';
 
 class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
   final NuraVibe vibe;
@@ -33,36 +36,82 @@ class ArtistPersonalProfileScreen extends ConsumerStatefulWidget {
 
 class _ArtistPersonalProfileScreenState
     extends ConsumerState<ArtistPersonalProfileScreen> {
-  // Dati Mock
-  final List<Map<String, dynamic>> _mockTracks = [
-    {'id': 'mock_1', 'title': 'Passerà', 'genre': 'Pop Indie', 'feedback': 12, 'trend': null, 'score': 63, 'storage_path': 'preview_audio_1.mp3'},
-    {'id': 'mock_2', 'title': 'Velvet Static', 'genre': 'Dream Pop', 'feedback': 18, 'trend': null, 'score': 71, 'storage_path': 'preview_audio_2.mp3'},
-    {'id': 'mock_3', 'title': 'maiLOVER', 'genre': 'Alt Pop', 'feedback': 9, 'trend': 'Migliorata +5', 'score': 68, 'storage_path': 'preview_audio_3.mp3'},
-    {'id': 'mock_4', 'title': 'Midnight City', 'genre': 'Synth Pop', 'feedback': 24, 'trend': null, 'score': 75, 'storage_path': 'preview_audio_4.mp3'},
-    {'id': 'mock_5', 'title': 'Lost in Tokyo', 'genre': 'Lo-Fi', 'feedback': 5, 'trend': null, 'score': 60, 'storage_path': 'preview_audio_5.mp3'},
-    {'id': 'mock_6', 'title': 'Neon Lights', 'genre': 'Electro Pop', 'feedback': 32, 'trend': 'Migliorata +12', 'score': 82, 'storage_path': 'preview_audio_6.mp3'},
-    {'id': 'mock_7', 'title': 'Summer Breeze', 'genre': 'Acoustic', 'feedback': 15, 'trend': null, 'score': 66, 'storage_path': 'preview_audio_7.mp3'},
-  ];
+  String? _displayName;
+  String? _bio;
+  String? _avatarUrl;
+  int _followersCount = 0;
+  List<Map<String, dynamic>> _tracks = [];
+  bool _loading = true;
 
-  late NuuraScore _nuuraScore;
+  late NuuraScore _nuuraScore = NuuraScore.empty();
   final ScrollController _scrollController = ScrollController();
-  final ValueNotifier<double> _scrollOffsetNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> _scrollOffsetNotifier =
+      ValueNotifier<double>(0.0);
   final _audio = AudioPreviewService.instance;
 
   @override
   void initState() {
     super.initState();
-    _nuuraScore = const NuuraScore(
-      totalScore: 63,
-      lyricsScore: 85,
-      vibeScore: 92,
-      productionScore: 89,
-      marketPotentialScore: 86,
-      totalFeedbacks: 14,
-    );
     _scrollController.addListener(() {
       _scrollOffsetNotifier.value = _scrollController.offset;
     });
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // 1. Fetch Profile
+      final profileResponse = await client
+          .from('profiles')
+          .select('display_name, bio, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (profileResponse != null) {
+        _displayName = profileResponse['display_name'] as String?;
+        _bio = profileResponse['bio'] as String?;
+        _avatarUrl = profileResponse['avatar_url'] as String?;
+      }
+
+      // 2. Fetch Followers
+      final followsRepo = FollowsRepository(client);
+      _followersCount = await followsRepo.getFollowersCount(user.id);
+
+      // 3. Fetch Tracks
+      final tracksResponse = await client
+          .from('tracks')
+          .select('*')
+          .eq('artist_id', user.id)
+          .order('created_at', ascending: false);
+
+      final rawTracks = List<Map<String, dynamic>>.from(tracksResponse);
+
+      // 4. Fetch NuuraScore
+      final statsService = ref.read(artistStatsServiceProvider);
+      _nuuraScore = await statsService.getArtistNuuraScore(user.id);
+
+      // 5. Fetch score per ogni traccia
+      for (var i = 0; i < rawTracks.length; i++) {
+        final trackScore =
+            await statsService.getTrackNuuraScore(rawTracks[i]['id'] as String);
+        rawTracks[i]['score'] =
+            trackScore.totalScore > 0 ? trackScore.totalScore : null;
+        rawTracks[i]['trackScore'] = trackScore;
+      }
+      _tracks = rawTracks;
+    } catch (e) {
+      debugPrint('Error loading artist profile data: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -74,6 +123,15 @@ class _ArtistPersonalProfileScreenState
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        body: const Center(
+          child: CircularProgressIndicator(color: NuraBrand.mint),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
@@ -86,7 +144,8 @@ class _ArtistPersonalProfileScreenState
                 return CustomPaint(
                   painter: ParallaxOrganicMeshPainter(
                     scrollOffset: offset,
-                    musicuraBlu: NuraBrand.deepMid, // Usa i colori scuri/vibranti per i blob
+                    musicuraBlu: NuraBrand
+                        .deepMid, // Usa i colori scuri/vibranti per i blob
                     nuraPink: NuraBrand.pink,
                   ),
                 );
@@ -133,7 +192,8 @@ class _ArtistPersonalProfileScreenState
                               ),
                             ],
                           ),
-                          child: const Icon(Icons.settings_outlined, color: Colors.black87, size: 22),
+                          child: const Icon(Icons.settings_outlined,
+                              color: Colors.black87, size: 22),
                         ),
                       ),
                     ),
@@ -146,10 +206,60 @@ class _ArtistPersonalProfileScreenState
                 child: _buildStatsRow(),
               ),
 
+              // 2.5 UPLOAD BUTTON BANNER
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 24),
+                  child: GestureDetector(
+                    onTap: () async {
+                      HapticFeedback.lightImpact();
+                      final uploaded = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const ArtistTrackUploadScreen()),
+                      );
+                      if (uploaded == true) {
+                        _loadData();
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: NuraBrand.pink,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: NuraBrand.pink.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_circle_outline, color: Colors.white, size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            'Carica nuovo brano',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               // 3. HEADER "I tuoi brani"
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 12),
+                  padding: const EdgeInsets.only(
+                      left: 20, right: 20, top: 24, bottom: 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -183,18 +293,33 @@ class _ArtistPersonalProfileScreenState
               // 4. LISTA BRANI
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 24,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 0.68,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => _buildTrackTile(_mockTracks[i]),
-                    childCount: _mockTracks.length > 6 ? 6 : (_mockTracks.length - (_mockTracks.length % 2)),
-                  ),
-                ),
+                sliver: _tracks.isEmpty
+                    ? const SliverToBoxAdapter(
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: Text(
+                              'Nessun brano caricato ancora.',
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                          ),
+                        ),
+                      )
+                    : SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 24,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.68,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => _buildTrackTile(_tracks[i]),
+                          childCount: _tracks.length > 6
+                              ? 6
+                              : (_tracks.length - (_tracks.length % 2)),
+                        ),
+                      ),
               ),
 
               // 5. PRO BANNER
@@ -242,45 +367,52 @@ class _ArtistPersonalProfileScreenState
                       spreadRadius: 2,
                     ),
                   ],
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/artists/michael-dam-mEZ3PoFGs_k-unsplash.jpg'),
-                    fit: BoxFit.cover,
+                  image: _avatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(_avatarUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: _avatarUrl == null
+                    ? const Icon(Icons.person, size: 50, color: Colors.black12)
+                    : null,
+              ),
+              // Edit Button (basso destra)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: const Color(0xFFF8F9FA), width: 2.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
+                  child:
+                      const Icon(Icons.edit, color: Colors.black87, size: 15),
                 ),
               ),
-                  // Edit Button (basso destra)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFF8F9FA), width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.edit, color: Colors.black87, size: 15),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         // Name & Status
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'giovami____',
-              style: TextStyle(
+            Text(
+              _displayName ?? 'Utente',
+              style: const TextStyle(
                 color: Colors.black87,
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -299,25 +431,15 @@ class _ArtistPersonalProfileScreenState
           ],
         ),
         const SizedBox(height: 4),
-        const Text(
-          '@giovami___',
-          style: TextStyle(
-            color: Colors.black54,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Bio essenziale Nura (senza riferimenti IG)
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
+        // Bio
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Text(
-            'Produttore e DJ indipendente. Esplorando nuovi suoni e vibrazioni.',
+            _bio ?? 'Nessuna biografia inserita.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.black87,
               fontSize: 14,
-              fontWeight: FontWeight.w400,
               height: 1.4,
             ),
           ),
@@ -333,9 +455,15 @@ class _ArtistPersonalProfileScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildStatCol(icon: Icons.music_note, value: '12', label: 'BRANI'),
+          _buildStatCol(
+              icon: Icons.music_note,
+              value: _tracks.length.toString(),
+              label: 'BRANI'),
           _buildVerticalDivider(),
-          _buildStatCol(icon: Icons.people_alt, value: '74.883', label: 'FOLLOWER'),
+          _buildStatCol(
+              icon: Icons.people_alt,
+              value: _followersCount.toString(),
+              label: 'FOLLOWER'),
           _buildVerticalDivider(),
           _buildScoreCol(),
         ],
@@ -390,7 +518,7 @@ class _ArtistPersonalProfileScreenState
           builder: (_) => NuraScoreAnalyticsScreen(
             vibe: widget.vibe,
             globalScore: _nuuraScore,
-            tracks: _mockTracks,
+            tracks: _tracks,
           ),
         ));
       },
@@ -466,8 +594,10 @@ class _ArtistPersonalProfileScreenState
                     children: [
                       VinylTrackCover(
                         isPlaying: isPlaying,
-                        coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
+                        coverAsset: track['cover_url'] ??
+                            'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
                         size: coverSize,
+                        isNetwork: track['cover_url'] != null,
                       ),
                       // Score Overlay
                       Positioned(
@@ -480,7 +610,7 @@ class _ArtistPersonalProfileScreenState
                               builder: (_) => NuraScoreAnalyticsScreen(
                                 vibe: widget.vibe,
                                 globalScore: _nuuraScore,
-                                tracks: _mockTracks,
+                                tracks: _tracks,
                               ),
                             ));
                           },
@@ -490,7 +620,8 @@ class _ArtistPersonalProfileScreenState
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.95),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.black12, width: 1.5),
+                              border:
+                                  Border.all(color: Colors.black12, width: 1.5),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.05),
@@ -525,7 +656,8 @@ class _ArtistPersonalProfileScreenState
                       style: TextStyle(
                         color: const Color(0xFF1A1A1A),
                         fontSize: 14,
-                        fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700,
+                        fontWeight:
+                            isPlaying ? FontWeight.w900 : FontWeight.w700,
                       ),
                     ),
                   ),
@@ -557,11 +689,9 @@ class _ArtistPersonalProfileScreenState
   Future<void> _playTrack(Map<String, dynamic> track) async {
     HapticFeedback.lightImpact();
     final id = track['id'] as String?;
-    final storagePath = track['storage_path'] as String?;
-    if (id == null || storagePath == null) return;
-    
-    final fileName = storagePath.split('/').last;
-    final assetPath = 'assets/audio/$fileName';
+    final audioUrl = track['audio_url'] as String?;
+
+    if (id == null || audioUrl == null) return;
 
     if (_audio.playingTrackId.value == id) {
       if (_audio.isPlaying.value) {
@@ -570,7 +700,7 @@ class _ArtistPersonalProfileScreenState
         await _audio.resume();
       }
     } else {
-      await _audio.playTrack(trackId: id, assetPath: assetPath);
+      await _audio.playTrack(trackId: id, assetPath: audioUrl);
     }
   }
 
@@ -597,7 +727,8 @@ class _ArtistPersonalProfileScreenState
               color: NuraBrand.pink.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.lock_outline, color: NuraBrand.pink, size: 20),
+            child:
+                const Icon(Icons.lock_outline, color: NuraBrand.pink, size: 20),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -653,7 +784,10 @@ class ParallaxOrganicMeshPainter extends CustomPainter {
   final Color musicuraBlu;
   final Color nuraPink;
 
-  ParallaxOrganicMeshPainter({required this.scrollOffset, required this.musicuraBlu, required this.nuraPink});
+  ParallaxOrganicMeshPainter(
+      {required this.scrollOffset,
+      required this.musicuraBlu,
+      required this.nuraPink});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -661,31 +795,43 @@ class ParallaxOrganicMeshPainter extends CustomPainter {
     paint.color = const Color(0xFFF8F9FA); // Sfondo base chiaro
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
-    void drawReflection(Offset center, double radius, Color color, double opacity) {
-      final glowPaint = Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55)..color = color.withValues(alpha: opacity);
-      final parallaxCenter = Offset(center.dx, center.dy - (scrollOffset * 0.15));
+    void drawReflection(
+        Offset center, double radius, Color color, double opacity) {
+      final glowPaint = Paint()
+        ..imageFilter = ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55)
+        ..color = color.withValues(alpha: opacity);
+      final parallaxCenter =
+          Offset(center.dx, center.dy - (scrollOffset * 0.15));
       canvas.drawCircle(parallaxCenter, radius, glowPaint);
     }
 
     // Blob colorati sparsi che creano il "misto con i colori dell'app"
-    drawReflection(Offset(size.width * 0.15, size.height * 0.1), size.width * 0.5, musicuraBlu, 0.15);
-    drawReflection(Offset(size.width * 0.9, size.height * 0.6), size.width * 0.4, musicuraBlu, 0.12);
-    drawReflection(Offset(size.width * 0.4, size.height * 0.8), size.width * 0.35, musicuraBlu, 0.10);
-    drawReflection(Offset(size.width * 0.85, size.height * 0.2), size.width * 0.25, nuraPink, 0.05);
-    drawReflection(Offset(size.width * 0.05, size.height * 0.6), size.width * 0.3, nuraPink, 0.04);
+    drawReflection(Offset(size.width * 0.15, size.height * 0.1),
+        size.width * 0.5, musicuraBlu, 0.15);
+    drawReflection(Offset(size.width * 0.9, size.height * 0.6),
+        size.width * 0.4, musicuraBlu, 0.12);
+    drawReflection(Offset(size.width * 0.4, size.height * 0.8),
+        size.width * 0.35, musicuraBlu, 0.10);
+    drawReflection(Offset(size.width * 0.85, size.height * 0.2),
+        size.width * 0.25, nuraPink, 0.05);
+    drawReflection(Offset(size.width * 0.05, size.height * 0.6),
+        size.width * 0.3, nuraPink, 0.04);
   }
 
   @override
-  bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) => oldDelegate.scrollOffset != scrollOffset;
+  bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) =>
+      oldDelegate.scrollOffset != scrollOffset;
 }
 
 class AudioVisualizerAnimation extends StatefulWidget {
   const AudioVisualizerAnimation({super.key});
   @override
-  State<AudioVisualizerAnimation> createState() => _AudioVisualizerAnimationState();
+  State<AudioVisualizerAnimation> createState() =>
+      _AudioVisualizerAnimationState();
 }
 
-class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation> with TickerProviderStateMixin {
+class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation>
+    with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   final int _count = 3;
 
@@ -693,26 +839,38 @@ class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation> wit
   void initState() {
     super.initState();
     _controllers = List.generate(_count, (i) {
-      return AnimationController(vsync: this, duration: Duration(milliseconds: 400 + (i * 100)))..repeat(reverse: true);
+      return AnimationController(
+          vsync: this, duration: Duration(milliseconds: 400 + (i * 100)))
+        ..repeat(reverse: true);
     });
   }
 
   @override
-  void dispose() { for (var c in _controllers) { c.dispose(); } super.dispose(); }
+  void dispose() {
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(_count, (i) => AnimatedBuilder(
-        animation: _controllers[i],
-        builder: (context, _) => Container(
-          width: 3, height: 4 + (_controllers[i].value * 12),
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2)),
-        ),
-      )),
+      children: List.generate(
+          _count,
+          (i) => AnimatedBuilder(
+                animation: _controllers[i],
+                builder: (context, _) => Container(
+                  width: 3,
+                  height: 4 + (_controllers[i].value * 12),
+                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+              )),
     );
   }
 }

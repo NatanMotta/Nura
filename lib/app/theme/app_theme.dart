@@ -30,7 +30,7 @@ class NuraVibe {
     bgGradient: RadialGradient(
       center: Alignment(-0.4, -1.0),
       radius: 1.4,
-      colors: [Color(0xFF00768A), Color(0xFF005D6D), Color(0xFF004956)],
+      colors: [Color(0xFFFFFFFF), Color(0xFFF8F9FA), Color(0xFFF0F2F5)],
       stops: [0.0, 0.55, 1.0],
     ),
     cardBg: Color(0x1AACE7D5), // rgba(172,231,213,0.10)
@@ -75,8 +75,8 @@ class NuraVibe {
 ThemeData buildNuraTheme() {
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: NuraBrand.deepest,
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: const Color(0xFFF8F9FA),
     fontFamily: 'InterTight',
     textTheme: const TextTheme().apply(
       bodyColor: NuraBrand.mint,

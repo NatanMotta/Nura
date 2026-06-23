@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../discovery/swipe/presentation/screens/artist_public_profile_screen.dart' show ParallaxOrganicMeshPainter;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/curator_pitch_providers.dart';
+import '../../../data/curator_pitch_service.dart';
+import '../../../../../core/services/audio_preview_service.dart';
 
-class CuratorPitchReviewScreen extends StatefulWidget {
+class CuratorPitchReviewScreen extends ConsumerStatefulWidget {
   final NuraVibe vibe;
   final Color accent;
   final double safeTop;
@@ -20,41 +24,19 @@ class CuratorPitchReviewScreen extends StatefulWidget {
   });
 
   @override
-  State<CuratorPitchReviewScreen> createState() => _CuratorPitchReviewScreenState();
+  ConsumerState<CuratorPitchReviewScreen> createState() => _CuratorPitchReviewScreenState();
 }
 
-class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
+class _CuratorPitchReviewScreenState extends ConsumerState<CuratorPitchReviewScreen> with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollNotifier = ValueNotifier(0.0);
-
-  final List<Map<String, String>> _mockPitches = [
-    {
-      'id': '1',
-      'title': 'Neon Dreams',
-      'artist': 'SynthWave Duo',
-      'targetLabel': 'Sony Music Italy',
-      'cover': 'assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg',
-    },
-    {
-      'id': '2',
-      'title': 'Acoustic Sunrise',
-      'artist': 'Emma Woods',
-      'targetLabel': 'Island Records',
-      'cover': 'assets/images/artists/christopher-campbell-rDEOVtE7vOs-unsplash.jpg',
-    },
-    {
-      'id': '3',
-      'title': 'Urban Flow',
-      'artist': 'MC Matrix',
-      'targetLabel': 'Universal Music Group',
-      'cover': 'assets/images/artists/elevate-nYgy58eb9aw-unsplash.jpg',
-    },
-  ];
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   void _onScroll() {
@@ -66,10 +48,11 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _scrollNotifier.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
-  void _openReviewSheet(Map<String, String> pitch) {
+  void _openReviewSheet(Map<String, dynamic> pitch) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CuratorPitchReviewDetailScreen(
@@ -83,6 +66,8 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pendingAsync = ref.watch(pendingPitchesProvider);
+    final evaluatedAsync = ref.watch(evaluatedPitchesProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
@@ -105,153 +90,187 @@ class _CuratorPitchReviewScreenState extends State<CuratorPitchReviewScreen> {
             ),
           ),
           
-          // Scrollable Content
-          Positioned.fill(
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.only(
-                    top: widget.safeTop + 32,
-                    bottom: widget.safeBottom + 120, // Account for miniplayer & nav
-                    left: 20,
-                    right: 20,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                final pitch = _mockPitches[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3), // Dark glass effect
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _openReviewSheet(pitch),
-                        borderRadius: BorderRadius.circular(24),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.asset(
-                                  pitch['cover']!,
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 300,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                    width: 72,
-                                    height: 72,
-                                    color: Colors.grey.withValues(alpha: 0.2),
-                                    child: const Icon(Icons.music_note, color: Colors.grey),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      pitch['title']!,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      pitch['artist']!,
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.6),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.business, color: Colors.white70, size: 12),
-                                          const SizedBox(width: 4),
-                                          Flexible(
-                                            child: Text(
-                                              pitch['targetLabel'] ?? 'Etichetta',
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(alpha: 0.7),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: widget.accent.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: widget.accent.withValues(alpha: 0.3)),
-                                ),
-                                child: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ],
-                          ),
+          // 2. CONTENUTO SCORREVOLE
+          CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // Header
+              SliverToBoxAdapter(
+                child: SizedBox(height: widget.safeTop + 20),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'A&R Dashboard',
+                        style: TextStyle(
+                          color: NuraBrand.pink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Le tue scoperte',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      TabBar(
+                        controller: _tabController,
+                        labelColor: Colors.black87,
+                        unselectedLabelColor: Colors.black45,
+                        indicatorColor: NuraBrand.pink,
+                        indicatorSize: TabBarIndicatorSize.label,
+                        indicatorWeight: 3,
+                        splashFactory: NoSplash.splashFactory,
+                        overlayColor: WidgetStateProperty.all(Colors.transparent),
+                        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                        tabs: const [
+                          Tab(text: 'Da Valutare'),
+                          Tab(text: 'Valutati'),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                );
-              },
-              childCount: _mockPitches.length,
+                ),
+              ),
+
+              // Contenuto Tab
+              SliverFillRemaining(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildPitchesList(pendingAsync, true),
+                    _buildPitchesList(evaluatedAsync, false),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPitchesList(AsyncValue<List<Map<String, dynamic>>> asyncValue, bool isPending) {
+    return asyncValue.when(
+      data: (pitches) {
+        if (pitches.isEmpty) {
+          return const Center(
+            child: Text(
+              'Nessun pitch presente.',
+              style: TextStyle(color: Colors.black54),
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: EdgeInsets.only(bottom: widget.safeBottom + 100, left: 20, right: 20),
+          itemCount: pitches.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
+          itemBuilder: (context, index) => _buildPitchCard(pitches[index], isPending),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: NuraBrand.pink)),
+      error: (e, st) => Center(child: Text('Errore: $e')),
+    );
+  }
+
+  Widget _buildPitchCard(Map<String, dynamic> pitch, bool isPending) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isPending ? () => _openReviewSheet(pitch) : null,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    image: pitch['track_cover_url'] != null
+                        ? DecorationImage(
+                            image: NetworkImage(pitch['track_cover_url']),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    color: Colors.black12,
+                  ),
+                  child: pitch['track_cover_url'] == null
+                      ? const Icon(Icons.music_note, color: Colors.white54)
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                // Info Traccia
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pitch['track_title'] ?? 'Brano Sconosciuto',
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        pitch['artist_name'] ?? 'Artista',
+                        style: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Action Icon
+                if (isPending)
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: NuraBrand.pink.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded, color: NuraBrand.pink),
+                  ),
+                if (!isPending)
+                  const Icon(Icons.check_circle, color: Colors.green),
+              ],
             ),
           ),
         ),
-      ],
-    ),
-  ),
-        ],
       ),
     );
   }
 }
 
-class CuratorPitchReviewDetailScreen extends StatefulWidget {
-  final Map<String, String> pitch;
+class CuratorPitchReviewDetailScreen extends ConsumerStatefulWidget {
+  final Map<String, dynamic> pitch;
   final NuraVibe vibe;
   final Color accent;
 
@@ -263,18 +282,18 @@ class CuratorPitchReviewDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<CuratorPitchReviewDetailScreen> createState() => _CuratorPitchReviewDetailScreenState();
+  ConsumerState<CuratorPitchReviewDetailScreen> createState() => _CuratorPitchReviewDetailScreenState();
 }
 
-class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetailScreen> {
+class _CuratorPitchReviewDetailScreenState extends ConsumerState<CuratorPitchReviewDetailScreen> {
   final _feedbackController = TextEditingController();
-  double _par1 = 50.0;
-  double _par2 = 50.0;
-  double _par3 = 50.0;
-  double _par4 = 50.0;
-  double _par5 = 50.0;
+  double _lyrics = 50.0;
+  double _vibe = 50.0;
+  double _production = 50.0;
+  double _market = 50.0;
+  bool _isSubmitting = false;
 
-  int get _nuraScore => ((_par1 + _par2 + _par3 + _par4 + _par5) / 5).round();
+  int get _nuraScore => ((_lyrics + _vibe + _production + _market) / 4).round();
 
   @override
   void dispose() {
@@ -323,12 +342,11 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    widget.pitch['cover']!,
+                  child: Image.network(
+                    widget.pitch['track_cover_url'] ?? '',
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
-                    cacheWidth: 300,
                     errorBuilder: (context, error, stackTrace) => Container(
                       width: 64,
                       height: 64,
@@ -343,7 +361,7 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.pitch['title']!,
+                        widget.pitch['track_title'] ?? 'Brano',
                         style: const TextStyle(
                           color: Color(0xFF1A1A1A),
                           fontSize: 24,
@@ -351,37 +369,11 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                         ),
                       ),
                       Text(
-                        widget.pitch['artist']!,
+                        widget.pitch['artist_name'] ?? 'Artista',
                         style: TextStyle(
                           color: const Color(0xFF1A1A1A).withValues(alpha: 0.6),
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A1A1A).withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF1A1A1A).withValues(alpha: 0.1)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.business, color: const Color(0xFF1A1A1A).withValues(alpha: 0.7), size: 16),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Destinazione: ${widget.pitch['targetLabel'] ?? 'Sconosciuta'}',
-                                style: TextStyle(
-                                  color: const Color(0xFF1A1A1A).withValues(alpha: 0.8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -415,11 +407,10 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
               ),
             ),
             const SizedBox(height: 32),
-            _buildSlider('Parametro 1', _par1, (v) => setState(() => _par1 = v)),
-            _buildSlider('Parametro 2', _par2, (v) => setState(() => _par2 = v)),
-            _buildSlider('Parametro 3', _par3, (v) => setState(() => _par3 = v)),
-            _buildSlider('Parametro 4', _par4, (v) => setState(() => _par4 = v)),
-            _buildSlider('Parametro 5', _par5, (v) => setState(() => _par5 = v)),
+            _buildSlider('Lyrics', _lyrics, (v) => setState(() => _lyrics = v)),
+            _buildSlider('Vibe', _vibe, (v) => setState(() => _vibe = v)),
+            _buildSlider('Production', _production, (v) => setState(() => _production = v)),
+            _buildSlider('Market Potential', _market, (v) => setState(() => _market = v)),
             const SizedBox(height: 32),
             TextField(
               controller: _feedbackController,
@@ -447,16 +438,45 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                // Invia feedback
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Feedback inviato con successo'),
-                    backgroundColor: widget.accent,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+              onPressed: _isSubmitting ? null : () async {
+                setState(() => _isSubmitting = true);
+                try {
+                  final service = ref.read(curatorPitchServiceProvider);
+                  await service.submitScore(
+                    pitchId: widget.pitch['pitch_id'],
+                    lyricsScore: _lyrics.round(),
+                    vibeScore: _vibe.round(),
+                    productionScore: _production.round(),
+                    marketScore: _market.round(),
+                    feedback: _feedbackController.text.isNotEmpty ? _feedbackController.text : null,
+                  );
+                  
+                  // Invalidate providers to refresh tabs
+                  ref.invalidate(pendingPitchesProvider);
+                  ref.invalidate(evaluatedPitchesProvider);
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Feedback inviato con successo'),
+                        backgroundColor: widget.accent,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  setState(() => _isSubmitting = false);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Errore: $e'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.accent,
@@ -467,10 +487,12 @@ class _CuratorPitchReviewDetailScreenState extends State<CuratorPitchReviewDetai
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Invia Feedback',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              child: _isSubmitting 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text(
+                      'Invia Valutazione',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
             ),
                       ],
                     ),

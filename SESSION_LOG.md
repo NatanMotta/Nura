@@ -891,3 +891,114 @@ Implementare la nuova pagina "Eventi", aggiornare l'architettura della Navigatio
 ### 🏆 Il Verdetto
 Il blocco di Navigazione è arrivato a uno standard da top app di mercato. Non ci sono più stati globali corrotti o crash da ridisegno frame. Un utente può scrollare aggressivamente qualsiasi tab, l'app gestirà dinamicamente le visibilità della TopBar e BottomBar isolando memoria, posizione visiva ed elementi grafici in frazioni di secondo. I branch sono stati fusi puliti su `test-merge-francesco`.
 
+
+### Antigravity � Sessione 2026-06-14 (Fase 4: A&R Dashboard & Nura Score)
+- **Database Schema Update**:
+  - Creata e applicata migrazione `07_curator_scores.sql` su Supabase per integrare i voti (Lyrics, Vibe, Production, Market) e feedback testuali nella tabella `curator_pitches`.
+  - Creata vista SQL `curator_pitches_view` per aggregare agevolmente i pitch con i dati di artisti e brani.
+- **Data Layer (Servizi)**:
+  - Sviluppato `CuratorPitchService` per caricare i pitch pendenti (Da Valutare) e valutati.
+  - Aggiunto calcolo del **Nura Score** reale in `ArtistStatsService` per calcolare la media ponderata sia per singola traccia (`getTrackNuuraScore`) che globale per l'artista (`getArtistNuuraScore`).
+- **Integrazione UI - Curatore (A&R Dashboard)**:
+  - Aggiornata l'interfaccia `CuratorPitchReviewScreen` trasformandola in `ConsumerStatefulWidget` e inserendo due tab: **Da Valutare** e **Valutati**.
+  - Collegato il pannello di dettaglio (sliders per le 4 metriche e campo testuale) alla funzione di invio verso Supabase in tempo reale.
+- **Integrazione UI - Artista (Analytics & Nura Score)**:
+  - Aggiornato `ArtistPersonalProfileScreen`: ora visualizza il punteggio reale sul badge dei vinili interrogando il DB traccia per traccia.
+  - Aggiornata la schermata `NuraScoreAnalyticsScreen` per visualizzare metriche e barre di avanzamento reali (non pi� mock) con il conteggio dei feedback ufficiali.
+- **UX e Fix Vari**:
+  - Sostituito il colore Ciano originario con il Rosa Nura e il Viola per la coerenza del brand (NuraBrand) all'interno dell'interfaccia Curatore.
+  - Assicurato il corretto funzionamento dei placeholder per foto profilo e cover mancanti (ad esempio sull'emulatore) senza errori.
+
+
+### Antigravity - Sessione 2026-06-16 (Fix Flashing e UX Caricamento)
+- **Tema Globale e Scaffolds**:
+  - Risolto il problema del "flashing scuro" durante i caricamenti modificando pp_theme.dart e impostando scaffoldBackgroundColor sul bianco ghiaccio (Color(0xFFF8F9FA)).
+  - Allineata la NuraVibe.premium ai colori chiari effettivi per mantenere coerenza visuale tra i passaggi.
+- **Raffinamento UX di Caricamento Iniziale**:
+  - Implementata una UX di caricamento fluida e continua dalla chiusura di RoleGate fino al caricamento completo di HomeFeed (Nessun micro-scatto o shell vuota).
+  - Aggiunto un overlay di caricamento globale in ArtistShell, UserShell e CuratorShell (tramite _isFeedReady), garantendo l'uso di un caricamento esteso (Approccio 1).
+  - Collegato HomeFeed all'evento onFeedReady che viene notificato non appena le tracce remote o in cache sono caricate (anche in caso di errore), svelando l'App al momento perfetto.
+- **Risoluzione Errori di Sintassi**:
+  - Corretto errore di parentesi per IgnorePointer all'interno dell' IndexedStack che causava la non-compilazione.
+
+### Antigravity - Sessione 2026-06-17 (Emergenza FFmpeg & Audio Toolkit Nativo)
+- **Risoluzione Emergenza Globale FFmpegKit**:
+  - Rimosso `ffmpeg_kit_flutter_audio` e dipendenze correlate dal progetto, a causa del ritiro ufficiale dei binari dal Maven Central che bloccava completamente le build Android mondiali dell'app.
+- **Implementazione Nuova Conversione Audio Nativa Silenziosa**:
+  - Installato e integrato `flutter_audio_toolkit`.
+  - Implementata in `ArtistTrackUploadScreen` la conversione invisibile e completamente offline dei file WAV.
+  - La libreria delega ai chip MediaCodec/AVFoundation dei dispositivi la transcodifica del WAV in AAC (container M4A, 320kbps) garantendo qualita eccelsa, dimensioni del file minime e risparmio drastico sui costi del DB Cloud e banda.
+  - Eliminato dalla UI lo stato di "Preparazione", in modo che l'utente percepisca l'operazione solo come un normale "Caricamento in corso...".
+- **Gestione UI Profilo Artista (Design Revert)**:
+  - Testato l'approccio FAB (Floating Action Button) per il pulsante di Caricamento Brano, ma in base al feedback dell'utente e' stato mantenuto il Banner largo e centrale all'interno del CustomScrollView, considerato piu' adatto allo stile del progetto.
+
+### Antigravity - Rilascio Backend (Task 1: Cloudflare R2 Upload)
+- **Implementata Edge Function 2-sign-upload**:
+  - Scritta la logica in Deno usando l'SDK AWS S3 per generare URL pre-firmati compatibili con Cloudflare R2.
+  - Inserito blocco di sicurezza (Limite a 50MB per file) per bloccare upload massivi abusivi.
+  - Implementata verifica JWT (supabaseClient.auth.getUser()) per assicurare che solo utenti autenticati possano farsi firmare gli URL.
+  - Le variabili d'ambiente necessarie (R2_ACCOUNT_ID, ecc.) andranno settate su Supabase per farla funzionare in produzione.
+
+### Antigravity - Rilascio Backend (Task 2: Social Auth)
+- **Implementato Google & Apple Sign-In Nativi**:
+  - Aggiunti e configurati i pacchetti google_sign_in: ^6.2.1 e sign_in_with_apple: ^6.1.1 in pubspec.yaml.
+  - Aggiunto crypto per hasare in SHA256 la nonce crittografica di Apple Sign-In.
+  - Creati metodi signInWithGoogle e signInWithApple in SupabaseAuthRepository.
+  - Aggiornata la AuthScreen per mostrare i bottoni in UI.
+  - Adesso l'app sfrutta i flussi nativi OS (bottom sheet nativi) invece della webview.
+
+### Antigravity - Rilascio Backend (Task 3: Hardening Database e RLS)
+- **Scritta Migrazione  8_security_harden.sql**:
+  - Aggiunte le policy di DELETE per le tabelle profiles, 	racks, curator_pitches e ollows, in modo che solo l'owner originale possa cancellare il proprio contenuto.
+  - Aggiunte le policy di DELETE sui bucket Storage di Supabase (vatars, 	racks_covers).
+  - Creato un **Trigger** prevent_role_escalation su profiles: impedisce ad utenti malintenzionati di usare l'API Supabase per promuoversi da "user" ad "artist" o "curator" da soli.
+
+### Antigravity - Rilascio Backend (Task 4: Compliance App Store)
+- **Scritta Migrazione  9_reports_schema.sql**:
+  - Create tabelle content_reports e user_blocks per permettere agli utenti di segnalare e bloccare i contenuti e artisti che ritengono inappropriati.
+- **Aggiornato il Frontend Flutter**:
+  - Inserito il PopupMenuButton in music_card.dart per l'invio diretto dei report su Supabase Database.
+  - Inserito il pulsante **Elimina Account** all'interno di profile_settings_screen.dart.
+- **Creata Edge Function delete-account**:
+  - Completata la Edge Function in Deno TypeScript per rimuovere permanentemente l'utente, sfruttando l'ON DELETE CASCADE per pulire tutti i profili, le tracce e svuotare lo storage associato.
+
+### Antigravity - Push Notifications e Rilascio Finale (Completato)
+- **Supabase Deploy**:
+  - Migrazione eseguita in cloud: 10_notifications_schema.sql (Tabelle: user_devices, in_app_notifications).
+  - Deploy Edge Functions: send-push-notification, delete-account, 2-sign-upload, sync-user-role.
+- **Flutter**:
+  - Integrati i pacchetti Firebase per FCM.
+  - Creato PushNotificationService in ascolto su main.dart, capace di estrarre e sincronizzare i token verso Supabase.
+
+### Nota Fondamentale per il Lancio (Da completare manualmente dal proprietario)
+Il codice per le notifiche push (Flutter App e Supabase Edge Functions) è completo e già in produzione. Tuttavia, per funzionare, deve essere collegato a un account Firebase reale di proprietà dell'utente. I passaggi burocratici da eseguire in futuro sono:
+1. **Configurazione Firebase in Flutter**: Dal terminale locale, eseguire lutterfire configure. Questo comando collegherà l'app Flutter al progetto Firebase su Google, generando in automatico i file irebase_options.dart (per il web/Dart) e scaricando i file nativi google-services.json (Android) e GoogleService-Info.plist (iOS). Senza questi file fisici (che non possono essere generati da un assistente AI perché richiedono l'autenticazione Google dell'utente), l'app Flutter crasherà se si tenta di inizializzare Firebase. Attualmente l'inizializzazione nel main.dart è protetta da un 	ry/catch per evitare crash temporanei.
+2. **Caricamento Credenziali su Supabase**: Dalla console di Firebase (Project Settings > Service Accounts), bisognerà generare una "Private Key" (file JSON). Il contenuto di questo file andrà caricato nei secret di Supabase eseguendo il comando: supabase secrets set FIREBASE_SERVICE_ACCOUNT='{il_contenuto_del_file_json}'. Questo darà all'Edge Function di Supabase il permesso di usare Firebase per inviare materialmente i messaggi ai telefoni.
+
+### Automazione Notifiche (Completato)
+- Creati 3 trigger SQL (11_notifications_triggers.sql) che automatizzano l'inserimento in in_app_notifications su eventi:
+  - **Nuovo Follower** (tabella ollows)
+  - **Nuovo Pitch** (tabella curator_pitches)
+  - **Pitch Recensito** (tabella curator_pitches update status)
+- Il codice Dart per il bottone 'Segui' nel profilo pubblico artista era già implementato e perfettamente connesso.
+- Migrazione spinta su database live.
+ 
+ # # #   P r e p a r a z i o n e   S t o r e   &   R 2   ( C o m p l e t a t o )  
+ -   C o r r e t t o   i l   a p p l i c a t i o n I d   A n d r o i d   d a   c o m . e x a m p l e . . .   a   i t . n u r a l a b s . n u r a .  
+ -   I n s e r i t o   i l   p e r m e s s o   a n d r o i d . p e r m i s s i o n . I N T E R N E T   n e c e s s a r i o   p e r   l a   p r o d u z i o n e .  
+ -   I n s e r i t o   i l   p e r m e s s o   b a c k g r o u n d   U I B a c k g r o u n d M o d e s   s u   i O S   p e r   l ' a u d i o   p e r s i s t e n t e   a   s c h e r m o   s p e n t o .  
+ -   C a b l a t a   l a   C D N   C l o u d f l a r e   R 2   v e r a   e   p r o p r i a   p e r   l o   s t r e a m i n g   a u d i o   i n v e c e   d e l   m o c k   l o c a l e ,   u t i l i z z a n d o   l a   v a r i a b i l e   - - d a r t - d e f i n e = R 2 _ P U B L I C _ U R L = . . .  
+  
+ # # #   C o n f i g u r a z i o n e   F i r e b a s e   e   N o t i f i c h e   P u s h   ( C o m p l e t a t o )  
+ -   E s e g u i t o   ' f l u t t e r f i r e   c o n f i g u r e '   p e r   c o l l e g a r e   l e   a p p   A n d r o i d   e   i O S   a l   p r o g e t t o   F i r e b a s e .  
+ -   I m p o r t a t o   D e f a u l t F i r e b a s e O p t i o n s . c u r r e n t P l a t f o r m   n e l   m a i n . d a r t   d e l l ' a p p   F l u t t e r .  
+ -   R i c e v u t o   i l   S e r v i c e   A c c o u n t   J S O N   e   i m p o s t a t o   s u   S u p a b a s e   i n   F I R E B A S E _ S E R V I C E _ A C C O U N T .  
+ -   R i d e p l o y a t a   l ' E d g e   F u n c t i o n   ' s e n d - p u s h - n o t i f i c a t i o n '   s u   S u p a b a s e .  
+ L ' a p p   o r a   e '   c o n f i g u r a t a   e   p r o n t a   p e r   g l i   s t o r e .  
+  
+ # # #   C o n t r o l l o   P r e - L a n c i o   F i n a l e   ( C o m p l e t a t o )  
+ -   V e r i f i c a t a   i n t e g r i t �   d e l   f l u s s o   P i t c h   ( d a   i n s e r i m e n t o   d e l l ' a r t i s t a   a   v a l u t a z i o n e   d e l   c u r a t o r e ,   f i n o   a l   t r i g g e r   d e l l a   P u s h   N o t i f i c a t i o n ) .  
+ -   V e r i f i c a t a   l a   p r e s e n z a   d e i   m e t o d i   n a t i v i   s i g n I n W i t h A p p l e   e   s i g n I n W i t h G o o g l e .  
+ -   R i m o s s i   i   p e r m e s s i   d i   B a c k g r o u n d   A u d i o   ( i O S )   e   W A K E _ L O C K   ( A n d r o i d )   p e r   g a r a n t i r e   c h e   l ' a p p   i n t e r r o m p a   l a   m u s i c a   a   s c h e r m o   s p e n t o .  
+ -   G e n e r a t a   l ' a n a l i s i   a r c h i t e t t u r a l e   f i n a l e   i n   n u r a _ a r c h i t e c t u r e _ a n d _ s t a t u s . m d  
+ 
