@@ -1,16 +1,28 @@
 PODS:
   - Flutter (1.0.0)
+  - flutter_audio_toolkit (0.3.8):
+    - Flutter
+  - sign_in_with_apple (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_audio_toolkit (from `.symlinks/plugins/flutter_audio_toolkit/ios`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_audio_toolkit:
+    :path: ".symlinks/plugins/flutter_audio_toolkit/ios"
+  sign_in_with_apple:
+    :path: ".symlinks/plugins/sign_in_with_apple/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_audio_toolkit: c36846dd2227309f4c1eac79ef5006ed0b25a4d1
+  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
 
-PODFILE CHECKSUM: 0a7d5b7d0e53420cb0284f7b2f171f93843b94d2
+PODFILE CHECKSUM: be4663332fca77601dd6736e3676fe47177084e1
 
 COCOAPODS: 1.16.2

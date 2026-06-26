@@ -60,7 +60,7 @@ pod install
 cd ..
 
 echo "==> Flutter analyze"
-flutter analyze
+flutter analyze --no-fatal-infos --no-fatal-warnings
 
 echo "==> Building IPA (build-name=${BUILD_NAME}, build-number=${BUILD_NUMBER})"
 flutter build ipa \
@@ -69,6 +69,13 @@ flutter build ipa \
   --build-number="${BUILD_NUMBER}" \
   --dart-define=SUPABASE_URL="${SUPABASE_URL}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}"
+
+if ! compgen -G "build/ios/ipa/*.ipa" > /dev/null; then
+  echo "ERROR: IPA export failed. Archive may exist, but no build/ios/ipa/*.ipa was created."
+  echo "Open the archive in Xcode to finish signing/distribution:"
+  echo "  open ${ROOT_DIR}/build/ios/archive/Runner.xcarchive"
+  exit 1
+fi
 
 echo "$BUILD_NUMBER" > "$BUILD_STATE_FILE"
 

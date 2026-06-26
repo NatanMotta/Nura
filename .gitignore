@@ -68,3 +68,4 @@ android/local.properties
 **/GeneratedPluginRegistrant.java
 **/GeneratedPluginRegistrant.m
 **/GeneratedPluginRegistrant.h
+.nura_build_number

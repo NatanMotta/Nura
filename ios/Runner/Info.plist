@@ -26,8 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Nura usa la fotocamera solo quando scegli di scattare una foto per il profilo o per i contenuti che carichi.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Nura può usare la posizione solo per mostrarti contenuti, eventi o opportunità musicali rilevanti vicino a te.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Nura usa il microfono solo se scegli di registrare o inviare contenuti audio dalla app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nura usa la libreria foto solo quando scegli un'immagine per il profilo o per i contenuti che carichi.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -70,4 +76,3 @@
 	</array>
 </dict>
 </plist>
-
