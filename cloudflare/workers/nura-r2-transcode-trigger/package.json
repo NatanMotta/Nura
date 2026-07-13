@@ -1,0 +1,17 @@
+{
+  "name": "nura-r2-transcode-trigger",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "check": "tsc --noEmit && wrangler deploy --dry-run",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^5.5.2",
+    "wrangler": "^4.110.0"
+  }
+}

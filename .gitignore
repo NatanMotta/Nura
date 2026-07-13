@@ -24,6 +24,16 @@ migrate_working_dir/
 #.vscode/
 .vscode/launch.json
 
+# Node.js
+node_modules/
+package-lock.json
+!cloudflare/**/package-lock.json
+
+# Temporary/debug files
+temp_old_audio.dart
+temp_research.json
+check.dart
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -58,6 +68,8 @@ ios/Flutter/ephemeral/
 
 # Local CLI/tool caches
 .wrangler/
+supabase/.temp/
+supabase/**/.temp/
 
 # Android / Gradle local artifacts
 **/.gradle/

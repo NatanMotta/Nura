@@ -14,7 +14,6 @@ import '../../../../../core/services/music_player_manager.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../social/data/social_engagement_service.dart';
 import '../../data/remote_tracks_service.dart';
-import '../../data/remote_tracks_service.dart';
 import '../widgets/music_card.dart';
 import '../widgets/physics_swiper.dart';
 import 'artist_public_profile_screen.dart';

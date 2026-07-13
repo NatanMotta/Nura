@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/models/track.dart';
 
 class TrackUploadRepository {
@@ -7,41 +8,45 @@ class TrackUploadRepository {
 
   TrackUploadRepository(this._client);
 
-  /// Crea il record della traccia nel database DOPO aver caricato i file su Storage/R2
   Future<Track> createTrackRecord({
     required String title,
-    required String audioUrl,
-    required String coverUrl,
+    required String audioStoragePath,
+    required String? coverStoragePath,
     required int durationSeconds,
-    required int bpm,
     required String genre,
-    required int previewStartSeconds,
+    required String sourceContentType,
+    required bool requiresTranscoding,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('Utente non autenticato');
 
-    final trackData = await _client.from('tracks').insert({
+    final payload = <String, dynamic>{
       'artist_id': userId,
       'title': title,
-      'audio_url': audioUrl,
-      'cover_url': coverUrl,
-      'duration_seconds': durationSeconds,
-      'bpm': bpm,
       'genre': genre,
-      'preview_start_seconds': previewStartSeconds,
-      'status': 'ready', // Potrebbe essere 'processing' se serve un encoding remoto
-    }).select().single();
+      'duration_seconds': durationSeconds,
+      'cover_image_asset': coverStoragePath,
+      'source_content_type': sourceContentType,
+      'transcoding_status': requiresTranscoding ? 'processing' : 'ready',
+      if (requiresTranscoding) 'raw_storage_path': audioStoragePath,
+      if (!requiresTranscoding) 'storage_path': audioStoragePath,
+    };
 
+    final trackData =
+        await _client.from('tracks').insert(payload).select().single();
     return Track.fromJson(trackData);
   }
 
-  /// Recupera le tracce dell'artista corrente
   Future<List<Track>> getMyTracks() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('Utente non autenticato');
 
-    final rows = await _client.from('tracks').select().eq('artist_id', userId).order('created_at', ascending: false);
-    return rows.map((row) => Track.fromJson(row)).toList();
+    final rows = await _client
+        .from('tracks')
+        .select()
+        .eq('artist_id', userId)
+        .order('created_at', ascending: false);
+    return rows.map(Track.fromJson).toList(growable: false);
   }
 }
 

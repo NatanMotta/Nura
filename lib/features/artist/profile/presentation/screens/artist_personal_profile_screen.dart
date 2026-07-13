@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
+import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/vinyl_track_cover.dart';
 import '../../../upload_track/presentation/screens/artist_track_upload_screen.dart';
 import '../../../../user/profile/presentation/screens/profile_settings_screen.dart';
@@ -238,7 +239,8 @@ class _ArtistPersonalProfileScreenState
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_circle_outline, color: Colors.white, size: 24),
+                          Icon(Icons.add_circle_outline,
+                              color: Colors.white, size: 24),
                           SizedBox(width: 8),
                           Text(
                             'Carica nuovo brano',
@@ -594,10 +596,12 @@ class _ArtistPersonalProfileScreenState
                     children: [
                       VinylTrackCover(
                         isPlaying: isPlaying,
-                        coverAsset: track['cover_url'] ??
+                        coverAsset: SupabaseBootstrap.resolveR2Url(
+                              track['cover_image_asset'] as String?,
+                            ) ??
                             'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
                         size: coverSize,
-                        isNetwork: track['cover_url'] != null,
+                        isNetwork: track['cover_image_asset'] != null,
                       ),
                       // Score Overlay
                       Positioned(
@@ -632,7 +636,9 @@ class _ArtistPersonalProfileScreenState
                             ),
                             child: Center(
                               child: Text(
-                                '${track['score']}',
+                                track['score'] != null
+                                    ? '${track['score']}'
+                                    : '—',
                                 style: const TextStyle(
                                   color: Colors.black87,
                                   fontSize: 12,
@@ -666,7 +672,7 @@ class _ArtistPersonalProfileScreenState
                   Padding(
                     padding: const EdgeInsets.only(left: 4),
                     child: Text(
-                      track['genre'].toUpperCase(),
+                      ((track['genre'] as String?) ?? '').toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -689,7 +695,9 @@ class _ArtistPersonalProfileScreenState
   Future<void> _playTrack(Map<String, dynamic> track) async {
     HapticFeedback.lightImpact();
     final id = track['id'] as String?;
-    final audioUrl = track['audio_url'] as String?;
+    final audioUrl = SupabaseBootstrap.resolveR2Url(
+      track['storage_path'] as String?,
+    );
 
     if (id == null || audioUrl == null) return;
 

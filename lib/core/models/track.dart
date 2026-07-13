@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/supabase_bootstrap.dart';
+
 class Track {
   final String id;
   final String? artistId;
@@ -12,7 +14,7 @@ class Track {
   final Color swatch;
   final String? audioAsset;
   final String? coverAsset;
-  
+
   // Phase 2: Remote Streaming & Social state
   final String? streamingUrl;
   final DateTime? urlExpiryTime;
@@ -41,21 +43,27 @@ class Track {
 
   factory Track.fromJson(Map<String, dynamic> json) {
     final int durSecs = json['duration_seconds'] as int? ?? 0;
-    final String durString = durSecs > 0 ? '${durSecs ~/ 60}:${(durSecs % 60).toString().padLeft(2, '0')}' : '0:00';
+    final String durString = durSecs > 0
+        ? '${durSecs ~/ 60}:${(durSecs % 60).toString().padLeft(2, '0')}'
+        : '0:00';
 
     return Track(
       json['id'] as String,
-      json['artist_name'] as String? ?? 'Unknown Artist', // This might come from a joined query
+      json['artist_name'] as String? ??
+          'Unknown Artist', // This might come from a joined query
       json['title'] as String? ?? 'Unknown Title',
       json['genre'] as String? ?? 'Various',
-      json['bpm'] as int? ?? 120,
+      (json['bpm'] as num?)?.toInt() ?? 120,
       200, // Default or computed later
       Colors.blueGrey, // Default or computed
       durString,
       artistId: json['artist_id'] as String?,
-      audioAsset: json['audio_url'] as String?,
-      coverAsset: json['cover_url'] as String?,
-      status: json['status'] as String? ?? 'ready',
+      audioAsset:
+          SupabaseBootstrap.resolveR2Url(json['storage_path'] as String?),
+      coverAsset: SupabaseBootstrap.resolveR2Url(
+        json['cover_image_asset'] as String?,
+      ),
+      status: json['transcoding_status'] as String? ?? 'ready',
     );
   }
 
@@ -65,10 +73,9 @@ class Track {
       'artist_id': artistId,
       'title': track,
       'genre': genre,
-      'bpm': bpm,
-      'audio_url': audioAsset, // Fallback for local
-      'cover_url': coverAsset,
-      'status': status,
+      'storage_path': audioAsset,
+      'cover_image_asset': coverAsset,
+      'transcoding_status': status,
     };
   }
 

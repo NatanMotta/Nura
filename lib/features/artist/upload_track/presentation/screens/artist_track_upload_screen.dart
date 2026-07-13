@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../core/services/r2_upload_service.dart';
+import '../../../../discovery/swipe/data/remote_tracks_service.dart';
 import '../../../data/track_upload_repository.dart';
 
 class ArtistTrackUploadScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,7 @@ class _ArtistTrackUploadScreenState
     if (result != null && result.files.isNotEmpty) {
       final file = result.files.first;
       double len = 300.0;
-      
+
       if (file.path != null) {
         try {
           if (!SoLoud.instance.isInitialized) {
@@ -108,8 +109,7 @@ class _ArtistTrackUploadScreenState
     try {
       final r2 = R2UploadService();
 
-      // Default placeholder if no cover selected
-      String coverUrl = 'https://picsum.photos/400?blur=10';
+      String? coverStoragePath;
 
       if (_coverFile != null && _coverFile!.bytes != null) {
         setState(() => _uploadStatus = 'Caricamento copertina...');
@@ -122,8 +122,9 @@ class _ArtistTrackUploadScreenState
           bytes: _coverFile!.bytes!,
           fileName: coverName,
           contentType: 'image/$coverExt',
+          objectType: 'cover',
         );
-        coverUrl = coverResult.storagePath;
+        coverStoragePath = coverResult.storagePath;
       }
 
       String audioExt = _audioFile!.extension?.toLowerCase() ?? 'mp3';
@@ -137,7 +138,8 @@ class _ArtistTrackUploadScreenState
         try {
           final toolkit = FlutterAudioToolkit();
           final tempDir = await getTemporaryDirectory();
-          final outputPath = '${tempDir.path}/track_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          final outputPath =
+              '${tempDir.path}/track_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
           final result = await toolkit.convertAudio(
             inputPath: _audioFile!.path!,
@@ -149,8 +151,10 @@ class _ArtistTrackUploadScreenState
           final file = File(result.outputPath);
           audioBytes = await file.readAsBytes();
           audioExt = 'm4a';
-            
-          try { file.delete(); } catch (_) {}
+
+          try {
+            file.delete();
+          } catch (_) {}
         } catch (e) {
           debugPrint('Conversion fallita, procedo con file originale: $e');
           audioExt = _audioFile!.extension ?? 'wav';
@@ -158,30 +162,37 @@ class _ArtistTrackUploadScreenState
       } else {
         audioExt = _audioFile!.extension ?? 'wav';
       }
-      
+
       final fileName =
           'track_${DateTime.now().millisecondsSinceEpoch}.$audioExt';
+
+      final audioContentType = switch (audioExt) {
+        'wav' => 'audio/wav',
+        'm4a' => 'audio/mp4',
+        _ => 'audio/mpeg',
+      };
+      final requiresTranscoding = audioExt == 'wav';
 
       final r2Result = await r2.uploadBytes(
         bytes: audioBytes,
         fileName: fileName,
-        contentType: audioExt == 'wav' ? 'audio/wav' : 'audio/mpeg',
+        contentType: audioContentType,
+        objectType: requiresTranscoding ? 'audio_raw' : 'audio',
       );
 
       setState(() => _uploadStatus = 'Salvataggio record nel database...');
 
       final repo = ref.read(trackUploadRepositoryProvider);
-      final previewStart = int.tryParse(_previewStartController.text) ?? 0;
-
       await repo.createTrackRecord(
         title: _titleController.text.trim(),
-        audioUrl: r2Result.storagePath,
-        coverUrl: coverUrl,
+        audioStoragePath: r2Result.storagePath,
+        coverStoragePath: coverStoragePath,
         durationSeconds: _trackDuration.toInt(),
-        bpm: 120, // Dummy
         genre: _selectedGenre,
-        previewStartSeconds: previewStart,
+        sourceContentType: audioContentType,
+        requiresTranscoding: requiresTranscoding,
       );
+      RemoteTracksService.clearCache();
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return success
@@ -232,7 +243,8 @@ class _ArtistTrackUploadScreenState
                     title: Text(
                       genre,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                         color: isSelected ? NuraBrand.pink : Colors.black87,
                       ),
                     ),
@@ -315,7 +327,8 @@ class _ArtistTrackUploadScreenState
                   GestureDetector(
                     onTap: _showGenrePicker,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 16),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -326,12 +339,17 @@ class _ArtistTrackUploadScreenState
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Genere', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              const Text('Genere',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.black54)),
                               const SizedBox(height: 4),
-                              Text(_selectedGenre, style: const TextStyle(fontSize: 16, color: Colors.black87)),
+                              Text(_selectedGenre,
+                                  style: const TextStyle(
+                                      fontSize: 16, color: Colors.black87)),
                             ],
                           ),
-                          const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                          const Icon(Icons.arrow_drop_down,
+                              color: Colors.black54),
                         ],
                       ),
                     ),
@@ -479,7 +497,8 @@ class _ArtistTrackUploadScreenState
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -492,11 +511,15 @@ class _ArtistTrackUploadScreenState
                           children: [
                             Text(
                               '${(_previewStartSeconds ~/ 60)}:${(_previewStartSeconds.toInt() % 60).toString().padLeft(2, '0')}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: NuraBrand.pink),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: NuraBrand.pink),
                             ),
                             Text(
                               '${((_previewStartSeconds + 15) ~/ 60)}:${((_previewStartSeconds.toInt() + 15) % 60).toString().padLeft(2, '0')}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black54),
                             ),
                           ],
                         ),
@@ -504,26 +527,35 @@ class _ArtistTrackUploadScreenState
                           data: SliderThemeData(
                             trackHeight: 8,
                             activeTrackColor: NuraBrand.pink,
-                            inactiveTrackColor: NuraBrand.pink.withValues(alpha: 0.1),
+                            inactiveTrackColor:
+                                NuraBrand.pink.withValues(alpha: 0.1),
                             thumbColor: NuraBrand.pink,
                             overlayColor: NuraBrand.pink.withValues(alpha: 0.2),
                           ),
                           child: Slider(
                             value: _previewStartSeconds,
                             min: 0,
-                            max: _audioFile != null ? (_trackDuration - 15).clamp(0.0, double.infinity) : 0.0,
-                            onChanged: _audioFile != null ? (val) {
-                              setState(() {
-                                _previewStartSeconds = val;
-                                _previewStartController.text = val.toInt().toString();
-                              });
-                            } : null,
+                            max: _audioFile != null
+                                ? (_trackDuration - 15)
+                                    .clamp(0.0, double.infinity)
+                                : 0.0,
+                            onChanged: _audioFile != null
+                                ? (val) {
+                                    setState(() {
+                                      _previewStartSeconds = val;
+                                      _previewStartController.text =
+                                          val.toInt().toString();
+                                    });
+                                  }
+                                : null,
                           ),
                         ),
                         if (_audioFile == null)
                           const Padding(
                             padding: EdgeInsets.only(top: 8.0),
-                            child: Text('Seleziona l\'audio prima', style: TextStyle(fontSize: 12, color: Colors.redAccent)),
+                            child: Text('Seleziona l\'audio prima',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.redAccent)),
                           ),
                       ],
                     ),

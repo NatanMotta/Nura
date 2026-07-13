@@ -31,17 +31,18 @@ class ArtistPublicProfileScreen extends ConsumerStatefulWidget {
       _ArtistPublicProfileScreenState();
 }
 
-class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileScreen> {
+class _ArtistPublicProfileScreenState
+    extends ConsumerState<ArtistPublicProfileScreen> {
   final _audio = AudioPreviewService.instance;
   final ScrollController _scrollController = ScrollController();
-  
+
   bool _loading = true;
   bool _following = false;
-  
+
   String? _displayName;
   String? _imageAsset;
   List<Map<String, dynamic>> _tracks = const [];
-  
+
   final NuuraScore _nuuraScore = NuuraScore(
     totalFeedbacks: 124,
     totalScore: 63,
@@ -74,11 +75,20 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     }
     try {
       final client = Supabase.instance.client;
-      final profile = await client.from('profiles').select('display_name,avatar_url').eq('id', widget.artistId).maybeSingle().timeout(const Duration(seconds: 4));
+      final profile = await client
+          .from('profiles')
+          .select('display_name,avatar_url')
+          .eq('id', widget.artistId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
       final rows = await client
           .from('tracks')
-          .select('id,title,genre,duration_seconds,audio_url,cover_url')
+          .select(
+            'id,title,genre,duration_seconds,storage_path,cover_image_asset,transcoding_status',
+          )
           .eq('artist_id', widget.artistId)
+          .eq('transcoding_status', 'ready')
+          .not('storage_path', 'is', null)
           .order('created_at', ascending: false)
           .timeout(const Duration(seconds: 4));
 
@@ -92,18 +102,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
           _tracks = List<Map<String, dynamic>>.from(rows);
           _following = following;
           _followersCount = count;
-          
-          // MOCK TRACKS FOR TESTING (added as requested)
-          if (_tracks.length < 7) {
-            _tracks.addAll([
-              {'id': 'mock_test_1', 'title': 'Midnight City', 'genre': 'Synth Pop', 'score': 75},
-              {'id': 'mock_test_2', 'title': 'Lost in Tokyo', 'genre': 'Lo-Fi', 'score': 60},
-              {'id': 'mock_test_3', 'title': 'Neon Lights', 'genre': 'Electro Pop', 'score': 82},
-              {'id': 'mock_test_4', 'title': 'Summer Breeze', 'genre': 'Acoustic', 'score': 66},
-              {'id': 'mock_test_5', 'title': 'Ocean Drive', 'genre': 'Chillwave', 'score': 70},
-            ]);
-          }
-          
+
           _loading = false;
         });
       }
@@ -114,7 +113,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 
   Future<void> _toggleFollow() async {
     HapticFeedback.mediumImpact();
-    
+
     final wasFollowing = _following;
     setState(() {
       _following = !_following;
@@ -140,7 +139,9 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: NuraBrand.pink));
+    if (_loading)
+      return const Center(
+          child: CircularProgressIndicator(color: NuraBrand.pink));
 
     final artistName = _displayName ?? widget.artistName;
     final safeTop = MediaQuery.of(context).padding.top;
@@ -166,7 +167,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             Positioned.fill(
               child: CustomPaint(
                 painter: ParallaxOrganicMeshPainter(
-                  scrollOffset: 0.0, 
+                  scrollOffset: 0.0,
                   musicuraBlu: NuraBrand.deep,
                   nuraPink: NuraBrand.pink,
                 ),
@@ -214,21 +215,21 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+                            child: const Icon(Icons.arrow_back_ios_new,
+                                color: Colors.black87, size: 20),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 SliverToBoxAdapter(
                   child: _buildStatsRow(),
                 ),
-
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 12),
+                    padding: const EdgeInsets.only(
+                        left: 20, right: 20, top: 24, bottom: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -257,11 +258,11 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                     ),
                   ),
                 ),
-
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 24,
                       crossAxisSpacing: 16,
@@ -271,11 +272,12 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                       (context, index) {
                         return _buildTrackTile(_tracks[index], index + 1);
                       },
-                      childCount: _tracks.length > 6 ? 6 : (_tracks.length - (_tracks.length % 2)),
+                      childCount: _tracks.length > 6
+                          ? 6
+                          : (_tracks.length - (_tracks.length % 2)),
                     ),
                   ),
                 ),
-
                 const SliverToBoxAdapter(
                   child: SizedBox(height: 160),
                 ),
@@ -303,7 +305,8 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                     fit: BoxFit.cover,
                   )
                 : const DecorationImage(
-                    image: AssetImage('assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg'),
+                    image: AssetImage(
+                        'assets/images/artists/aiony-haust-3TLl_97HNJo-unsplash.jpg'),
                     fit: BoxFit.cover,
                   ),
             boxShadow: [
@@ -315,7 +318,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             ],
           ),
         ),
-            const SizedBox(height: 20),
+        const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -369,9 +372,13 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
             decoration: BoxDecoration(
-              color: _following ? Colors.black.withValues(alpha: 0.05) : NuraBrand.pink,
+              color: _following
+                  ? Colors.black.withValues(alpha: 0.05)
+                  : NuraBrand.pink,
               borderRadius: BorderRadius.circular(24),
-              border: _following ? Border.all(color: Colors.black.withValues(alpha: 0.1)) : null,
+              border: _following
+                  ? Border.all(color: Colors.black.withValues(alpha: 0.1))
+                  : null,
               boxShadow: !_following
                   ? [
                       BoxShadow(
@@ -403,9 +410,15 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildStatCol(icon: Icons.music_note, value: '${_tracks.length}', label: 'BRANI'),
+          _buildStatCol(
+              icon: Icons.music_note,
+              value: '${_tracks.length}',
+              label: 'BRANI'),
           _buildVerticalDivider(),
-          _buildStatCol(icon: Icons.people_alt, value: _followersCount.toString(), label: 'FOLLOWER'),
+          _buildStatCol(
+              icon: Icons.people_alt,
+              value: _followersCount.toString(),
+              label: 'FOLLOWER'),
           _buildVerticalDivider(),
           _buildScoreCol(),
         ],
@@ -516,7 +529,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
   }
 
   Widget _buildTrackTile(Map<String, dynamic> track, int rank) {
-    final trackId = track['id'] ?? 'mock_id_$rank';
+    final trackId = track['id'] ?? 'track_$rank';
     final title = track['title'] ?? 'Brano $rank';
     final genre = track['genre'] ?? 'Pop Indie';
     final baseScore = track['score'] ?? 63;
@@ -539,8 +552,12 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                     children: [
                       VinylTrackCover(
                         isPlaying: isPlaying,
-                        coverAsset: 'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
+                        coverAsset: SupabaseBootstrap.resolveR2Url(
+                              track['cover_image_asset'] as String?,
+                            ) ??
+                            'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
                         size: coverSize,
+                        isNetwork: track['cover_image_asset'] != null,
                       ),
                       // Score Overlay
                       Positioned(
@@ -563,7 +580,8 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.95),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.black12, width: 1.5),
+                              border:
+                                  Border.all(color: Colors.black12, width: 1.5),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.05),
@@ -598,7 +616,8 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
                       style: TextStyle(
                         color: const Color(0xFF1A1A1A),
                         fontSize: 14,
-                        fontWeight: isPlaying ? FontWeight.w900 : FontWeight.w700,
+                        fontWeight:
+                            isPlaying ? FontWeight.w900 : FontWeight.w700,
                       ),
                     ),
                   ),
@@ -632,9 +651,9 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
     final id = track['id'] as String?;
     final storagePath = track['storage_path'] as String?;
     if (id == null || storagePath == null) return;
-    
-    final fileName = storagePath.split('/').last;
-    final assetPath = 'assets/audio/$fileName';
+
+    final audioUrl = SupabaseBootstrap.resolveR2Url(storagePath);
+    if (audioUrl == null) return;
 
     if (_audio.playingTrackId.value == id) {
       if (_audio.isPlaying.value) {
@@ -643,7 +662,7 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
         await _audio.resume();
       }
     } else {
-      await _audio.playTrack(trackId: id, assetPath: assetPath);
+      await _audio.playTrack(trackId: id, assetPath: audioUrl);
     }
   }
 }
@@ -651,10 +670,12 @@ class _ArtistPublicProfileScreenState extends ConsumerState<ArtistPublicProfileS
 class AudioVisualizerAnimation extends StatefulWidget {
   const AudioVisualizerAnimation({super.key});
   @override
-  State<AudioVisualizerAnimation> createState() => _AudioVisualizerAnimationState();
+  State<AudioVisualizerAnimation> createState() =>
+      _AudioVisualizerAnimationState();
 }
 
-class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation> with TickerProviderStateMixin {
+class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation>
+    with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   final int _count = 3;
 
@@ -662,26 +683,38 @@ class _AudioVisualizerAnimationState extends State<AudioVisualizerAnimation> wit
   void initState() {
     super.initState();
     _controllers = List.generate(_count, (i) {
-      return AnimationController(vsync: this, duration: Duration(milliseconds: 400 + (i * 100)))..repeat(reverse: true);
+      return AnimationController(
+          vsync: this, duration: Duration(milliseconds: 400 + (i * 100)))
+        ..repeat(reverse: true);
     });
   }
 
   @override
-  void dispose() { for (var c in _controllers) { c.dispose(); } super.dispose(); }
+  void dispose() {
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(_count, (i) => AnimatedBuilder(
-        animation: _controllers[i],
-        builder: (context, _) => Container(
-          width: 3, height: 4 + (_controllers[i].value * 12),
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2)),
-        ),
-      )),
+      children: List.generate(
+          _count,
+          (i) => AnimatedBuilder(
+                animation: _controllers[i],
+                builder: (context, _) => Container(
+                  width: 3,
+                  height: 4 + (_controllers[i].value * 12),
+                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+              )),
     );
   }
 }
@@ -691,7 +724,10 @@ class ParallaxOrganicMeshPainter extends CustomPainter {
   final Color musicuraBlu;
   final Color nuraPink;
 
-  ParallaxOrganicMeshPainter({required this.scrollOffset, required this.musicuraBlu, required this.nuraPink});
+  ParallaxOrganicMeshPainter(
+      {required this.scrollOffset,
+      required this.musicuraBlu,
+      required this.nuraPink});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -699,19 +735,29 @@ class ParallaxOrganicMeshPainter extends CustomPainter {
     paint.color = const Color(0xFFF8F9FA);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
-    void drawReflection(Offset center, double radius, Color color, double opacity) {
-      final glowPaint = Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55)..color = color.withValues(alpha: opacity);
-      final parallaxCenter = Offset(center.dx, center.dy - (scrollOffset * 0.15));
+    void drawReflection(
+        Offset center, double radius, Color color, double opacity) {
+      final glowPaint = Paint()
+        ..imageFilter = ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55)
+        ..color = color.withValues(alpha: opacity);
+      final parallaxCenter =
+          Offset(center.dx, center.dy - (scrollOffset * 0.15));
       canvas.drawCircle(parallaxCenter, radius, glowPaint);
     }
 
-    drawReflection(Offset(size.width * 0.15, size.height * 0.1), size.width * 0.5, musicuraBlu, 0.15);
-    drawReflection(Offset(size.width * 0.9, size.height * 0.6), size.width * 0.4, musicuraBlu, 0.12);
-    drawReflection(Offset(size.width * 0.4, size.height * 0.8), size.width * 0.35, musicuraBlu, 0.10);
-    drawReflection(Offset(size.width * 0.85, size.height * 0.2), size.width * 0.25, nuraPink, 0.05);
-    drawReflection(Offset(size.width * 0.05, size.height * 0.6), size.width * 0.3, nuraPink, 0.04);
+    drawReflection(Offset(size.width * 0.15, size.height * 0.1),
+        size.width * 0.5, musicuraBlu, 0.15);
+    drawReflection(Offset(size.width * 0.9, size.height * 0.6),
+        size.width * 0.4, musicuraBlu, 0.12);
+    drawReflection(Offset(size.width * 0.4, size.height * 0.8),
+        size.width * 0.35, musicuraBlu, 0.10);
+    drawReflection(Offset(size.width * 0.85, size.height * 0.2),
+        size.width * 0.25, nuraPink, 0.05);
+    drawReflection(Offset(size.width * 0.05, size.height * 0.6),
+        size.width * 0.3, nuraPink, 0.04);
   }
 
   @override
-  bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) => oldDelegate.scrollOffset != scrollOffset;
+  bool shouldRepaint(covariant ParallaxOrganicMeshPainter oldDelegate) =>
+      oldDelegate.scrollOffset != scrollOffset;
 }

@@ -21,8 +21,10 @@ class ArtistPitchService {
       final rows = await client
           .from('tracks')
           .select(
-              'id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+              'id,title,genre,duration_seconds,storage_path,cover_image_asset,transcoding_status,artist_id,profiles!tracks_artist_id_fkey(display_name)')
           .eq('artist_id', artistId)
+          .eq('transcoding_status', 'ready')
+          .not('storage_path', 'is', null)
           .order('created_at', ascending: false);
 
       return rows
@@ -75,7 +77,9 @@ class ArtistPitchService {
     String? message,
   }) async {
     final client = _client;
-    if (client == null || client.auth.currentUser == null) return;
+    if (client == null || client.auth.currentUser == null) {
+      throw Exception('Utente non autenticato');
+    }
 
     await client.from('curator_pitches').insert({
       'artist_id': artistId,
@@ -94,25 +98,28 @@ class ArtistPitchService {
     try {
       final rows = await client
           .from('curator_pitches')
-          .select('id,status,created_at,pitch_message,feedback_message,lyrics_score,vibe_score,production_score,market_potential_score,track:tracks(title,genre),curator:profiles!curator_pitches_curator_id_fkey(display_name)')
+          .select(
+              'id,status,created_at,pitch_message,feedback_message,lyrics_score,vibe_score,production_score,market_potential_score,track:tracks(title,genre),curator:profiles!curator_pitches_curator_id_fkey(display_name)')
           .eq('artist_id', artistId)
           .order('created_at', ascending: false);
 
       return rows.whereType<Map<String, dynamic>>().map((row) {
-         final l = row['lyrics_score'] as int? ?? 0;
-         final v = row['vibe_score'] as int? ?? 0;
-         final p = row['production_score'] as int? ?? 0;
-         final m = row['market_potential_score'] as int? ?? 0;
-         final int? nuraScore = (l > 0 || v > 0 || p > 0 || m > 0) ? ((l + v + p + m) / 4).round() : null;
+        final l = row['lyrics_score'] as int? ?? 0;
+        final v = row['vibe_score'] as int? ?? 0;
+        final p = row['production_score'] as int? ?? 0;
+        final m = row['market_potential_score'] as int? ?? 0;
+        final int? nuraScore = (l > 0 || v > 0 || p > 0 || m > 0)
+            ? ((l + v + p + m) / 4).round()
+            : null;
 
-         return {
-            'id': row['id'],
-            'status': row['status'],
-            'created_at': row['created_at'],
-            'message': row['pitch_message'],
-            'curator_feedback': row['feedback_message'],
-            'nura_score': nuraScore,
-            'track': {
+        return {
+          'id': row['id'],
+          'status': row['status'],
+          'created_at': row['created_at'],
+          'message': row['pitch_message'],
+          'curator_feedback': row['feedback_message'],
+          'nura_score': nuraScore,
+          'track': {
             'title': row['track']?['title'] ?? 'Untitled',
             'genre': row['track']?['genre'] ?? 'demo',
           },
@@ -138,8 +145,11 @@ class ArtistPitchService {
     final genre = (row['genre'] as String?) ?? 'demo';
     final durationSeconds = (row['duration_seconds'] as int?) ?? 15;
     final storagePath = row['storage_path'] as String?;
-    final localAudioAsset = _localAssetFromStoragePath(storagePath);
-    final localCoverAsset = _localCoverFromStoragePath(storagePath);
+    final audioUrl = SupabaseBootstrap.resolveR2Url(storagePath);
+    final cover = SupabaseBootstrap.resolveR2Url(
+          row['cover_image_asset'] as String?,
+        ) ??
+        _localCoverFromStoragePath(storagePath);
     final artistId = row['artist_id'] as String?;
 
     final profile = row['profiles'];
@@ -159,18 +169,9 @@ class ArtistPitchService {
       _colorFromHue(hue),
       _mmss(durationSeconds),
       artistId: artistId,
-      audioAsset: localAudioAsset,
-      coverAsset: localCoverAsset,
+      audioAsset: audioUrl,
+      coverAsset: cover,
     );
-  }
-
-  String? _localAssetFromStoragePath(String? storagePath) {
-    if (storagePath == null || storagePath.isEmpty) return null;
-    final parts = storagePath.split('/');
-    if (parts.isEmpty) return null;
-    final fileName = parts.last;
-    if (!fileName.toLowerCase().endsWith('.mp3')) return null;
-    return 'assets/audio/$fileName';
   }
 
   String? _localCoverFromStoragePath(String? storagePath) {

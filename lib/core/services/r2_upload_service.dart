@@ -47,6 +47,7 @@ class R2UploadService {
     required String fileName,
     required String contentType,
     required int bytesLength,
+    required String objectType,
   }) async {
     final client = _client();
 
@@ -56,11 +57,13 @@ class R2UploadService {
         'fileName': fileName,
         'contentType': contentType,
         'bytesLength': bytesLength,
+        'objectType': objectType,
       },
     );
 
     if (response.status != 200) {
-      throw StateError('R2 sign failed: status=${response.status} data=${response.data}');
+      throw StateError(
+          'R2 sign failed: status=${response.status} data=${response.data}');
     }
 
     final data = response.data;
@@ -80,11 +83,13 @@ class R2UploadService {
     required Uint8List bytes,
     required String fileName,
     required String contentType,
+    String objectType = 'audio',
   }) async {
     final ticket = await requestSignedUpload(
       fileName: fileName,
       contentType: contentType,
       bytesLength: bytes.length,
+      objectType: objectType,
     );
 
     final uri = Uri.parse(ticket.uploadUrl);
@@ -101,7 +106,8 @@ class R2UploadService {
       final body = await utf8.decodeStream(res);
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw StateError('R2 upload failed: status=${res.statusCode} body=$body');
+        throw StateError(
+            'R2 upload failed: status=${res.statusCode} body=$body');
       }
 
       return R2UploadResult(storagePath: ticket.storagePath);

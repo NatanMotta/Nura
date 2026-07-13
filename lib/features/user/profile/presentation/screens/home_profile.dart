@@ -134,8 +134,9 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       rows = await client
           .from('tracks')
           .select(
-              'id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+              'id,title,genre,duration_seconds,storage_path,transcoding_status,artist_id,profiles!tracks_artist_id_fkey(display_name)')
           .eq('artist_id', userId)
+          .eq('transcoding_status', 'ready')
           .not('storage_path', 'is', null)
           .order('created_at', ascending: false)
           .limit(12);
@@ -145,7 +146,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       rows = await client
           .from('tracks')
           .select(
-              'id,title,genre,duration_seconds,storage_path,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+              'id,title,genre,duration_seconds,storage_path,transcoding_status,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+          .eq('transcoding_status', 'ready')
           .not('storage_path', 'is', null)
           .order('created_at', ascending: false)
           .limit(12);
@@ -159,8 +161,9 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
         genre: row['genre'] as String? ?? 'music',
         durationSeconds: (row['duration_seconds'] as num?)?.toInt() ?? 0,
         storagePath: row['storage_path'] as String?,
-        artistName:
-            profile is Map<String, dynamic> ? profile['display_name'] as String? : null,
+        artistName: profile is Map<String, dynamic>
+            ? profile['display_name'] as String?
+            : null,
         artistId: row['artist_id'] as String?,
       );
     }).toList(growable: false);
@@ -211,21 +214,15 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     return '$m:$s';
   }
 
-  String? _localAssetFromStoragePath(String? storagePath) {
-    if (storagePath == null || storagePath.isEmpty) return null;
-    final fileName = storagePath.split('/').last;
-    if (!fileName.toLowerCase().endsWith('.mp3')) return null;
-    return 'assets/audio/$fileName';
-  }
-
   int get _mockFollowers => (_tracks.length * 37) + 120;
   int get _mockFollowing => 42 + (_tracks.length * 2);
 
   Future<void> _onTapTrack(_ProfileTrack track) async {
-    final localAsset = _localAssetFromStoragePath(track.storagePath);
-    if (localAsset == null) {
+    final audioUrl = SupabaseBootstrap.resolveR2Url(track.storagePath);
+    if (audioUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Anteprima non disponibile per questo brano')),
+        const SnackBar(
+            content: Text('Anteprima non disponibile per questo brano')),
       );
       return;
     }
@@ -233,7 +230,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
     final targetIndex = _tracks.indexWhere((t) => t.id == track.id);
     if (mounted) {
       setState(() {
-        _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
+        _currentTrackIndex =
+            targetIndex >= 0 ? targetIndex : _currentTrackIndex;
       });
     }
 
@@ -242,7 +240,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       await _audio.pause();
       if (!mounted) return;
       setState(() {
-        _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
+        _currentTrackIndex =
+            targetIndex >= 0 ? targetIndex : _currentTrackIndex;
       });
       return;
     }
@@ -250,11 +249,12 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       await _audio.resume();
       if (!mounted) return;
       setState(() {
-        _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
+        _currentTrackIndex =
+            targetIndex >= 0 ? targetIndex : _currentTrackIndex;
       });
       return;
     }
-    await _audio.playTrack(trackId: track.id, assetPath: localAsset);
+    await _audio.playTrack(trackId: track.id, assetPath: audioUrl);
     if (!mounted) return;
     setState(() {
       _currentTrackIndex = targetIndex >= 0 ? targetIndex : _currentTrackIndex;
@@ -288,14 +288,19 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: NuraBrand.deepMid,
-        title: const Text('Eliminare il brano?', style: TextStyle(color: NuraBrand.mint)),
+        title: const Text('Eliminare il brano?',
+            style: TextStyle(color: NuraBrand.mint)),
         content: const Text(
           'Questa azione rimuove il brano dal profilo.',
           style: TextStyle(color: NuraBrand.mint),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Elimina')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Elimina')),
         ],
       ),
     );
@@ -315,7 +320,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
   void _showSocialMockInfo() {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Like e commenti sono in mock (coming soon)')),
+      const SnackBar(
+          content: Text('Like e commenti sono in mock (coming soon)')),
     );
   }
 
@@ -377,11 +383,16 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                             shaderCallback: (rect) => const LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [Colors.white, Colors.white, Colors.transparent],
+                              colors: [
+                                Colors.white,
+                                Colors.white,
+                                Colors.transparent
+                              ],
                               stops: [0.0, 0.45, 0.95],
                             ).createShader(rect),
                             blendMode: BlendMode.dstIn,
-                            child: Image.asset(effectiveProfileImageAsset, fit: BoxFit.cover, cacheHeight: 1200),
+                            child: Image.asset(effectiveProfileImageAsset,
+                                fit: BoxFit.cover, cacheHeight: 1200),
                           ),
                         ),
                       ),
@@ -434,7 +445,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                               onTap: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => const ProfileSettingsScreen(),
+                                    builder: (_) =>
+                                        const ProfileSettingsScreen(),
                                   ),
                                 );
                               },
@@ -457,102 +469,115 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                     ],
                   ),
                 ),
-              SizedBox(
-                width: double.infinity,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'BRANI',
-                            style: TextStyle(
-                              color: const Color(0xFF1A1A1A),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 20,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const _UploadTrackMockScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.add_circle_outline, color: Color(0xFF1A1A1A)),
-                          tooltip: 'Carica brano (mock)',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Le tue canzoni',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (_tracks.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE4E8EE)),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Nessuna traccia disponibile',
-                            style: TextStyle(color: NuraBrand.mintAlpha(0.6), fontSize: 12),
-                          ),
-                        ),
-                      )
-                    else
-                      AnimatedBuilder(
-                        animation: Listenable.merge([_audio.playingTrackId, _audio.isPlaying]),
-                        builder: (context, _) => Column(
+                        Row(
                           children: [
-                            for (var i = 0; i < _tracks.length; i++)
-                              _TrackPostCard(
-                                rank: i + 1,
-                                track: _tracks[i],
-                                mockLikes: 20 + (_tracks[i].id.hashCode.abs() % 240),
-                                mockComments: 3 + (_tracks[i].id.hashCode.abs() % 48),
-                                hideInlinePlay: _audio.playingTrackId.value == _tracks[i].id,
-                                isCurrentTrack:
-                                    _audio.playingTrackId.value == _tracks[i].id,
-                                isPlaying: _audio.isPlaying.value &&
-                                    _audio.playingTrackId.value == _tracks[i].id,
-                                durationLabel: _durationLabel(_tracks[i].durationSeconds),
-                                canEditDelete:
-                                    _authUser?.id != null &&
-                                    _authUser!.id == _tracks[i].artistId,
-                                onPlayPause: () => _onTapTrack(_tracks[i]),
-                                onTitleTap: () => _openTrackDetail(_tracks[i]),
-                                onLike: _showSocialMockInfo,
-                                onComment: _showSocialMockInfo,
-                                onDelete: () => _deleteTrack(_tracks[i].id),
-                                accent: widget.accent,
+                            Expanded(
+                              child: Text(
+                                'BRANI',
+                                style: TextStyle(
+                                  color: const Color(0xFF1A1A1A),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                  letterSpacing: 1.5,
+                                ),
                               ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const _UploadTrackMockScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.add_circle_outline,
+                                  color: Color(0xFF1A1A1A)),
+                              tooltip: 'Carica brano (mock)',
+                            ),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Le tue canzoni',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (_tracks.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border:
+                                  Border.all(color: const Color(0xFFE4E8EE)),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Nessuna traccia disponibile',
+                                style: TextStyle(
+                                    color: NuraBrand.mintAlpha(0.6),
+                                    fontSize: 12),
+                              ),
+                            ),
+                          )
+                        else
+                          AnimatedBuilder(
+                            animation: Listenable.merge(
+                                [_audio.playingTrackId, _audio.isPlaying]),
+                            builder: (context, _) => Column(
+                              children: [
+                                for (var i = 0; i < _tracks.length; i++)
+                                  _TrackPostCard(
+                                    rank: i + 1,
+                                    track: _tracks[i],
+                                    mockLikes: 20 +
+                                        (_tracks[i].id.hashCode.abs() % 240),
+                                    mockComments:
+                                        3 + (_tracks[i].id.hashCode.abs() % 48),
+                                    hideInlinePlay:
+                                        _audio.playingTrackId.value ==
+                                            _tracks[i].id,
+                                    isCurrentTrack:
+                                        _audio.playingTrackId.value ==
+                                            _tracks[i].id,
+                                    isPlaying: _audio.isPlaying.value &&
+                                        _audio.playingTrackId.value ==
+                                            _tracks[i].id,
+                                    durationLabel: _durationLabel(
+                                        _tracks[i].durationSeconds),
+                                    canEditDelete: _authUser?.id != null &&
+                                        _authUser!.id == _tracks[i].artistId,
+                                    onPlayPause: () => _onTapTrack(_tracks[i]),
+                                    onTitleTap: () =>
+                                        _openTrackDetail(_tracks[i]),
+                                    onLike: _showSocialMockInfo,
+                                    onComment: _showSocialMockInfo,
+                                    onDelete: () => _deleteTrack(_tracks[i].id),
+                                    accent: widget.accent,
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
           Positioned(
             left: 0,
             right: 0,
@@ -576,15 +601,15 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                      builder: (_) => const ProfileSettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      ),
+                          builder: (_) => const ProfileSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -600,7 +625,8 @@ class _HomeProfileState extends ConsumerState<HomeProfile> {
       child: Container(
         height: 52,
         decoration: BoxDecoration(
-          color: isSolid ? NuraBrand.pink : Colors.black.withValues(alpha: 0.05),
+          color:
+              isSolid ? NuraBrand.pink : Colors.black.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(26),
         ),
         alignment: Alignment.center,
@@ -716,7 +742,8 @@ class _TrackPostCard extends StatelessWidget {
                       width: 44,
                       height: 44,
                       color: Colors.black12,
-                      child: const Icon(Icons.music_note, color: Colors.white, size: 20),
+                      child: const Icon(Icons.music_note,
+                          color: Colors.white, size: 20),
                     ),
                   ),
                   if (!(isCurrentTrack && isPlaying))
@@ -760,18 +787,25 @@ class _TrackPostCard extends StatelessWidget {
                       style: TextStyle(
                         color: const Color(0xFF1A1A1A),
                         fontSize: 15,
-                        fontWeight: isCurrentTrack ? FontWeight.w900 : FontWeight.w700,
+                        fontWeight:
+                            isCurrentTrack ? FontWeight.w900 : FontWeight.w700,
                       ),
                     ),
                     Row(
                       children: [
-                        const Icon(Icons.favorite, size: 10, color: Colors.black12),
+                        const Icon(Icons.favorite,
+                            size: 10, color: Colors.black12),
                         const SizedBox(width: 2),
-                        Text('$mockLikes', style: const TextStyle(color: Colors.black26, fontSize: 10)),
+                        Text('$mockLikes',
+                            style: const TextStyle(
+                                color: Colors.black26, fontSize: 10)),
                         const SizedBox(width: 8),
-                        const Icon(Icons.chat_bubble, size: 10, color: Colors.black12),
+                        const Icon(Icons.chat_bubble,
+                            size: 10, color: Colors.black12),
                         const SizedBox(width: 2),
-                        Text('$mockComments', style: const TextStyle(color: Colors.black26, fontSize: 10)),
+                        Text('$mockComments',
+                            style: const TextStyle(
+                                color: Colors.black26, fontSize: 10)),
                       ],
                     ),
                   ],
@@ -780,7 +814,8 @@ class _TrackPostCard extends StatelessWidget {
             ),
             Text(
               durationLabel,
-              style: TextStyle(color: Colors.black.withValues(alpha: 0.3), fontSize: 12),
+              style: TextStyle(
+                  color: Colors.black.withValues(alpha: 0.3), fontSize: 12),
             ),
             PopupMenuButton<String>(
               iconSize: 18,
@@ -803,7 +838,8 @@ class _TrackPostCard extends StatelessWidget {
                 if (canEditDelete)
                   const PopupMenuItem(
                     value: 'delete',
-                    child: Text('Elimina', style: TextStyle(color: Colors.redAccent)),
+                    child: Text('Elimina',
+                        style: TextStyle(color: Colors.redAccent)),
                   ),
               ],
             ),
@@ -879,7 +915,9 @@ class _UploadTrackMockScreen extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mock: selezione file non ancora attiva')),
+                    const SnackBar(
+                        content:
+                            Text('Mock: selezione file non ancora attiva')),
                   );
                 },
                 icon: const Icon(Icons.upload_file),
@@ -889,7 +927,9 @@ class _UploadTrackMockScreen extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mock: upload artwork non ancora attivo')),
+                    const SnackBar(
+                        content:
+                            Text('Mock: upload artwork non ancora attivo')),
                   );
                 },
                 icon: const Icon(Icons.image_outlined),
@@ -916,7 +956,8 @@ class _UploadTrackMockScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'Punto di start preview: 00:30 (mock)',
-                      style: TextStyle(color: NuraBrand.mintAlpha(0.72), fontSize: 12),
+                      style: TextStyle(
+                          color: NuraBrand.mintAlpha(0.72), fontSize: 12),
                     ),
                     const SizedBox(height: 8),
                     Slider(
@@ -975,7 +1016,8 @@ class _UploadTrackMockScreen extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mock: upload non ancora attivo')),
+                    const SnackBar(
+                        content: Text('Mock: upload non ancora attivo')),
                   );
                 },
                 icon: const Icon(Icons.cloud_upload_outlined),

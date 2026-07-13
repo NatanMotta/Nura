@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -61,8 +62,8 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
   }) async {
     final client = _requireClient();
-    final result = await client.auth
-        .signInWithPassword(email: email, password: password);
+    final result =
+        await client.auth.signInWithPassword(email: email, password: password);
     final user = result.user;
     if (user != null) {
       await _ensureProfile(user);
@@ -113,8 +114,13 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithGoogle() async {
+    const webClientId = String.fromEnvironment(
+      'GOOGLE_WEB_CLIENT_ID',
+      defaultValue:
+          '93053908417-u6bpd1h42k3tobgacujlfnl7kcs5h6ia.apps.googleusercontent.com',
+    );
     final googleSignIn = GoogleSignIn(
-      serverClientId: 'MOCK_WEB_CLIENT_ID', // DA CONFIGURARE SU SUPABASE
+      serverClientId: webClientId,
     );
     final googleUser = await googleSignIn.signIn();
     if (googleUser == null) throw Exception('Google Sign In annullato');
@@ -168,7 +174,9 @@ class SupabaseAuthRepository implements AuthRepository {
 
     await _ensureProfile(
       user,
-      displayName: credential.givenName != null ? '${credential.givenName} ${credential.familyName ?? ''}' : null,
+      displayName: credential.givenName != null
+          ? '${credential.givenName} ${credential.familyName ?? ''}'
+          : null,
     );
   }
 
@@ -194,10 +202,13 @@ class SupabaseAuthRepository implements AuthRepository {
 
       final roleRaw = (row?['role'] as String?)?.toLowerCase();
       final role = _toRole(roleRaw);
-      
+
       final avatarUrl = row?['avatar_url'] as String?;
       final bio = row?['bio'] as String?;
-      final isComplete = avatarUrl != null && avatarUrl.isNotEmpty && bio != null && bio.isNotEmpty;
+      final isComplete = avatarUrl != null &&
+          avatarUrl.isNotEmpty &&
+          bio != null &&
+          bio.isNotEmpty;
 
       return AppAuthUser(
         id: user.id,
@@ -227,8 +238,8 @@ class SupabaseAuthRepository implements AuthRepository {
 
       if (existing != null) return;
 
-      final metadataRole = (user.userMetadata?['requested_role'] as String?)
-          ?.toLowerCase();
+      final metadataRole =
+          (user.userMetadata?['requested_role'] as String?)?.toLowerCase();
       final resolvedRole = metadataRole == null ? role : _toRole(metadataRole);
       final metadataDisplayName = user.userMetadata?['display_name'] as String?;
 
@@ -243,8 +254,8 @@ class SupabaseAuthRepository implements AuthRepository {
             displayName ??
             (user.email ?? 'user').split('@').first,
       });
-    } catch (_) {
-      // noop: la creazione profilo dipende da policy/permessi ambiente
+    } catch (e) {
+      debugPrint('[Auth] _ensureProfile fallito: $e');
     }
   }
 

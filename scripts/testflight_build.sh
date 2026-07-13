@@ -7,6 +7,7 @@ set -euo pipefail
 # - SUPABASE_ANON_KEY
 #
 # Optional env vars:
+# - GOOGLE_WEB_CLIENT_ID (defaults to Nura's public OAuth web client ID)
 # - BUILD_NAME (default: 0.1.0)
 # - BUILD_NUMBER (default: 1, or first positional arg)
 # - BUILD_STATE_FILE (default: .nura_build_number)
@@ -27,6 +28,7 @@ if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
 fi
 
 BUILD_NAME="${BUILD_NAME:-0.1.0}"
+GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID:-93053908417-u6bpd1h42k3tobgacujlfnl7kcs5h6ia.apps.googleusercontent.com}"
 BUILD_STATE_FILE="${BUILD_STATE_FILE:-.nura_build_number}"
 
 arg1="${1:-}"
@@ -68,7 +70,8 @@ flutter build ipa \
   --build-name="${BUILD_NAME}" \
   --build-number="${BUILD_NUMBER}" \
   --dart-define=SUPABASE_URL="${SUPABASE_URL}" \
-  --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}"
+  --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}" \
+  --dart-define=GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}"
 
 if ! compgen -G "build/ios/ipa/*.ipa" > /dev/null; then
   echo "ERROR: IPA export failed. Archive may exist, but no build/ios/ipa/*.ipa was created."

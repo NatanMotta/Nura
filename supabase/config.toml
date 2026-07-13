@@ -9,3 +9,18 @@ entrypoint = "./functions/send-push-notification/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-push-notification/*.html" ]
+
+[functions.finalize-track-transcode]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/finalize-track-transcode/index.ts"
+
+[functions.sync-user-role]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/sync-user-role/index.ts"
+
+[functions.r2-sign-upload]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/r2-sign-upload/index.ts"

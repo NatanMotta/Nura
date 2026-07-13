@@ -1,104 +1,223 @@
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.33.1"
-import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.400.0"
-import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner@3.400.0"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const encoder = new TextEncoder()
+const awsRegion = 'auto'
+const awsService = 's3'
+const maxAudioBytes = 25 * 1024 * 1024
+const maxCoverBytes = 8 * 1024 * 1024
 
-serve(async (req) => {
-  // Gestione preflight CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+type UploadType = 'audio' | 'audio_raw' | 'cover'
 
+Deno.serve(async (req) => {
   try {
-    const authHeader = req.headers.get('Authorization')
+    if (req.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 })
+    }
+
+    const authHeader = req.headers.get('authorization')
     if (!authHeader) {
-      throw new Error('Manca header Authorization')
+      return new Response('Missing authorization header', { status: 401 })
     }
 
-    // 1. Verifica utente tramite JWT
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: authHeader } },
+    })
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    const {
+      data: { user },
+      error: userError,
+    } = await authClient.auth.getUser()
+
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Non autorizzato' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
+      return Response.json(
+        { ok: false, error: userError?.message ?? 'Unauthorized' },
+        { status: 401 },
+      )
     }
 
-    // 2. Parsa la richiesta
-    const { fileName, contentType, bytesLength } = await req.json()
+    const { fileName, contentType, bytesLength, objectType } = await req.json()
+    const normalizedType = normalizeObjectType(objectType)
 
-    if (!fileName || !contentType) {
-      throw new Error('Parametri fileName o contentType mancanti')
+    const validationError = validatePayload({
+      fileName,
+      contentType,
+      bytesLength,
+      objectType: normalizedType,
+    })
+    if (validationError) {
+      return Response.json({ ok: false, error: validationError }, { status: 400 })
     }
 
-    // Limite di grandezza (es: max 50MB per traccia/cover)
-    const MAX_BYTES = 50 * 1024 * 1024
-    if (bytesLength > MAX_BYTES) {
-      throw new Error('File troppo grande (max 50MB)')
-    }
-
-    // 3. Configurazione Cloudflare R2
-    const accountId = Deno.env.get('R2_ACCOUNT_ID')
-    const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID')
-    const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY')
-    const bucketName = Deno.env.get('R2_BUCKET_NAME')
+    const accountId = Deno.env.get('R2_ACCOUNT_ID')!
+    const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID')!
+    const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY')!
+    const bucketName = Deno.env.get('R2_BUCKET_NAME')!
+    const publicBaseUrl = Deno.env.get('R2_PUBLIC_BASE_URL')
 
     if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
-      throw new Error('Credenziali R2 non configurate nel backend')
+      return Response.json(
+        { ok: false, error: 'Missing R2 environment configuration' },
+        { status: 500 },
+      )
     }
 
-    const s3Client = new S3Client({
-      region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+    const now = new Date()
+    const amzDate = toAmzDate(now)
+    const dateStamp = toDateStamp(now)
+    const credentialScope = `${dateStamp}/${awsRegion}/${awsService}/aws4_request`
+    const sanitizedFileName = sanitizeFileName(fileName)
+    const storagePath = buildStoragePath(user.id, normalizedType, sanitizedFileName)
+    const host = `${accountId}.r2.cloudflarestorage.com`
+    const endpoint = `https://${host}/${bucketName}/${storagePath}`
+    const expires = '900'
+
+    const query = new URLSearchParams({
+      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+      'X-Amz-Credential': `${accessKeyId}/${credentialScope}`,
+      'X-Amz-Date': amzDate,
+      'X-Amz-Expires': expires,
+      'X-Amz-SignedHeaders': 'host',
     })
 
-    // 4. Genera Path Univoco: folder utente + timestamp
-    const ext = fileName.split('.').pop()
-    const safeName = fileName.replace(/[^a-zA-Z0-9]/g, '_')
-    const storagePath = `${user.id}/${Date.now()}_${safeName}.${ext}`
+    const canonicalRequest = [
+      'PUT',
+      `/${bucketName}/${storagePath}`,
+      query.toString(),
+      `host:${host}\n`,
+      'host',
+      'UNSIGNED-PAYLOAD',
+    ].join('\n')
 
-    // 5. Genera la Presigned URL
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: storagePath,
-      ContentType: contentType,
-      ContentLength: bytesLength,
+    const stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      credentialScope,
+      await sha256Hex(canonicalRequest),
+    ].join('\n')
+
+    const signingKey = await getSigningKey(secretAccessKey, dateStamp, awsRegion, awsService)
+    const signature = await hmacHex(signingKey, stringToSign)
+    query.set('X-Amz-Signature', signature)
+
+    return Response.json({
+      ok: true,
+      uploadUrl: `${endpoint}?${query.toString()}`,
+      storagePath,
+      publicUrl: publicBaseUrl
+        ? `${publicBaseUrl.replace(/\/$/, '')}/${storagePath}`
+        : null,
+      headers: {},
     })
-
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
-
-    return new Response(
-      JSON.stringify({
-        uploadUrl: signedUrl,
-        storagePath: storagePath,
-        headers: {
-          'Content-Type': contentType,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    })
+  } catch (error) {
+    return Response.json({ ok: false, error: String(error) }, { status: 500 })
   }
 })
+
+function validatePayload(payload: {
+  fileName?: unknown
+  contentType?: unknown
+  bytesLength?: unknown
+  objectType: UploadType
+}) {
+  const { fileName, contentType, bytesLength, objectType } = payload
+  if (typeof fileName !== 'string' || fileName.trim().length === 0) {
+    return 'fileName is required'
+  }
+  if (typeof contentType !== 'string' || contentType.trim().length === 0) {
+    return 'contentType is required'
+  }
+  if (typeof bytesLength !== 'number' || !Number.isFinite(bytesLength) || bytesLength <= 0) {
+    return 'bytesLength must be a positive number'
+  }
+
+  const maxBytes = objectType === 'cover' ? maxCoverBytes : maxAudioBytes
+  if (bytesLength > maxBytes) {
+    return `file too large for ${objectType}`
+  }
+
+  if (objectType === 'audio' && !contentType.toLowerCase().startsWith('audio/')) {
+    return 'audio uploads require an audio/* content type'
+  }
+
+  if (objectType === 'audio_raw' && !contentType.toLowerCase().startsWith('audio/')) {
+    return 'raw audio uploads require an audio/* content type'
+  }
+
+  if (objectType === 'cover' && !contentType.toLowerCase().startsWith('image/')) {
+    return 'cover uploads require an image/* content type'
+  }
+
+  return null
+}
+
+function buildStoragePath(userId: string, objectType: UploadType, fileName: string) {
+  const folder = objectType === 'cover'
+    ? 'covers'
+    : objectType === 'audio_raw'
+    ? 'raw'
+    : 'tracks'
+  return `${folder}/${userId}/${crypto.randomUUID()}-${fileName}`
+}
+
+function normalizeObjectType(value: unknown): UploadType {
+  if (value === 'cover') return 'cover'
+  if (value === 'audio_raw') return 'audio_raw'
+  return 'audio'
+}
+
+function sanitizeFileName(fileName: string) {
+  const trimmed = fileName.trim().toLowerCase()
+  return trimmed
+    .replace(/[^a-z0-9.\-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function toAmzDate(date: Date) {
+  return date.toISOString().replace(/[:-]|\.\d{3}/g, '')
+}
+
+function toDateStamp(date: Date) {
+  return date.toISOString().slice(0, 10).replace(/-/g, '')
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value))
+  return toHex(digest)
+}
+
+async function hmac(key: BufferSource, value: string) {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  return await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(value))
+}
+
+async function hmacHex(key: ArrayBuffer, value: string) {
+  return toHex(await hmac(key, value))
+}
+
+async function getSigningKey(
+  secretAccessKey: string,
+  dateStamp: string,
+  region: string,
+  service: string,
+) {
+  const kDate = await hmac(encoder.encode(`AWS4${secretAccessKey}`), dateStamp)
+  const kRegion = await hmac(kDate, region)
+  const kService = await hmac(kRegion, service)
+  return await hmac(kService, 'aws4_request')
+}
+
+function toHex(buffer: ArrayBuffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}

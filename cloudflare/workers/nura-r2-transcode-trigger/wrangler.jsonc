@@ -1,0 +1,33 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "nura-r2-transcode-trigger",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-07-13",
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"vars": {
+		"SUPABASE_URL": "https://vsfaemlbnufprlcxmzwi.supabase.co",
+		"FINALIZE_FUNCTION_URL": "https://vsfaemlbnufprlcxmzwi.supabase.co/functions/v1/finalize-track-transcode"
+	},
+	"r2_buckets": [
+		{
+			"binding": "NURA_BUCKET",
+			"bucket_name": "nura-app"
+		}
+	],
+	"queues": {
+		"consumers": [
+			{
+				"queue": "nura-transcode-queue",
+				"max_batch_size": 10,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"retry_delay": 30
+			}
+		]
+	}
+}

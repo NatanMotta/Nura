@@ -125,7 +125,8 @@ class AudioPreviewService with WidgetsBindingObserver {
   }
 
   /// Riproduce un brano garantendo assenza di leak nativi e di SIGSEGV.
-  Future<bool> playTrack({required String trackId, required String? assetPath}) async {
+  Future<bool> playTrack(
+      {required String trackId, required String? assetPath}) async {
     if (assetPath == null || assetPath.isEmpty) {
       _setError('Preview non disponibile per questo brano');
       return false;
@@ -137,17 +138,32 @@ class AudioPreviewService with WidgetsBindingObserver {
 
     try {
       // Validazione di sicurezza prima di intercettare il thread nativo
-      if (_currentHandle != null && SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
+      if (_currentHandle != null &&
+          SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
         await SoLoud.instance.stop(_currentHandle!);
       }
       _currentHandle = null;
 
-      // Caricamento asincrono con delega assoluta della memoria
-      final AudioSource temporarySource = await SoLoud.instance.loadAsset(
-        assetPath,
-        mode: LoadMode.memory,
-        autoDispose: true,
-      );
+      final AudioSource temporarySource;
+      if (assetPath.startsWith('https://') || assetPath.startsWith('http://')) {
+        temporarySource = await SoLoud.instance.loadUrl(
+          assetPath,
+          mode: LoadMode.memory,
+          autoDispose: true,
+        );
+      } else if (assetPath.startsWith('assets/')) {
+        temporarySource = await SoLoud.instance.loadAsset(
+          assetPath,
+          mode: LoadMode.memory,
+          autoDispose: true,
+        );
+      } else {
+        temporarySource = await SoLoud.instance.loadFile(
+          assetPath,
+          mode: LoadMode.memory,
+          autoDispose: true,
+        );
+      }
 
       if (thisRequestId != _loadRequestId) {
         // Obsoleto, la risorsa andrebbe scartata ma autoDispose ci pensa se lanciamo play e poi stop,
@@ -183,8 +199,10 @@ class AudioPreviewService with WidgetsBindingObserver {
     final oldHandle = _currentHandle;
 
     if (oldHandle != null && SoLoud.instance.getIsValidVoiceHandle(oldHandle)) {
-      SoLoud.instance.fadeVolume(oldHandle, 0.0, const Duration(milliseconds: 100));
-      SoLoud.instance.scheduleStop(oldHandle, const Duration(milliseconds: 100));
+      SoLoud.instance
+          .fadeVolume(oldHandle, 0.0, const Duration(milliseconds: 100));
+      SoLoud.instance
+          .scheduleStop(oldHandle, const Duration(milliseconds: 100));
       _currentHandle = null;
       _loadedTrackId = null;
     }
@@ -195,7 +213,7 @@ class AudioPreviewService with WidgetsBindingObserver {
   /// Sospende l'audio in modo thread-safe.
   Future<void> safePause() async {
     if (_currentHandle == null) return;
-    
+
     if (_isInit && SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
       SoLoud.instance.setPause(_currentHandle!, true);
       isPlaying.value = false;
@@ -210,7 +228,9 @@ class AudioPreviewService with WidgetsBindingObserver {
   Future<void> pause() async => safePause();
 
   Future<void> resume() async {
-    if (_currentHandle != null && _isInit && SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
+    if (_currentHandle != null &&
+        _isInit &&
+        SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
       SoLoud.instance.setPause(_currentHandle!, false);
       isPlaying.value = true;
       _startPositionTimer();
@@ -221,14 +241,18 @@ class AudioPreviewService with WidgetsBindingObserver {
   }
 
   Future<void> seek(Duration target) async {
-    if (_currentHandle != null && _isInit && SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
+    if (_currentHandle != null &&
+        _isInit &&
+        SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
       SoLoud.instance.seek(_currentHandle!, target);
       position.value = target;
     }
   }
 
   Future<void> stop() async {
-    if (_currentHandle != null && _isInit && SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
+    if (_currentHandle != null &&
+        _isInit &&
+        SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
       try {
         SoLoud.instance.stop(_currentHandle!);
       } catch (_) {}
@@ -249,7 +273,9 @@ class AudioPreviewService with WidgetsBindingObserver {
   /// Smantellamento totale.
   void disposeAll() {
     _stopPositionTimer();
-    if (_currentHandle != null && _isInit && SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
+    if (_currentHandle != null &&
+        _isInit &&
+        SoLoud.instance.getIsValidVoiceHandle(_currentHandle!)) {
       try {
         SoLoud.instance.stop(_currentHandle!);
       } catch (_) {}
@@ -260,7 +286,7 @@ class AudioPreviewService with WidgetsBindingObserver {
     isPlaying.value = false;
     position.value = Duration.zero;
     _wasPlayingBeforeBackground = false;
-    
+
     if (_isInit) {
       try {
         SoLoud.instance.deinit();
