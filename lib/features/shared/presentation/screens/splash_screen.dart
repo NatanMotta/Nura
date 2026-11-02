@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../auth/presentation/auth_providers.dart';
 import 'role_gate.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {

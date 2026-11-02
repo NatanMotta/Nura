@@ -7,13 +7,9 @@ import 'audio_preview_service.dart';
 class NativeCallMutex {
   Completer<void>? _activeTask;
 
-  /// Esegue la chiusura isolata. Se [dropIfBusy] è true, richieste simultanee
-  /// verranno scartate, proteggendo l'engine C++ da spam-tap.
-  Future<T> runLocked<T>(Future<T> Function() task, {bool dropIfBusy = false}) async {
-    if (_activeTask != null) {
-      if (dropIfBusy) {
-        throw StateError("Throttle: Operazione nativa scartata per protezione engine.");
-      }
+  /// Serializza le richieste native, anche con più chiamanti in attesa.
+  Future<T> runLocked<T>(Future<T> Function() task) async {
+    while (_activeTask != null) {
       await _activeTask!.future;
     }
     
@@ -29,7 +25,7 @@ class NativeCallMutex {
 
 /// Gestore audio per la sezione Discovery/Swipe.
 class MusicPlayerManager {
-  String? _preloadedAsset;
+  int _transitionId = 0;
   Timer? _playbackDelayTimer;
 
   final _audio = AudioPreviewService.instance;
@@ -64,33 +60,30 @@ class MusicPlayerManager {
      debugPrint("Audio fallback: $reason");
   }
 
-  /// Pre-memorizza il path del brano successivo.
-  void preloadNext(String assetPath) {
-    _preloadedAsset = assetPath;
-  }
-
   /// Transizione crossfade blindata contro input spuri.
   Future<void> swipeCrossfadeTransition(String fallbackAssetPath) async {
     _playbackDelayTimer?.cancel();
 
-    final nextAsset = _preloadedAsset ?? fallbackAssetPath;
-    _preloadedAsset = null;
+    final nextAsset = fallbackAssetPath;
+    final transitionId = ++_transitionId;
 
     if (nextAsset.isEmpty) return;
 
     try {
       await _nativeMutex.runLocked(() async {
+        if (transitionId != _transitionId) return;
         await _audio.crossfadeTo(
           trackId: _trackIdFrom(nextAsset),
           assetPath: nextAsset,
         );
-      }, dropIfBusy: true);
+      });
     } catch (e) {
-      debugPrint("🎸 [MusicPlayerManager] Transizione protetta da Mutex: $e");
+      debugPrint("[MusicPlayerManager] Errore transizione audio: $e");
     }
   }
 
   void pause() {
+    _transitionId++;
     unawaited(_nativeMutex.runLocked(() => _audio.pause()));
   }
 
@@ -99,6 +92,7 @@ class MusicPlayerManager {
   }
 
   void dispose() {
+    _transitionId++;
     _playbackDelayTimer?.cancel();
     unawaited(_nativeMutex.runLocked(() => _audio.stop()));
   }

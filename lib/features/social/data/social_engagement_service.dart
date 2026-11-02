@@ -33,10 +33,12 @@ class TrackComment {
 }
 
 class SocialEngagementService {
-  const SocialEngagementService();
+  const SocialEngagementService({SupabaseClient? client}) : _providedClient = client;
 
-  SupabaseClient? get _client =>
-      SupabaseBootstrap.isInitialized ? Supabase.instance.client : null;
+  final SupabaseClient? _providedClient;
+
+  SupabaseClient? get _client => _providedClient ??
+      (SupabaseBootstrap.isInitialized ? Supabase.instance.client : null);
 
   Future<Map<String, EngagementCounts>> fetchCountsForTrackIds(
     List<String> trackIds,
@@ -117,7 +119,7 @@ class SocialEngagementService {
       await client.from('track_likes').upsert({
         'track_id': trackId,
         'user_id': userId,
-      });
+      }, onConflict: 'track_id,user_id', ignoreDuplicates: true);
     } else {
       await client
           .from('track_likes')

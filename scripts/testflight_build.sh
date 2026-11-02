@@ -8,7 +8,7 @@ set -euo pipefail
 #
 # Optional env vars:
 # - BUILD_NAME (default: 0.1.0)
-# - BUILD_NUMBER (default: 1, or first positional arg)
+# - BUILD_NUMBER (optional explicit number; otherwise auto-increment)
 # - BUILD_STATE_FILE (default: .nura_build_number)
 #
 # Usage:
@@ -29,17 +29,19 @@ fi
 BUILD_NAME="${BUILD_NAME:-0.1.0}"
 BUILD_STATE_FILE="${BUILD_STATE_FILE:-.nura_build_number}"
 
-arg1="${1:-}"
+arg1="${1:-${BUILD_NUMBER:---auto}}"
 if [[ "$arg1" == "--auto" ]]; then
   last=2
   if [[ -f "$BUILD_STATE_FILE" ]]; then
     last="$(cat "$BUILD_STATE_FILE")"
   fi
-  BUILD_NUMBER="$((last + 1))"
+  if ! [[ "$last" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: $BUILD_STATE_FILE must contain a numeric build number."
+    exit 1
+  fi
+  BUILD_NUMBER="$((10#$last + 1))"
 elif [[ -n "$arg1" ]]; then
   BUILD_NUMBER="$arg1"
-else
-  BUILD_NUMBER="${BUILD_NUMBER:-1}"
 fi
 
 if ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
@@ -52,15 +54,12 @@ fi
 
 echo "==> Flutter clean/get"
 flutter clean
+# shortcut: Flutter 3.44 non crea questa cartella prima di rsync; rimuovere quando corretto nel SDK.
+mkdir -p build/ios/SourcePackages
 flutter pub get
 
-echo "==> CocoaPods install"
-cd ios
-pod install
-cd ..
-
 echo "==> Flutter analyze"
-flutter analyze
+flutter analyze --no-fatal-infos lib test
 
 echo "==> Building IPA (build-name=${BUILD_NAME}, build-number=${BUILD_NUMBER})"
 flutter build ipa \

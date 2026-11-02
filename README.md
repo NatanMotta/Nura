@@ -112,7 +112,7 @@ scripts/
 ## Requisiti locali
 
 - Flutter SDK (compatibile con `sdk: '>=3.2.3 <4.0.0'`)
-- Xcode + CocoaPods (per iOS)
+- Xcode con Swift Package Manager (per iOS)
 - Supabase CLI (per migrazioni e debug DB)
 - `asc` CLI (per upload build iOS su App Store Connect)
 
@@ -141,6 +141,9 @@ flutter run \
 ```bash
 ./scripts/testflight_build.sh --auto
 ```
+
+Senza argomenti l’incremento è automatico. Il contatore `.nura_build_number`
+viene aggiornato solo dopo una build riuscita; non consulta App Store Connect.
 
 Oppure build number esplicito:
 

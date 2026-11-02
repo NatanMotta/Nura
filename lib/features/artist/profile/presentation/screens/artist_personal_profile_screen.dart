@@ -43,6 +43,7 @@ class _ArtistPersonalProfileScreenState
   int? _followersCount;
   List<Map<String, dynamic>> _tracks = [];
   bool _loading = true;
+  bool _scoreAvailable = true;
 
   late NuuraScore _nuuraScore = NuuraScore.empty();
   final ScrollController _scrollController = ScrollController();
@@ -98,17 +99,22 @@ class _ArtistPersonalProfileScreenState
       final rawTracks = List<Map<String, dynamic>>.from(tracksResponse);
       _tracks = rawTracks;
 
-      // 4. Fetch NuuraScore
-      final statsService = ref.read(artistStatsServiceProvider);
-      _nuuraScore = await statsService.getArtistNuuraScore(user.id);
+      try {
+        // 4. Fetch NuuraScore
+        final statsService = ref.read(artistStatsServiceProvider);
+        _nuuraScore = await statsService.getArtistNuuraScore(user.id);
 
-      // 5. Fetch score per ogni traccia
-      for (var i = 0; i < rawTracks.length; i++) {
-        final trackScore =
-            await statsService.getTrackNuuraScore(rawTracks[i]['id'] as String);
-        rawTracks[i]['score'] =
-            trackScore.totalScore > 0 ? trackScore.totalScore : null;
-        rawTracks[i]['trackScore'] = trackScore;
+        // 5. Fetch score per ogni traccia
+        for (var i = 0; i < rawTracks.length; i++) {
+          final trackScore =
+              await statsService.getTrackNuuraScore(rawTracks[i]['id'] as String);
+          rawTracks[i]['score'] =
+              trackScore.totalScore > 0 ? trackScore.totalScore : null;
+          rawTracks[i]['trackScore'] = trackScore;
+        }
+      } on PostgrestException catch (e) {
+        if (e.code != 'PGRST205') rethrow;
+        _scoreAvailable = false;
       }
     } catch (e) {
       debugPrint('Error loading artist profile data: $e');
@@ -519,7 +525,7 @@ class _ArtistPersonalProfileScreenState
 
   Widget _buildScoreCol() {
     return GestureDetector(
-      onTap: () {
+      onTap: !_scoreAvailable ? null : () {
         HapticFeedback.mediumImpact();
         Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => NuraScoreAnalyticsScreen(
@@ -542,7 +548,7 @@ class _ArtistPersonalProfileScreenState
               ),
               alignment: Alignment.center,
               child: Text(
-                '${_nuuraScore.totalScore}',
+                _scoreAvailable ? '${_nuuraScore.totalScore}' : '—',
                 style: const TextStyle(
                   color: Colors.black87,
                   fontSize: 18,

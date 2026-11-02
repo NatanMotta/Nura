@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/models/track.dart';
 import '../../../../core/services/supabase_bootstrap.dart';
 import '../../../shared/domain/label.dart';
-import '../../../shared/domain/pitch_request.dart';
 
 class ArtistPitchService {
   const ArtistPitchService();

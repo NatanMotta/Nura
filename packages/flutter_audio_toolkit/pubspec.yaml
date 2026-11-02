@@ -1,0 +1,51 @@
+name: flutter_audio_toolkit
+description: "Professional audio processing plugin with native M4A/AAC conversion, precise audio trimming, waveform visualization, and comprehensive noise analysis for cross-platform Flutter applications"
+version: 1.0.0
+homepage: https://github.com/Rameshwar-Amancha/flutter_audio_toolkit
+repository: https://github.com/Rameshwar-Amancha/flutter_audio_toolkit
+issue_tracker: https://github.com/Rameshwar-Amancha/flutter_audio_toolkit/issues
+documentation: https://github.com/Rameshwar-Amancha/flutter_audio_toolkit#readme
+
+topics:
+  - audio
+  - waveform
+  - conversion
+  - trim
+  - visualization
+
+environment:
+  sdk: ^3.7.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+  http: ^1.1.0
+  web: ^1.1.0
+  path_provider: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.ramancha.flutter_audio_toolkit
+        pluginClass: FlutterAudioToolkitPlugin
+      ios:
+        pluginClass: FlutterAudioToolkitPlugin     
+      macos:
+        pluginClass: FlutterAudioToolkitPlugin
+      linux:
+        pluginClass: FlutterAudioToolkitPlugin
+      windows:
+        pluginClass: FlutterAudioToolkitPluginCApi
+      web:
+        pluginClass: FlutterAudioToolkitWeb
+        fileName: flutter_audio_toolkit_web.dart

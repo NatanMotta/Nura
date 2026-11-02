@@ -68,3 +68,7 @@ android/local.properties
 **/GeneratedPluginRegistrant.java
 **/GeneratedPluginRegistrant.m
 **/GeneratedPluginRegistrant.h
+
+# Swift Package Manager local caches
+**/.build/
+**/.swiftpm/

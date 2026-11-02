@@ -6,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_audio_toolkit/flutter_audio_toolkit.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../core/services/r2_upload_service.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../app/theme/app_theme.dart';
@@ -14,7 +13,6 @@ import '../../events/presentation/screens/empty_events_tab.dart';
 import '../profile/presentation/screens/artist_personal_profile_screen.dart';
 import '../../user/search/presentation/screens/home_search.dart';
 import '../../user/shell/user_shell.dart' show GlobalHeader;
-import '../upload_track/presentation/screens/artist_track_upload_screen.dart';
 import '../submissions/presentation/screens/artist_pitch_screen.dart';
 
 class ArtistShell extends StatefulWidget {

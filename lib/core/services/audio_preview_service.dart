@@ -157,11 +157,14 @@ class AudioPreviewService with WidgetsBindingObserver {
         );
       }
 
+      // flutter_soloud 4.0.7 omette autoDispose al primo download da URL.
+      temporarySource.autoDispose = true;
+
       if (thisRequestId != _loadRequestId) {
         // Obsoleto, la risorsa andrebbe scartata ma autoDispose ci pensa se lanciamo play e poi stop,
         // però non è partita. Dobbiamo disporla manualmente se non partiamo.
         // flutter_soloud disposeSource è sicuro da chiamare finché l'handle non prende possesso
-        SoLoud.instance.disposeSource(temporarySource);
+        await SoLoud.instance.disposeSource(temporarySource);
         return false;
       }
 

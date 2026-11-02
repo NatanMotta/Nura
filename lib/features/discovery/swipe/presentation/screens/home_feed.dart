@@ -14,7 +14,6 @@ import '../../../../../core/services/music_player_manager.dart';
 import '../../../../../core/widgets/mono.dart';
 import '../../../../social/data/social_engagement_service.dart';
 import '../../data/remote_tracks_service.dart';
-import '../../data/remote_tracks_service.dart';
 import '../widgets/music_card.dart';
 import '../widgets/physics_swiper.dart';
 import 'artist_public_profile_screen.dart';
@@ -285,9 +284,6 @@ class _HomeFeedState extends State<HomeFeed>
       if (!mounted) return;
       if (deck.isNotEmpty) {
         _musicManager.initFirstTrack(deck[0].audioAsset ?? '');
-        if (deck.length > 1) {
-          _musicManager.preloadNext(deck[1].audioAsset ?? '');
-        }
       }
     });
   }
@@ -334,9 +330,6 @@ class _HomeFeedState extends State<HomeFeed>
     // scarterà il risultato grazie al controllo requestId != currentId.
     _glowRequestIds.remove(decidedTrack.id);
 
-    final fallbackUrl = deck.length > 1 ? (deck[1].audioAsset ?? '') : '';
-    _musicManager.swipeCrossfadeTransition(fallbackUrl);
-
     setState(() {
       if (action == 'like') {
         likes++;
@@ -352,17 +345,33 @@ class _HomeFeedState extends State<HomeFeed>
 
     _maintainRollingCache();
 
-    if (deck.length > 1) {
-      _musicManager.preloadNext(deck[1].audioAsset ?? '');
-    }
+    _musicManager.swipeCrossfadeTransition(deck.first.audioAsset ?? '');
 
     if (action == 'like' && userId != null) {
-      unawaited(_social.setLike(
-        trackId: decidedTrack.id,
+      unawaited(_saveSwipeLike(decidedTrack.id, userId));
+    }
+  }
+
+  Future<void> _saveSwipeLike(String trackId, String userId) async {
+    try {
+      await _social.setLike(
+        trackId: trackId,
         userId: userId,
         shouldLike: true,
-      ));
-      unawaited(_refreshTrackEngagement(decidedTrack.id));
+      );
+    } catch (e, stackTrace) {
+      if (!mounted) return;
+      setState(() => _likedTrackIds.remove(trackId));
+      debugPrint('Errore salvataggio like: $e\n$stackTrace');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossibile salvare il like. Riprova.')),
+      );
+      return;
+    }
+    try {
+      await _refreshTrackEngagement(trackId);
+    } catch (e) {
+      debugPrint('Errore aggiornamento conteggio like: $e');
     }
   }
 

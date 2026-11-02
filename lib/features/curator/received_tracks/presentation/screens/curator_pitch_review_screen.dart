@@ -7,7 +7,6 @@ import '../../../../discovery/swipe/presentation/screens/artist_public_profile_s
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/curator_pitch_providers.dart';
 import '../../../data/curator_pitch_service.dart';
-import '../../../../../core/services/audio_preview_service.dart';
 
 class CuratorPitchReviewScreen extends ConsumerStatefulWidget {
   final NuraVibe vibe;

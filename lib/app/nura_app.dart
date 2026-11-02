@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../features/shared/presentation/screens/role_gate.dart';
 import '../features/shared/presentation/screens/splash_screen.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
