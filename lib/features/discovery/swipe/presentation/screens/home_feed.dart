@@ -231,7 +231,8 @@ class _HomeFeedState extends State<HomeFeed>
           );
         }
       }
-    } catch (_) {
+    } catch (e, stackTrace) {
+        debugPrint('Errore fetch tracce dal cloud: $e\n$stackTrace');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

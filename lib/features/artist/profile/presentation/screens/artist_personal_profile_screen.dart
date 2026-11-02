@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/app_theme.dart';
 import '../../../../../core/services/audio_preview_service.dart';
+import '../../../../../core/services/supabase_bootstrap.dart';
 import '../../../../../core/widgets/vinyl_track_cover.dart';
 import '../../../upload_track/presentation/screens/artist_track_upload_screen.dart';
 import '../../../../user/profile/presentation/screens/profile_settings_screen.dart';
@@ -39,7 +40,7 @@ class _ArtistPersonalProfileScreenState
   String? _displayName;
   String? _bio;
   String? _avatarUrl;
-  int _followersCount = 0;
+  int? _followersCount;
   List<Map<String, dynamic>> _tracks = [];
   bool _loading = true;
 
@@ -79,7 +80,13 @@ class _ArtistPersonalProfileScreenState
 
       // 2. Fetch Followers
       final followsRepo = FollowsRepository(client);
-      _followersCount = await followsRepo.getFollowersCount(user.id);
+      try {
+        _followersCount = await followsRepo.getFollowersCount(user.id);
+      } on PostgrestException catch (e) {
+        if (e.code != '404' && e.code != 'PGRST205') rethrow;
+        _followersCount = null;
+        debugPrint('Conteggio follower non disponibile: tabella follows assente.');
+      }
 
       // 3. Fetch Tracks
       final tracksResponse = await client
@@ -89,6 +96,7 @@ class _ArtistPersonalProfileScreenState
           .order('created_at', ascending: false);
 
       final rawTracks = List<Map<String, dynamic>>.from(tracksResponse);
+      _tracks = rawTracks;
 
       // 4. Fetch NuuraScore
       final statsService = ref.read(artistStatsServiceProvider);
@@ -102,7 +110,6 @@ class _ArtistPersonalProfileScreenState
             trackScore.totalScore > 0 ? trackScore.totalScore : null;
         rawTracks[i]['trackScore'] = trackScore;
       }
-      _tracks = rawTracks;
     } catch (e) {
       debugPrint('Error loading artist profile data: $e');
     } finally {
@@ -462,7 +469,7 @@ class _ArtistPersonalProfileScreenState
           _buildVerticalDivider(),
           _buildStatCol(
               icon: Icons.people_alt,
-              value: _followersCount.toString(),
+              value: _followersCount?.toString() ?? '—',
               label: 'FOLLOWER'),
           _buildVerticalDivider(),
           _buildScoreCol(),
@@ -575,6 +582,8 @@ class _ArtistPersonalProfileScreenState
 
   Widget _buildTrackTile(Map<String, dynamic> track) {
     final trackId = track['id'];
+    final cover = SupabaseBootstrap.resolveR2Url(
+        track['cover_image_asset'] as String?);
 
     return ValueListenableBuilder<String?>(
       valueListenable: _audio.playingTrackId,
@@ -594,10 +603,10 @@ class _ArtistPersonalProfileScreenState
                     children: [
                       VinylTrackCover(
                         isPlaying: isPlaying,
-                        coverAsset: track['cover_url'] ??
+                        coverAsset: cover ??
                             'assets/images/labels/milad-fakurian-PGdW_bHDbpI-unsplash.jpg',
                         size: coverSize,
-                        isNetwork: track['cover_url'] != null,
+                        isNetwork: cover?.startsWith('http') ?? false,
                       ),
                       // Score Overlay
                       Positioned(
@@ -689,7 +698,8 @@ class _ArtistPersonalProfileScreenState
   Future<void> _playTrack(Map<String, dynamic> track) async {
     HapticFeedback.lightImpact();
     final id = track['id'] as String?;
-    final audioUrl = track['audio_url'] as String?;
+    final audioUrl = SupabaseBootstrap.resolveR2Url(
+        track['storage_path'] as String?);
 
     if (id == null || audioUrl == null) return;
 

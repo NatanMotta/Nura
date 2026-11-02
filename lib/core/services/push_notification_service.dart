@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,6 +22,11 @@ class PushNotificationService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      // Gestione refresh del token
+      _fcm.onTokenRefresh.listen((newToken) {
+        _saveTokenToDatabase(newToken);
+      });
+
       // Registra il token
       await _registerDeviceToken();
 
@@ -38,15 +42,16 @@ class PushNotificationService {
         _handleNotificationClick(message);
       });
 
-      // Gestione refresh del token
-      _fcm.onTokenRefresh.listen((newToken) {
-        _saveTokenToDatabase(newToken);
-      });
     }
   }
 
   Future<void> _registerDeviceToken() async {
     try {
+      if ((Platform.isIOS || Platform.isMacOS) &&
+          await _fcm.getAPNSToken() == null) {
+        // onTokenRefresh salva il token quando la registrazione APNs è pronta.
+        return;
+      }
       final token = await _fcm.getToken();
       if (token != null) {
         await _saveTokenToDatabase(token);

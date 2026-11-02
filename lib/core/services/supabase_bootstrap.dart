@@ -7,6 +7,19 @@ class SupabaseBootstrap {
   static bool get isInitialized => _initialized;
   static late final String r2PublicUrl;
 
+  static String? resolveR2Url(String? storagePath) {
+    if (storagePath == null || storagePath.trim().isEmpty) return null;
+    final value = storagePath.trim();
+    if (value.startsWith('https://') ||
+        value.startsWith('http://') ||
+        value.startsWith('assets/')) {
+      return value;
+    }
+    final base = r2PublicUrl.replaceFirst(RegExp(r'/+$'), '');
+    if (base.isEmpty) return null;
+    return '$base/${value.replaceFirst(RegExp(r'^/+'), '')}';
+  }
+
   static Future<void> initialize() async {
     if (_initialized) return;
 

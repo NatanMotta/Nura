@@ -142,12 +142,20 @@ class AudioPreviewService with WidgetsBindingObserver {
       }
       _currentHandle = null;
 
-      // Caricamento asincrono con delega assoluta della memoria
-      final AudioSource temporarySource = await SoLoud.instance.loadAsset(
-        assetPath,
-        mode: LoadMode.memory,
-        autoDispose: true,
-      );
+      final AudioSource temporarySource;
+      if (assetPath.startsWith('https://') || assetPath.startsWith('http://')) {
+        temporarySource = await SoLoud.instance.loadUrl(
+          assetPath,
+          mode: LoadMode.memory,
+          autoDispose: true,
+        );
+      } else {
+        temporarySource = await SoLoud.instance.loadAsset(
+          assetPath,
+          mode: LoadMode.memory,
+          autoDispose: true,
+        );
+      }
 
       if (thisRequestId != _loadRequestId) {
         // Obsoleto, la risorsa andrebbe scartata ma autoDispose ci pensa se lanciamo play e poi stop,

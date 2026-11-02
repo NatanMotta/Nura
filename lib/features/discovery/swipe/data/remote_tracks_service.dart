@@ -18,7 +18,9 @@ class RemoteTracksService {
 
     final rows = await client
         .from('tracks')
-        .select('id,title,genre,duration_seconds,audio_url,cover_url,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+        .select('id,title,genre,duration_seconds,storage_path,cover_image_asset,artist_id,profiles!tracks_artist_id_fkey(display_name)')
+        .eq('transcoding_status', 'ready')
+        .not('storage_path', 'is', null)
         .order('created_at', ascending: false)
         .limit(limit);
 
@@ -40,8 +42,8 @@ class RemoteTracksService {
     final title = (row['title'] as String?) ?? 'Untitled';
     final genre = (row['genre'] as String?) ?? 'demo';
     final durationSeconds = (row['duration_seconds'] as int?) ?? 15;
-    final audioUrl = row['audio_url'] as String?;
-    final coverUrl = row['cover_url'] as String?;
+    final audioUrl = row['storage_path'] as String?;
+    final coverUrl = row['cover_image_asset'] as String?;
     final localAudioAsset = _localAssetFromStoragePath(audioUrl);
     final localCoverAsset = _localCoverFromStoragePath(audioUrl) ?? coverUrl;
     final artistId = row['artist_id'] as String?;
@@ -63,25 +65,9 @@ class RemoteTracksService {
       _colorFromHue(hue),
       _mmss(durationSeconds),
       artistId: artistId,
-      audioAsset: _buildCloudflareUrl(audioUrl) ?? localAudioAsset,
-      coverAsset: _buildCloudflareUrl(coverUrl) ?? localCoverAsset,
+      audioAsset: SupabaseBootstrap.resolveR2Url(audioUrl) ?? localAudioAsset,
+      coverAsset: SupabaseBootstrap.resolveR2Url(coverUrl) ?? localCoverAsset,
     );
-  }
-
-  String? _buildCloudflareUrl(String? storagePath) {
-    if (storagePath == null || storagePath.isEmpty) return null;
-    if (storagePath.startsWith('http')) return storagePath; // already full URL
-    
-    final baseUrl = SupabaseBootstrap.r2PublicUrl;
-    if (baseUrl.isEmpty) {
-      debugPrint('NURA: R2_PUBLIC_URL non configurato. Fallback alle tracce finte.');
-      return null;
-    }
-    
-    // Assicuriamoci di unire i path correttamente
-    final safeBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
-    final safePath = storagePath.startsWith('/') ? storagePath : '/$storagePath';
-    return '$safeBase$safePath';
   }
 
   String? _localAssetFromStoragePath(String? storagePath) {
