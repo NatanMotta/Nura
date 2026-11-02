@@ -62,12 +62,19 @@ echo "==> Flutter analyze"
 flutter analyze --no-fatal-infos lib test
 
 echo "==> Building IPA (build-name=${BUILD_NAME}, build-number=${BUILD_NUMBER})"
-flutter build ipa \
+# Xcode richiede rsync di macOS anche nei processi figli.
+PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH" flutter build ipa \
   --release \
   --build-name="${BUILD_NAME}" \
   --build-number="${BUILD_NUMBER}" \
   --dart-define=SUPABASE_URL="${SUPABASE_URL}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY}"
+
+ipa_files=(build/ios/ipa/*.ipa)
+if [[ ! -s "${ipa_files[0]}" ]]; then
+  echo "ERROR: IPA non creata. Controlla gli errori exportArchive di Xcode."
+  exit 1
+fi
 
 echo "$BUILD_NUMBER" > "$BUILD_STATE_FILE"
 

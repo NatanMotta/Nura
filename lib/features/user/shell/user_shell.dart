@@ -11,6 +11,7 @@ import '../../discovery/swipe/presentation/screens/home_feed.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../events/presentation/screens/empty_events_tab.dart';
+import '../../artist/submissions/presentation/screens/artist_pitch_screen.dart';
 import '../../shared/presentation/providers/user_role_provider.dart';
 import '../profile/presentation/screens/home_profile.dart';
 import '../search/presentation/screens/home_search.dart';
@@ -102,6 +103,7 @@ class _UserShellState extends State<UserShell> {
 
     final int currentIndex = switch (_screen) {
       RouteNames.search => 1,
+      RouteNames.pitch => 5,
       'events' => 2,
       _artistProfileRoute => 3,
       RouteNames.profile => 4,
@@ -110,6 +112,7 @@ class _UserShellState extends State<UserShell> {
 
     final String? headerTitle = switch (_screen) {
       RouteNames.search => 'Cerca',
+      RouteNames.pitch => 'Invio Pitch',
       'events' => 'Eventi',
       RouteNames.profile => null,
       _artistProfileRoute => null,
@@ -203,6 +206,18 @@ class _UserShellState extends State<UserShell> {
               key: const PageStorageKey('home_profile'),
               vibe: widget.vibe,
               accent: widget.accent,
+              safeTop: safeTop,
+              safeBottom: safeBottom,
+            ),
+          ),
+        ),
+        TickerMode(
+          enabled: currentIndex == 5,
+          child: IgnorePointer(
+            ignoring: currentIndex != 5,
+            child: ArtistPitchScreen(
+              key: const PageStorageKey('artist_pitch'),
+              isActive: _screen == RouteNames.pitch,
               safeTop: safeTop,
               safeBottom: safeBottom,
             ),

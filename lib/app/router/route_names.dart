@@ -4,4 +4,5 @@ class RouteNames {
   static const home = 'home';
   static const search = 'search';
   static const profile = 'profile';
+  static const pitch = 'artist_pitch';
 }

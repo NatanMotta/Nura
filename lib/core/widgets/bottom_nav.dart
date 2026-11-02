@@ -39,7 +39,7 @@ class BottomNav extends StatelessWidget {
         const [
           BottomNavItem(RouteNames.home, 'Home', Icons.home_rounded),
           BottomNavItem(RouteNames.search, 'Cerca', Icons.search_rounded),
-          BottomNavItem('artist_pitch', 'Pitch', Icons.music_note_rounded),
+          BottomNavItem(RouteNames.pitch, 'Pitch', Icons.music_note_rounded),
           BottomNavItem('events', 'Eventi', Icons.event_rounded),
         ];
 

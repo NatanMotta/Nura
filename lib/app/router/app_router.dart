@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../features/discovery/swipe/presentation/screens/home_feed.dart';
+import '../../features/artist/submissions/presentation/screens/artist_pitch_screen.dart';
 import '../../features/user/profile/presentation/screens/home_profile.dart';
 import '../../features/user/search/presentation/screens/home_search.dart';
 import '../theme/app_theme.dart';
@@ -15,6 +16,10 @@ Widget buildCurrentScreen({
   required double safeBottom,
 }) {
   return switch (screen) {
+    RouteNames.pitch => ArtistPitchScreen(
+        safeTop: safeTop,
+        safeBottom: safeBottom,
+      ),
     RouteNames.search => HomeSearch(
         vibe: vibe,
         accent: accent,

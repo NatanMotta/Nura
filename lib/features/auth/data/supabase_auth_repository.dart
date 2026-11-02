@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../../core/services/supabase_bootstrap.dart';
@@ -12,8 +12,12 @@ import '../domain/auth_repository.dart';
 import '../domain/auth_user.dart';
 
 class SupabaseAuthRepository implements AuthRepository {
-  SupabaseClient? get _client =>
-      SupabaseBootstrap.isInitialized ? Supabase.instance.client : null;
+  SupabaseAuthRepository({SupabaseClient? client}) : _providedClient = client;
+
+  final SupabaseClient? _providedClient;
+
+  SupabaseClient? get _client => _providedClient ??
+      (SupabaseBootstrap.isInitialized ? Supabase.instance.client : null);
 
   SupabaseClient _requireClient() {
     final client = _client;
@@ -113,31 +117,15 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn(
-      serverClientId: 'MOCK_WEB_CLIENT_ID', // DA CONFIGURARE SU SUPABASE
-    );
-    final googleUser = await googleSignIn.signIn();
-    if (googleUser == null) throw Exception('Google Sign In annullato');
-
-    final googleAuth = await googleUser.authentication;
-    final accessToken = googleAuth.accessToken;
-    final idToken = googleAuth.idToken;
-
-    if (accessToken == null || idToken == null) {
-      throw Exception('Token mancanti dal Google Sign In');
-    }
-
     final client = _requireClient();
-    final response = await client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: accessToken,
+    final launched = await client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? null : 'it.nuralabs.nura://login-callback/',
+      authScreenLaunchMode: LaunchMode.externalApplication,
     );
-
-    final user = response.user;
-    if (user == null) throw Exception('Login Supabase con Google fallito');
-
-    await _ensureProfile(user);
+    if (!launched) {
+      throw Exception('Impossibile aprire Google. Riprova.');
+    }
   }
 
   @override
@@ -175,7 +163,6 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     final client = _requireClient();
-    await GoogleSignIn().signOut().catchError((_) => null);
     await client.auth.signOut();
   }
 

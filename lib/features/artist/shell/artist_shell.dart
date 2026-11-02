@@ -32,7 +32,7 @@ class ArtistShell extends StatefulWidget {
 }
 
 class _ArtistShellState extends State<ArtistShell> {
-  static const _pitch = 'artist_pitch';
+  static const _pitch = RouteNames.pitch;
   static const _artistProfileRoute = 'artist_profile';
 
   // State maps per tab

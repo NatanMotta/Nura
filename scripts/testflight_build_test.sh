@@ -27,6 +27,13 @@ fi
 if [[ "$1" == "build" && "${FLUTTER_FAIL_BUILD:-0}" == "1" ]]; then
   exit 1
 fi
+if [[ "$1" == "build" ]]; then
+  [[ "$(command -v rsync)" == "/usr/bin/rsync" ]] || exit 1
+  if [[ "${FLUTTER_NO_IPA:-0}" != "1" ]]; then
+    mkdir -p build/ios/ipa
+    printf 'test IPA' > build/ios/ipa/NURA.ipa
+  fi
+fi
 MOCK
 chmod +x "$TEST_DIR/flutter"
 
@@ -43,6 +50,11 @@ bash "$TEST_PROJECT_DIR/scripts/testflight_build.sh" 42 > /dev/null
 
 if FLUTTER_FAIL_BUILD=1 bash "$TEST_PROJECT_DIR/scripts/testflight_build.sh" > /dev/null; then
   echo 'ERROR: failed build should fail the script'; exit 1
+fi
+[[ "$(cat "$BUILD_STATE_FILE")" == "42" ]]
+
+if FLUTTER_NO_IPA=1 bash "$TEST_PROJECT_DIR/scripts/testflight_build.sh" > /dev/null; then
+  echo 'ERROR: missing IPA should fail even if Flutter exits successfully'; exit 1
 fi
 [[ "$(cat "$BUILD_STATE_FILE")" == "42" ]]
 
